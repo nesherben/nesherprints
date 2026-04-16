@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../theme/app_colors.dart';
+import '../../core/theme/app_colors.dart';
 
 class DashboardView extends StatelessWidget {
   final List<Map<String, dynamic>> orders;

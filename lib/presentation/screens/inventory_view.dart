@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+import '../../core/theme/app_colors.dart';
 
 class InventoryView extends StatefulWidget {
   const InventoryView({super.key});
@@ -10,8 +10,8 @@ class InventoryView extends StatefulWidget {
 
 class _InventoryViewState extends State<InventoryView> {
   // --- MOCK DATA: RESIN ---
-  double _tankLiters = 1.2; 
-  double _averagePricePerLiter = 25.0; 
+  double _tankLiters = 1.2;
+  double _averagePricePerLiter = 25.0;
 
   final TextEditingController _litersController = TextEditingController();
   final TextEditingController _totalPriceController = TextEditingController();
@@ -19,7 +19,11 @@ class _InventoryViewState extends State<InventoryView> {
   // --- MOCK DATA: FILAMENTS ---
   final List<Map<String, dynamic>> _filaments = [
     {'name': 'PLA Pro Black', 'stock': 850, 'priceKg': 18.00},
-    {'name': 'PETG Red', 'stock': 150, 'priceKg': 20.00}, // Stock bajo intencionado
+    {
+      'name': 'PETG Red',
+      'stock': 150,
+      'priceKg': 20.00,
+    }, // Stock bajo intencionado
     {'name': 'ABS White', 'stock': 450, 'priceKg': 22.00},
     {'name': 'Silk Gold', 'stock': 900, 'priceKg': 25.00},
   ];
@@ -32,7 +36,7 @@ class _InventoryViewState extends State<InventoryView> {
       setState(() {
         double currentTotalValue = _tankLiters * _averagePricePerLiter;
         double newTotalValue = currentTotalValue + paidPrice;
-        
+
         _tankLiters += addedLiters;
         _averagePricePerLiter = newTotalValue / _tankLiters;
       });
@@ -59,14 +63,21 @@ class _InventoryViewState extends State<InventoryView> {
           children: [
             const Text(
               'Inventory Management',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textMain),
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textMain,
+              ),
             ),
             const SizedBox(height: 24),
-            
+
             // ==========================================
             // SECCIÓN 1: TANQUE DE RESINA
             // ==========================================
-            const Text('Resin Tank (Liquid)', style: TextStyle(fontSize: 20, color: AppColors.textMuted)),
+            const Text(
+              'Resin Tank (Liquid)',
+              style: TextStyle(fontSize: 20, color: AppColors.textMuted),
+            ),
             const SizedBox(height: 16),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,15 +89,40 @@ class _InventoryViewState extends State<InventoryView> {
                       padding: const EdgeInsets.all(24.0),
                       child: Column(
                         children: [
-                          const Icon(Icons.water_drop, size: 64, color: AppColors.primary),
+                          const Icon(
+                            Icons.water_drop,
+                            size: 64,
+                            color: AppColors.primary,
+                          ),
                           const SizedBox(height: 16),
-                          const Text('Tank Level', style: TextStyle(color: AppColors.textMuted)),
-                          Text('${_tankLiters.toStringAsFixed(2)} L', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                          const Text(
+                            'Tank Level',
+                            style: TextStyle(color: AppColors.textMuted),
+                          ),
+                          Text(
+                            '${_tankLiters.toStringAsFixed(2)} L',
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           const Divider(height: 32),
-                          const Text('Current Average Cost', style: TextStyle(color: AppColors.textMuted)),
-                          Text('€${_averagePricePerLiter.toStringAsFixed(2)}/L', style: const TextStyle(fontSize: 24, color: AppColors.statusEnProceso)),
+                          const Text(
+                            'Current Average Cost',
+                            style: TextStyle(color: AppColors.textMuted),
+                          ),
+                          Text(
+                            '€${_averagePricePerLiter.toStringAsFixed(2)}/L',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              color: AppColors.statusEnProceso,
+                            ),
+                          ),
                           const SizedBox(height: 8),
-                          Text('(€${(_averagePricePerLiter / 1000).toStringAsFixed(4)}/ml)', style: const TextStyle(color: AppColors.textMuted)),
+                          Text(
+                            '(€${(_averagePricePerLiter / 1000).toStringAsFixed(4)}/ml)',
+                            style: const TextStyle(color: AppColors.textMuted),
+                          ),
                         ],
                       ),
                     ),
@@ -101,7 +137,13 @@ class _InventoryViewState extends State<InventoryView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Add New Bottle', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                          const Text(
+                            'Add New Bottle',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           const SizedBox(height: 24),
                           Row(
                             children: [
@@ -113,7 +155,10 @@ class _InventoryViewState extends State<InventoryView> {
                                     border: OutlineInputBorder(),
                                     prefixIcon: Icon(Icons.scale),
                                   ),
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -125,7 +170,10 @@ class _InventoryViewState extends State<InventoryView> {
                                     border: OutlineInputBorder(),
                                     prefixIcon: Icon(Icons.euro),
                                   ),
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
                                 ),
                               ),
                             ],
@@ -137,10 +185,16 @@ class _InventoryViewState extends State<InventoryView> {
                             child: ElevatedButton.icon(
                               onPressed: _registerPurchase,
                               icon: const Icon(Icons.add_circle),
-                              label: const Text('Mix into Tank', style: TextStyle(fontSize: 16)),
-                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.background),
+                              label: const Text(
+                                'Mix into Tank',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: AppColors.background,
+                              ),
                             ),
-                          )
+                          ),
                         ],
                       ),
                     ),
@@ -148,28 +202,35 @@ class _InventoryViewState extends State<InventoryView> {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 40),
-            
+
             // ==========================================
             // SECCIÓN 2: FILAMENTOS (Sólidos)
             // ==========================================
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Filament Spools (Solid)', style: TextStyle(fontSize: 20, color: AppColors.textMuted)),
+                const Text(
+                  'Filament Spools (Solid)',
+                  style: TextStyle(fontSize: 20, color: AppColors.textMuted),
+                ),
                 ElevatedButton.icon(
                   onPressed: () {},
                   icon: const Icon(Icons.add),
                   label: const Text('Add Spool'),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: AppColors.textMain),
-                )
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: AppColors.textMain,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),
-            
+
             GridView.builder(
-              shrinkWrap: true, // Importante para que no de error dentro de un ScrollView
+              shrinkWrap:
+                  true, // Importante para que no de error dentro de un ScrollView
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 4, // 4 tarjetas por fila
@@ -181,10 +242,15 @@ class _InventoryViewState extends State<InventoryView> {
               itemBuilder: (context, index) {
                 final filament = _filaments[index];
                 final isLowStock = filament['stock'] < 200; // Lógica de alerta
-                
+
                 return Card(
                   shape: RoundedRectangleBorder(
-                    side: BorderSide(color: isLowStock ? AppColors.alertBajoStock : Colors.transparent, width: 2),
+                    side: BorderSide(
+                      color: isLowStock
+                          ? AppColors.alertBajoStock
+                          : Colors.transparent,
+                      width: 2,
+                    ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Padding(
@@ -193,26 +259,44 @@ class _InventoryViewState extends State<InventoryView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(filament['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(
+                          filament['name'],
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              '${filament['stock']}g', 
+                              '${filament['stock']}g',
                               style: TextStyle(
-                                fontSize: 28, 
+                                fontSize: 28,
                                 fontWeight: FontWeight.bold,
-                                color: isLowStock ? AppColors.alertBajoStock : AppColors.textMain
+                                color: isLowStock
+                                    ? AppColors.alertBajoStock
+                                    : AppColors.textMain,
                               ),
                             ),
                             const SizedBox(width: 8),
-                            if (isLowStock) 
-                              const Icon(Icons.warning_amber_rounded, color: AppColors.alertBajoStock, size: 20),
+                            if (isLowStock)
+                              const Icon(
+                                Icons.warning_amber_rounded,
+                                color: AppColors.alertBajoStock,
+                                size: 20,
+                              ),
                           ],
                         ),
                         const Spacer(),
-                        Text('Cost: €${filament['priceKg']}/kg', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                        Text(
+                          'Cost: €${filament['priceKg']}/kg',
+                          style: const TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ),

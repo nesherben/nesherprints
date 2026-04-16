@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:nesherprints/widgets/order_dialog.dart';
-import '../theme/app_colors.dart';
+import 'package:nesherprints/presentation/widgets/order_dialog.dart';
+import '../../core/theme/app_colors.dart';
 
 class OrdersView extends StatefulWidget {
   final List<Map<String, dynamic>> orders;
@@ -168,11 +168,9 @@ class _OrdersViewState extends State<OrdersView> {
                     (s) => Chip(
                       label: Text(s, style: const TextStyle(fontSize: 12)),
                       onDeleted: () => _toggleStatus(s),
-                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      backgroundColor: AppColors.primary.withAlpha(25),
                       deleteIconColor: AppColors.primary,
-                      side: BorderSide(
-                        color: AppColors.primary.withOpacity(0.2),
-                      ),
+                      side: BorderSide(color: AppColors.primary.withAlpha(51)),
                     ),
                   )
                   .toList(),
@@ -331,9 +329,9 @@ class _OrdersViewState extends State<OrdersView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withAlpha(25),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withAlpha(128)),
       ),
       child: Text(
         status,

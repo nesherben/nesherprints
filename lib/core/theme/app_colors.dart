@@ -4,12 +4,18 @@ class AppColors {
   // Colores Principales (Brand)
   static const Color primary = Color(0xFF00ADB5); // Un cyan/teal moderno
   static const Color secondary = Color(0xFF393E46); // Gris oscuro
-  static const Color background = Color(0xFF222831); // Fondo principal muy oscuro
-  static const Color surface = Color(0xFF2D333B); // Fondo para tarjetas/paneles (un poco más claro)
+  static const Color background = Color(
+    0xFF222831,
+  ); // Fondo principal muy oscuro
+  static const Color surface = Color(
+    0xFF2D333B,
+  ); // Fondo para tarjetas/paneles (un poco más claro)
 
   // Colores de Texto
   static const Color textMain = Color(0xFFEEEEEE); // Blanco humo
-  static const Color textMuted = Color(0xFF9E9E9E); // Gris para texto secundario
+  static const Color textMuted = Color(
+    0xFF9E9E9E,
+  ); // Gris para texto secundario
 
   // Colores Semánticos (Para tus Status de Pedidos)
   static const Color statusCompletado = Color(0xFF4CAF50); // Verde

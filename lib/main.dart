@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'theme/app_colors.dart';
-import 'screens/dashboard_view.dart';
-import 'screens/inventory_view.dart';
-import 'screens/orders_view.dart';
-import 'widgets/order_dialog.dart'; // <--- Importante: Importar el diálogo
+import 'core/theme/app_colors.dart';
+import 'presentation/screens/dashboard_view.dart';
+import 'presentation/screens/inventory_view.dart';
+import 'presentation/screens/orders_view.dart';
+import 'presentation/widgets/order_dialog.dart'; // <--- Importante: Importar el diálogo
 
 void main() {
   runApp(const NesherPrintsApp());
