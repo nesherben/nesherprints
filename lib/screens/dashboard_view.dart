@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../theme/app_colors.dart';
 
 class DashboardView extends StatelessWidget {
@@ -8,20 +9,26 @@ class DashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // --- LÓGICA DE CÁLCULO REAL ---
-    double totalRevenue = 0;
-    int completedOrders = 0;
+    // --- LÓGICA DE DATOS PARA EL GRÁFICO ---
+    // Agrupamos ingresos por mes (1-12)
+    Map<int, double> monthlyRevenue = {for (var i = 1; i <= 12; i++) i: 0.0};
 
-    for (var order in orders) {
-      if (order['status'] == 'Completed' || order['status'] == 'Shipped') {
-        totalRevenue += order['price'];
-        completedOrders++;
+    double totalRevenue = 0;
+    int completedCount = 0;
+
+    for (var o in orders) {
+      if (o['status'] == 'Completed' || o['status'] == 'Shipped') {
+        double price = (o['price'] as num).toDouble();
+        totalRevenue += price;
+        completedCount++;
+
+        // Extraer mes de la fecha "2026-03-28"
+        try {
+          int month = int.parse(o['date'].split('-')[1]);
+          monthlyRevenue[month] = (monthlyRevenue[month] ?? 0) + price;
+        } catch (_) {}
       }
     }
-
-    // Supongamos un gasto fijo del 40% para el ejemplo del beneficio
-    double estimatedExpenses = totalRevenue * 0.40;
-    double netProfit = totalRevenue - estimatedExpenses;
 
     return Padding(
       padding: const EdgeInsets.all(32.0),
@@ -37,43 +44,132 @@ class DashboardView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+
+          // TARJETAS SUPERIORES
           Row(
             children: [
               _buildStatCard(
-                'Total Revenue',
+                'Revenue',
                 '€${totalRevenue.toStringAsFixed(2)}',
                 AppColors.statusReservado,
               ),
               _buildStatCard(
-                'Net Profit (Est.)',
-                '€${netProfit.toStringAsFixed(2)}',
+                'Profit (Est.)',
+                '€${(totalRevenue * 0.6).toStringAsFixed(2)}',
                 AppColors.statusCompletado,
               ),
+              _buildStatCard('Jobs Done', '$completedCount', AppColors.primary),
               _buildStatCard(
-                'Completed Jobs',
-                '$completedOrders',
-                AppColors.primary,
-              ),
-              _buildStatCard(
-                'Active Projects',
-                '${orders.length - completedOrders}',
+                'Active',
+                '${orders.length - completedCount}',
                 AppColors.statusEnProceso,
               ),
             ],
           ),
+
           const SizedBox(height: 40),
-          const Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.auto_graph, size: 80, color: AppColors.secondary),
-                  SizedBox(height: 16),
-                  Text(
-                    "Analytics will sync with your orders history",
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 18),
+          const Text(
+            'Monthly Revenue Performance',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // --- EL GRÁFICO ---
+          Expanded(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 40, 24, 16),
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: (totalRevenue > 0)
+                        ? totalRevenue * 1.2
+                        : 100, // Ajuste dinámico de altura
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (_) => AppColors.secondary,
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                          return BarTooltipItem(
+                            '€${rod.toY.toStringAsFixed(2)}',
+                            const TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            const months = [
+                              'Jan',
+                              'Feb',
+                              'Mar',
+                              'Apr',
+                              'May',
+                              'Jun',
+                              'Jul',
+                              'Aug',
+                              'Sep',
+                              'Oct',
+                              'Nov',
+                              'Dec',
+                            ];
+                            return Text(
+                              months[value.toInt() - 1],
+                              style: const TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 12,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                    ),
+                    gridData: const FlGridData(show: false),
+                    borderData: FlBorderData(show: false),
+                    barGroups: monthlyRevenue.entries.map((entry) {
+                      return BarChartGroupData(
+                        x: entry.key,
+                        barRods: [
+                          BarChartRodData(
+                            toY: entry.value,
+                            color: AppColors.primary,
+                            width: 25,
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(6),
+                            ),
+                            backDrawRodData: BackgroundBarChartRodData(
+                              show: true,
+                              toY: (totalRevenue > 0)
+                                  ? totalRevenue * 1.2
+                                  : 100,
+                              color: AppColors.background,
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
                   ),
-                ],
+                ),
               ),
             ),
           ),

@@ -81,6 +81,18 @@ class _MainNavigationState extends State<MainNavigation> {
     });
   }
 
+  void _updateOrder(
+    Map<String, dynamic> oldOrder,
+    Map<String, dynamic> updatedOrder,
+  ) {
+    setState(() {
+      final index = _allOrders.indexOf(oldOrder);
+      if (index != -1) {
+        _allOrders[index] = updatedOrder;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
@@ -88,7 +100,8 @@ class _MainNavigationState extends State<MainNavigation> {
       const InventoryView(),
       OrdersView(
         orders: _allOrders,
-        onDelete: _deleteOrder, // <--- Pasamos la función de borrar
+        onDelete: _deleteOrder,
+        onUpdate: _updateOrder, // <--- Nueva función
       ),
     ];
     return Scaffold(

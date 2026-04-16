@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:nesherprints/widgets/order_dialog.dart';
 import '../theme/app_colors.dart';
 
 class OrdersView extends StatefulWidget {
   final List<Map<String, dynamic>> orders;
   final Function(Map<String, dynamic>) onDelete;
+  final Function(Map<String, dynamic>, Map<String, dynamic>) onUpdate;
 
-  const OrdersView({super.key, required this.orders, required this.onDelete});
+  const OrdersView({
+    super.key,
+    required this.orders,
+    required this.onDelete,
+    required this.onUpdate,
+  });
 
   @override
   State<OrdersView> createState() => _OrdersViewState();
@@ -272,6 +279,25 @@ class _OrdersViewState extends State<OrdersView> {
                             DataCell(
                               Row(
                                 children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit_outlined,
+                                      color: AppColors.statusReservado,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => showDialog(
+                                      context: context,
+                                      builder: (context) => NewOrderDialog(
+                                        initialOrder:
+                                            o, // Pasamos el pedido actual
+                                        onSave: (updatedOrder) =>
+                                            widget.onUpdate(
+                                              o,
+                                              updatedOrder,
+                                            ), // Guardamos cambios
+                                      ),
+                                    ),
+                                  ),
                                   IconButton(
                                     icon: const Icon(
                                       Icons.delete_outline,
