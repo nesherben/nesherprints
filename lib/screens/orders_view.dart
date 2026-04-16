@@ -1,52 +1,26 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import '../widgets/order_dialog.dart';
 
 class OrdersView extends StatefulWidget {
-  const OrdersView({super.key});
+  // 1. Recibimos la lista de pedidos desde el main.dart
+  final List<Map<String, dynamic>> orders;
+
+  const OrdersView({super.key, required this.orders});
 
   @override
   State<OrdersView> createState() => _OrdersViewState();
 }
 
 class _OrdersViewState extends State<OrdersView> {
-  // Datos temporales
-  final List<Map<String, dynamic>> _allOrders = [
-    {
-      'name': 'Pennywise 40cm',
-      'price': 50.0,
-      'date': '2026-02-10',
-      'status': 'Completed',
-    },
-    {
-      'name': 'Terminator 40cm',
-      'price': 70.0,
-      'date': '2026-02-24',
-      'status': 'In Progress',
-    },
-    {
-      'name': 'D&D Dragon',
-      'price': 120.0,
-      'date': '2026-03-01',
-      'status': 'Reserved',
-    },
-    {
-      'name': 'Miniature Set',
-      'price': 35.0,
-      'date': '2026-03-05',
-      'status': 'Draft',
-    },
-  ];
-
   final Set<String> _selectedStatuses = {};
   String _searchQuery = "";
 
   final TextEditingController _searchController = TextEditingController();
   final MenuController _menuController = MenuController();
 
-  // Lógica de filtrado calculada
+  // 2. Usamos 'widget.orders' para filtrar los datos reales
   List<Map<String, dynamic>> get _filteredOrders {
-    return _allOrders.where((order) {
+    return widget.orders.where((order) {
       final matchesSearch = order['name'].toLowerCase().contains(
         _searchQuery.toLowerCase(),
       );
@@ -67,15 +41,12 @@ class _OrdersViewState extends State<OrdersView> {
     });
   }
 
-  // --- FUNCIÓN DE RESET CORREGIDA ---
   void _resetFilters() {
     setState(() {
-      _searchController.text = ""; // Forzamos el texto vacío en el widget
-      _searchQuery = ""; // Limpiamos la variable de búsqueda
-      _selectedStatuses.clear(); // Vaciamos el set de filtros
+      _searchController.text = "";
+      _searchQuery = "";
+      _selectedStatuses.clear();
     });
-
-    // Si el menú estaba abierto, lo cerramos para evitar confusión
     if (_menuController.isOpen) {
       _menuController.close();
     }
@@ -89,7 +60,6 @@ class _OrdersViewState extends State<OrdersView> {
 
   @override
   Widget build(BuildContext context) {
-    // Calculamos si hay algún filtro activo para mostrar el botón
     bool hasActiveFilters =
         _selectedStatuses.isNotEmpty || _searchQuery.isNotEmpty;
 
@@ -109,7 +79,6 @@ class _OrdersViewState extends State<OrdersView> {
                   color: AppColors.textMain,
                 ),
               ),
-              // Botón de Clear All con estilo más visible
               if (hasActiveFilters)
                 TextButton.icon(
                   onPressed: _resetFilters,
@@ -120,21 +89,17 @@ class _OrdersViewState extends State<OrdersView> {
                   ),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.alertBajoStock,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
                 ),
             ],
           ),
           const SizedBox(height: 24),
-
           Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: _searchController,
-                  onChanged: (v) {
-                    setState(() => _searchQuery = v);
-                  },
+                  onChanged: (v) => setState(() => _searchQuery = v),
                   decoration: InputDecoration(
                     hintText: 'Search projects...',
                     prefixIcon: const Icon(Icons.search),
@@ -144,7 +109,6 @@ class _OrdersViewState extends State<OrdersView> {
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
-                    // "X" individual para el buscador
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.close_rounded, size: 20),
@@ -161,8 +125,6 @@ class _OrdersViewState extends State<OrdersView> {
               _buildPersistentFilterMenu(),
             ],
           ),
-
-          // Chips de estado (Filtros acumulados)
           if (_selectedStatuses.isNotEmpty) ...[
             const SizedBox(height: 12),
             Wrap(
@@ -183,7 +145,6 @@ class _OrdersViewState extends State<OrdersView> {
                   .toList(),
             ),
           ],
-
           const SizedBox(height: 16),
           Expanded(child: _buildOrdersTable()),
         ],
@@ -238,7 +199,7 @@ class _OrdersViewState extends State<OrdersView> {
       child: orders.isEmpty
           ? const Center(
               child: Text(
-                "No orders found with current filters",
+                "No orders found",
                 style: TextStyle(color: AppColors.textMuted),
               ),
             )
@@ -262,7 +223,7 @@ class _OrdersViewState extends State<OrdersView> {
                           cells: [
                             DataCell(
                               Text(
-                                o['date'],
+                                o['date'] ?? '-',
                                 style: const TextStyle(
                                   color: AppColors.textMuted,
                                 ),
@@ -270,14 +231,18 @@ class _OrdersViewState extends State<OrdersView> {
                             ),
                             DataCell(
                               Text(
-                                o['name'],
+                                o['name'] ?? 'No name',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
-                            DataCell(Text('€${o['price'].toStringAsFixed(2)}')),
-                            DataCell(_buildStatusBadge(o['status'])),
+                            DataCell(
+                              Text(
+                                '€${(o['price'] as double).toStringAsFixed(2)}',
+                              ),
+                            ),
+                            DataCell(_buildStatusBadge(o['status'] ?? 'Draft')),
                           ],
                         ),
                       )

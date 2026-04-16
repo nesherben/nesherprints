@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import '../models/order_model.dart';
 
 class NewOrderDialog extends StatefulWidget {
-  const NewOrderDialog({super.key});
+  // 1. Definimos que el diálogo DEBE recibir una función al crearse
+  final Function(Map<String, dynamic>) onSave;
+
+  const NewOrderDialog({super.key, required this.onSave});
 
   @override
   State<NewOrderDialog> createState() => _NewOrderDialogState();
@@ -21,13 +23,15 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
   void _calculateEstimate() {
     double grams = double.tryParse(_gramsController.text) ?? 0;
     double plates = double.tryParse(_platesController.text) ?? 1;
+
+    // Tu lógica de costes (puedes ajustarla según necesites)
     double costMaterial = (grams * 18.0) / 1000;
     double costPlates = (plates > 1) ? (plates - 1) * 2.50 : 0;
     double costPaint = _isPainted ? 30.0 : 0.0;
 
-    setState(
-      () => _suggestedPrice = (costMaterial + costPlates) * 1.45 + costPaint,
-    );
+    setState(() {
+      _suggestedPrice = (costMaterial + costPlates) * 1.45 + costPaint;
+    });
   }
 
   @override
@@ -82,6 +86,7 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
+                      // En Flutter es 'value', no 'initialValue' para Dropdowns
                       initialValue: _selectedStatus,
                       decoration: const InputDecoration(
                         labelText: 'Initial Status',
@@ -128,7 +133,19 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // 2. Ahora sí podemos llamar a widget.onSave porque existe arriba
+            widget.onSave({
+              'name': _nameController.text,
+              'price': _suggestedPrice,
+              'date': DateTime.now().toString().split(' ')[0],
+              'status': _selectedStatus,
+              'grams': double.tryParse(_gramsController.text) ?? 0.0,
+              'plates': int.tryParse(_platesController.text) ?? 1,
+              'is_painted': _isPainted ? 1 : 0,
+            });
+            Navigator.pop(context);
+          },
           child: const Text('Save Order'),
         ),
       ],
