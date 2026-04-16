@@ -54,6 +54,23 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // --- ¡ESTE ES EL BOTÓN FLOTANTE GLOBAL! ---
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          // Llama al pop-up que ahora vive en orders_view.dart
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return const NewOrderDialog(); 
+            },
+          );
+        },
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.background,
+        icon: const Icon(Icons.add),
+        label: const Text('New Order'),
+      ),
+      // ------------------------------------------
       body: Row(
         children: [
           // Menú lateral (NavigationRail) configurado con tus colores
