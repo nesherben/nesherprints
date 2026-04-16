@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nesherprints/widgets/order_dialog.dart';
 import 'theme/app_colors.dart';
 import 'screens/inventory_view.dart';
 import 'screens/orders_view.dart';
@@ -61,7 +62,7 @@ class _MainNavigationState extends State<MainNavigation> {
           showDialog(
             context: context,
             builder: (BuildContext context) {
-              return const NewOrderDialog(); 
+              return const NewOrderDialog();
             },
           );
         },
@@ -85,12 +86,16 @@ class _MainNavigationState extends State<MainNavigation> {
             },
             labelType: NavigationRailLabelType.all,
             selectedLabelTextStyle: const TextStyle(
-              color: AppColors.primary, 
-              fontWeight: FontWeight.bold
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
             ),
-            unselectedLabelTextStyle: const TextStyle(color: AppColors.textMuted),
+            unselectedLabelTextStyle: const TextStyle(
+              color: AppColors.textMuted,
+            ),
             selectedIconTheme: const IconThemeData(color: AppColors.primary),
-            unselectedIconTheme: const IconThemeData(color: AppColors.textMuted),
+            unselectedIconTheme: const IconThemeData(
+              color: AppColors.textMuted,
+            ),
             destinations: const [
               NavigationRailDestination(
                 icon: Icon(Icons.dashboard_outlined),
@@ -111,9 +116,7 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
           const VerticalDivider(thickness: 1, width: 1, color: Colors.black26),
           // Área principal donde se carga la pantalla seleccionada
-          Expanded(
-            child: _screens[_selectedIndex],
-          ),
+          Expanded(child: _screens[_selectedIndex]),
         ],
       ),
     );
@@ -132,19 +135,31 @@ class DashboardView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Business Overview', 
+            'Business Overview',
             style: TextStyle(
-              fontSize: 28, 
-              fontWeight: FontWeight.bold, 
-              color: AppColors.textMain
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textMain,
             ),
           ),
           const SizedBox(height: 24),
           Row(
             children: [
-              _buildStatCard('Total Revenue', '1,337.00 €', AppColors.statusReservado),
-              _buildStatCard('Total Expenses', '591.21 €', AppColors.alertBajoStock),
-              _buildStatCard('Net Profit', '634.80 €', AppColors.statusCompletado),
+              _buildStatCard(
+                'Total Revenue',
+                '1,337.00 €',
+                AppColors.statusReservado,
+              ),
+              _buildStatCard(
+                'Total Expenses',
+                '591.21 €',
+                AppColors.alertBajoStock,
+              ),
+              _buildStatCard(
+                'Net Profit',
+                '634.80 €',
+                AppColors.statusCompletado,
+              ),
               _buildStatCard('Margin', '47.48 %', AppColors.statusEnProceso),
             ],
           ),
@@ -177,15 +192,21 @@ class DashboardView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(color: AppColors.textMuted, fontSize: 14)),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 14,
+                ),
+              ),
               const SizedBox(height: 8),
               Text(
-                value, 
+                value,
                 style: TextStyle(
-                  color: accentColor, 
-                  fontSize: 22, 
-                  fontWeight: FontWeight.bold
-                )
+                  color: accentColor,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
