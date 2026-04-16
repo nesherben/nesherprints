@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
-import 'theme/app_colors.dart'; // ¡Aquí llamamos a tus colores!
+import 'theme/app_colors.dart';
+import 'screens/inventory_view.dart';
+import 'screens/orders_view.dart';
 
 void main() {
-  runApp(const Gestion3DApp());
+  runApp(const NesherPrintsApp());
 }
 
-class Gestion3DApp extends StatelessWidget {
-  const Gestion3DApp({super.key});
+class NesherPrintsApp extends StatelessWidget {
+  const NesherPrintsApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ERP Impresión 3D',
+      title: 'NesherPrints ERP',
       debugShowCheckedModeBanner: false,
-      // AQUÍ INYECTAMOS TU PALETA DE COLORES A TODA LA APP
+      // Aplicamos tu paleta de colores personalizada a toda la aplicación
       theme: ThemeData(
         scaffoldBackgroundColor: AppColors.background,
         colorScheme: ColorScheme.fromSeed(
@@ -27,26 +29,26 @@ class Gestion3DApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const PantallaPrincipal(),
+      home: const MainNavigation(),
     );
   }
 }
 
-class PantallaPrincipal extends StatefulWidget {
-  const PantallaPrincipal({super.key});
+class MainNavigation extends StatefulWidget {
+  const MainNavigation({super.key});
 
   @override
-  State<PantallaPrincipal> createState() => _PantallaPrincipalState();
+  State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _PantallaPrincipalState extends State<PantallaPrincipal> {
-  int _indiceSeleccionado = 0;
+class _MainNavigationState extends State<MainNavigation> {
+  int _selectedIndex = 0;
 
-  // Las pantallas de tu app
-  final List<Widget> _pantallas = [
+  // Lista de pantallas importadas de la carpeta 'screens'
+  final List<Widget> _screens = [
     const DashboardView(),
-    const InventarioView(),
-    const PedidosView(),
+    const InventoryView(),
+    const OrdersView(),
   ];
 
   @override
@@ -54,18 +56,21 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     return Scaffold(
       body: Row(
         children: [
-          // MENÚ LATERAL (Navigation Rail)
+          // Menú lateral (NavigationRail) configurado con tus colores
           NavigationRail(
-            backgroundColor: AppColors.secondary, // Color oscuro para el menú
-            indicatorColor: AppColors.primary.withOpacity(0.2), // Resaltado sutil
-            selectedIndex: _indiceSeleccionado,
+            backgroundColor: AppColors.secondary,
+            indicatorColor: AppColors.primary.withOpacity(0.2),
+            selectedIndex: _selectedIndex,
             onDestinationSelected: (int index) {
               setState(() {
-                _indiceSeleccionado = index;
+                _selectedIndex = index;
               });
             },
             labelType: NavigationRailLabelType.all,
-            selectedLabelTextStyle: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+            selectedLabelTextStyle: const TextStyle(
+              color: AppColors.primary, 
+              fontWeight: FontWeight.bold
+            ),
             unselectedLabelTextStyle: const TextStyle(color: AppColors.textMuted),
             selectedIconTheme: const IconThemeData(color: AppColors.primary),
             unselectedIconTheme: const IconThemeData(color: AppColors.textMuted),
@@ -78,21 +83,19 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
               NavigationRailDestination(
                 icon: Icon(Icons.inventory_2_outlined),
                 selectedIcon: Icon(Icons.inventory_2),
-                label: Text('Inventario'),
+                label: Text('Inventory'),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.receipt_long_outlined),
                 selectedIcon: Icon(Icons.receipt_long),
-                label: Text('Pedidos'),
+                label: Text('Orders'),
               ),
             ],
           ),
-          // CONTENIDO PRINCIPAL
+          const VerticalDivider(thickness: 1, width: 1, color: Colors.black26),
+          // Área principal donde se carga la pantalla seleccionada
           Expanded(
-            child: Container(
-              color: AppColors.background,
-              child: _pantallas[_indiceSeleccionado],
-            ),
+            child: _screens[_selectedIndex],
           ),
         ],
       ),
@@ -100,11 +103,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   }
 }
 
-// =========================================================
-// PANTALLAS (Vistas)
-// =========================================================
-
-// --- PANTALLA 1: DASHBOARD ---
+// Mantenemos el Dashboard aquí por ahora para no crear demasiados archivos
 class DashboardView extends StatelessWidget {
   const DashboardView({super.key});
 
@@ -116,24 +115,35 @@ class DashboardView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Resumen Financiero', 
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textMain),
+            'Business Overview', 
+            style: TextStyle(
+              fontSize: 28, 
+              fontWeight: FontWeight.bold, 
+              color: AppColors.textMain
+            ),
           ),
           const SizedBox(height: 24),
           Row(
             children: [
-              _crearTarjeta('Ingresos', '1.337,00 €', AppColors.statusReservado),
-              _crearTarjeta('Gastos', '591,21 €', AppColors.alertBajoStock),
-              _crearTarjeta('Beneficio Neto', '634,80 €', AppColors.statusCompletado),
-              _crearTarjeta('Margen', '47.48 %', AppColors.statusEnProceso),
+              _buildStatCard('Total Revenue', '1,337.00 €', AppColors.statusReservado),
+              _buildStatCard('Total Expenses', '591.21 €', AppColors.alertBajoStock),
+              _buildStatCard('Net Profit', '634.80 €', AppColors.statusCompletado),
+              _buildStatCard('Margin', '47.48 %', AppColors.statusEnProceso),
             ],
           ),
           const SizedBox(height: 40),
-          Expanded(
+          const Expanded(
             child: Center(
-              child: Text(
-                "Espacio reservado para el Gráfico Mensual 📊",
-                style: TextStyle(color: AppColors.textMuted.withOpacity(0.5), fontSize: 20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.bar_chart, size: 80, color: AppColors.secondary),
+                  SizedBox(height: 16),
+                  Text(
+                    "Charts and Analytics will appear here",
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 18),
+                  ),
+                ],
               ),
             ),
           ),
@@ -142,8 +152,7 @@ class DashboardView extends StatelessWidget {
     );
   }
 
-  // Widget reutilizable para las tarjetas del dashboard
-  Widget _crearTarjeta(String titulo, String valor, Color colorAcento) {
+  Widget _buildStatCard(String title, String value, Color accentColor) {
     return Expanded(
       child: Card(
         child: Padding(
@@ -151,43 +160,20 @@ class DashboardView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(title, style: const TextStyle(color: AppColors.textMuted, fontSize: 14)),
+              const SizedBox(height: 8),
               Text(
-                titulo, 
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 16),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                valor, 
-                style: TextStyle(color: colorAcento, fontSize: 24, fontWeight: FontWeight.bold),
+                value, 
+                style: TextStyle(
+                  color: accentColor, 
+                  fontSize: 22, 
+                  fontWeight: FontWeight.bold
+                )
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-// --- PANTALLA 2: INVENTARIO (Estructura base) ---
-class InventarioView extends StatelessWidget {
-  const InventarioView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text('🛢️ Sección de Tanque de Resina y Filamentos', style: TextStyle(color: AppColors.textMain, fontSize: 24)),
-    );
-  }
-}
-
-// --- PANTALLA 3: PEDIDOS (Estructura base) ---
-class PedidosView extends StatelessWidget {
-  const PedidosView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text('📋 Tabla histórica y formulario de nuevos encargos', style: TextStyle(color: AppColors.textMain, fontSize: 24)),
     );
   }
 }
