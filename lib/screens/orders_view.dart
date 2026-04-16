@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 class OrdersView extends StatefulWidget {
-  // 1. Recibimos la lista de pedidos desde el main.dart
   final List<Map<String, dynamic>> orders;
+  final Function(Map<String, dynamic>) onDelete;
 
-  const OrdersView({super.key, required this.orders});
+  const OrdersView({super.key, required this.orders, required this.onDelete});
 
   @override
   State<OrdersView> createState() => _OrdersViewState();
@@ -14,11 +14,9 @@ class OrdersView extends StatefulWidget {
 class _OrdersViewState extends State<OrdersView> {
   final Set<String> _selectedStatuses = {};
   String _searchQuery = "";
-
   final TextEditingController _searchController = TextEditingController();
   final MenuController _menuController = MenuController();
 
-  // 2. Usamos 'widget.orders' para filtrar los datos reales
   List<Map<String, dynamic>> get _filteredOrders {
     return widget.orders.where((order) {
       final matchesSearch = order['name'].toLowerCase().contains(
@@ -47,21 +45,48 @@ class _OrdersViewState extends State<OrdersView> {
       _searchQuery = "";
       _selectedStatuses.clear();
     });
-    if (_menuController.isOpen) {
-      _menuController.close();
-    }
+    if (_menuController.isOpen) _menuController.close();
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  // --- DIÁLOGO DE CONFIRMACIÓN ---
+  void _confirmDelete(BuildContext context, Map<String, dynamic> order) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Confirm Delete'),
+        content: Text(
+          'Are you sure you want to delete "${order['name']}"? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textMuted),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.statusCancelado,
+            ),
+            onPressed: () {
+              widget.onDelete(order);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Order deleted successfully')),
+              );
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    bool hasActiveFilters =
-        _selectedStatuses.isNotEmpty || _searchQuery.isNotEmpty;
+    bool hasFilters = _selectedStatuses.isNotEmpty || _searchQuery.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.all(32.0),
@@ -79,7 +104,7 @@ class _OrdersViewState extends State<OrdersView> {
                   color: AppColors.textMain,
                 ),
               ),
-              if (hasActiveFilters)
+              if (hasFilters)
                 TextButton.icon(
                   onPressed: _resetFilters,
                   icon: const Icon(Icons.filter_alt_off, size: 20),
@@ -111,9 +136,9 @@ class _OrdersViewState extends State<OrdersView> {
                     ),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.close_rounded, size: 20),
+                            icon: const Icon(Icons.close),
                             onPressed: () {
-                              _searchController.text = "";
+                              _searchController.clear();
                               setState(() => _searchQuery = "");
                             },
                           )
@@ -122,14 +147,15 @@ class _OrdersViewState extends State<OrdersView> {
                 ),
               ),
               const SizedBox(width: 16),
-              _buildPersistentFilterMenu(),
+              _buildFilterMenu(),
             ],
           ),
+
+          // RE-AÑADIDOS: LOS CHIPS DE FILTRO
           if (_selectedStatuses.isNotEmpty) ...[
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
-              runSpacing: 8,
               children: _selectedStatuses
                   .map(
                     (s) => Chip(
@@ -145,15 +171,16 @@ class _OrdersViewState extends State<OrdersView> {
                   .toList(),
             ),
           ],
+
           const SizedBox(height: 16),
-          Expanded(child: _buildOrdersTable()),
+          Expanded(child: _buildTable()),
         ],
       ),
     );
   }
 
-  Widget _buildPersistentFilterMenu() {
-    final List<String> options = [
+  Widget _buildFilterMenu() {
+    final options = [
       'Draft',
       'Reserved',
       'In Progress',
@@ -163,44 +190,41 @@ class _OrdersViewState extends State<OrdersView> {
     ];
     return MenuAnchor(
       controller: _menuController,
-      builder: (context, controller, child) {
-        return IconButton.filledTonal(
-          onPressed: () =>
-              controller.isOpen ? controller.close() : controller.open(),
-          icon: Icon(
-            Icons.filter_list,
-            color: _selectedStatuses.isNotEmpty
-                ? AppColors.primary
-                : AppColors.textMuted,
-          ),
-          style: IconButton.styleFrom(
-            backgroundColor: AppColors.surface,
-            padding: const EdgeInsets.all(12),
-          ),
-        );
-      },
       menuChildren: options
           .map(
-            (status) => CheckboxMenuButton(
-              value: _selectedStatuses.contains(status),
-              onChanged: (bool? checked) => _toggleStatus(status),
+            (s) => CheckboxMenuButton(
+              value: _selectedStatuses.contains(s),
+              onChanged: (_) => _toggleStatus(s),
               closeOnActivate: false,
-              child: Text(status),
+              child: Text(s),
             ),
           )
           .toList(),
+      builder: (context, controller, child) => IconButton.filledTonal(
+        onPressed: () =>
+            controller.isOpen ? controller.close() : controller.open(),
+        icon: Icon(
+          Icons.filter_list,
+          color: _selectedStatuses.isNotEmpty
+              ? AppColors.primary
+              : AppColors.textMuted,
+        ),
+        style: IconButton.styleFrom(
+          backgroundColor: AppColors.surface,
+          padding: const EdgeInsets.all(12),
+        ),
+      ),
     );
   }
 
-  Widget _buildOrdersTable() {
+  Widget _buildTable() {
     final orders = _filteredOrders;
-
     return Card(
       child: orders.isEmpty
           ? const Center(
-              child: Text(
-                "No orders found",
-                style: TextStyle(color: AppColors.textMuted),
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: Text("No orders found matching your criteria"),
               ),
             )
           : SingleChildScrollView(
@@ -216,6 +240,7 @@ class _OrdersViewState extends State<OrdersView> {
                     DataColumn(label: Text('Project')),
                     DataColumn(label: Text('Price')),
                     DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('Actions')),
                   ],
                   rows: orders
                       .map(
@@ -231,7 +256,7 @@ class _OrdersViewState extends State<OrdersView> {
                             ),
                             DataCell(
                               Text(
-                                o['name'] ?? 'No name',
+                                o['name'] ?? '',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -239,10 +264,25 @@ class _OrdersViewState extends State<OrdersView> {
                             ),
                             DataCell(
                               Text(
-                                '€${(o['price'] as double).toStringAsFixed(2)}',
+                                '€${(o['price'] ?? 0.0).toStringAsFixed(2)}',
                               ),
                             ),
+                            // RE-AÑADIDO: EL BADGE DE COLOR
                             DataCell(_buildStatusBadge(o['status'] ?? 'Draft')),
+                            DataCell(
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: AppColors.statusCancelado,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => _confirmDelete(context, o),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       )
@@ -253,11 +293,14 @@ class _OrdersViewState extends State<OrdersView> {
     );
   }
 
+  // RE-AÑADIDO: LA FUNCIÓN DE LOS PILLS DE COLORES
   Widget _buildStatusBadge(String status) {
     Color color = AppColors.textMuted;
     if (status == 'Completed') color = AppColors.statusCompletado;
     if (status == 'In Progress') color = AppColors.statusEnProceso;
     if (status == 'Reserved') color = AppColors.statusReservado;
+    if (status == 'Shipped') color = AppColors.statusEnviado;
+    if (status == 'Canceled') color = AppColors.statusCancelado;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -271,7 +314,7 @@ class _OrdersViewState extends State<OrdersView> {
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.bold,
-          fontSize: 12,
+          fontSize: 11,
         ),
       ),
     );

@@ -75,15 +75,22 @@ class _MainNavigationState extends State<MainNavigation> {
     });
   }
 
+  void _deleteOrder(Map<String, dynamic> order) {
+    setState(() {
+      _allOrders.remove(order);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 2. PASAMOS LA LISTA A AMBAS PANTALLAS
     final List<Widget> screens = [
       DashboardView(orders: _allOrders),
       const InventoryView(),
-      OrdersView(orders: _allOrders), // Ya no es const porque recibe datos
+      OrdersView(
+        orders: _allOrders,
+        onDelete: _deleteOrder, // <--- Pasamos la función de borrar
+      ),
     ];
-
     return Scaffold(
       // 3. AÑADIMOS EL BOTÓN FLOTANTE GLOBAL
       floatingActionButton: FloatingActionButton.extended(
