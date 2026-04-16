@@ -1,122 +1,193 @@
 import 'package:flutter/material.dart';
+import 'theme/app_colors.dart'; // ¡Aquí llamamos a tus colores!
 
 void main() {
-  runApp(const MyApp());
+  runApp(const Gestion3DApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class Gestion3DApp extends StatelessWidget {
+  const Gestion3DApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'ERP Impresión 3D',
+      debugShowCheckedModeBanner: false,
+      // AQUÍ INYECTAMOS TU PALETA DE COLORES A TODA LA APP
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        scaffoldBackgroundColor: AppColors.background,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          brightness: Brightness.dark,
+        ),
+        cardTheme: const CardThemeData(
+          color: AppColors.surface,
+          elevation: 4,
+          margin: EdgeInsets.all(8),
+        ),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const PantallaPrincipal(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class PantallaPrincipal extends StatefulWidget {
+  const PantallaPrincipal({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<PantallaPrincipal> createState() => _PantallaPrincipalState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _PantallaPrincipalState extends State<PantallaPrincipal> {
+  int _indiceSeleccionado = 0;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+  // Las pantallas de tu app
+  final List<Widget> _pantallas = [
+    const DashboardView(),
+    const InventarioView(),
+    const PedidosView(),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      body: Row(
+        children: [
+          // MENÚ LATERAL (Navigation Rail)
+          NavigationRail(
+            backgroundColor: AppColors.secondary, // Color oscuro para el menú
+            indicatorColor: AppColors.primary.withOpacity(0.2), // Resaltado sutil
+            selectedIndex: _indiceSeleccionado,
+            onDestinationSelected: (int index) {
+              setState(() {
+                _indiceSeleccionado = index;
+              });
+            },
+            labelType: NavigationRailLabelType.all,
+            selectedLabelTextStyle: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+            unselectedLabelTextStyle: const TextStyle(color: AppColors.textMuted),
+            selectedIconTheme: const IconThemeData(color: AppColors.primary),
+            unselectedIconTheme: const IconThemeData(color: AppColors.textMuted),
+            destinations: const [
+              NavigationRailDestination(
+                icon: Icon(Icons.dashboard_outlined),
+                selectedIcon: Icon(Icons.dashboard),
+                label: Text('Dashboard'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.inventory_2_outlined),
+                selectedIcon: Icon(Icons.inventory_2),
+                label: Text('Inventario'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.receipt_long_outlined),
+                selectedIcon: Icon(Icons.receipt_long),
+                label: Text('Pedidos'),
+              ),
+            ],
+          ),
+          // CONTENIDO PRINCIPAL
+          Expanded(
+            child: Container(
+              color: AppColors.background,
+              child: _pantallas[_indiceSeleccionado],
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =========================================================
+// PANTALLAS (Vistas)
+// =========================================================
+
+// --- PANTALLA 1: DASHBOARD ---
+class DashboardView extends StatelessWidget {
+  const DashboardView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(32.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Resumen Financiero', 
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textMain),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              _crearTarjeta('Ingresos', '1.337,00 €', AppColors.statusReservado),
+              _crearTarjeta('Gastos', '591,21 €', AppColors.alertBajoStock),
+              _crearTarjeta('Beneficio Neto', '634,80 €', AppColors.statusCompletado),
+              _crearTarjeta('Margen', '47.48 %', AppColors.statusEnProceso),
+            ],
+          ),
+          const SizedBox(height: 40),
+          Expanded(
+            child: Center(
+              child: Text(
+                "Espacio reservado para el Gráfico Mensual 📊",
+                style: TextStyle(color: AppColors.textMuted.withOpacity(0.5), fontSize: 20),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Widget reutilizable para las tarjetas del dashboard
+  Widget _crearTarjeta(String titulo, String valor, Color colorAcento) {
+    return Expanded(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                titulo, 
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                valor, 
+                style: TextStyle(color: colorAcento, fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+    );
+  }
+}
+
+// --- PANTALLA 2: INVENTARIO (Estructura base) ---
+class InventarioView extends StatelessWidget {
+  const InventarioView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text('🛢️ Sección de Tanque de Resina y Filamentos', style: TextStyle(color: AppColors.textMain, fontSize: 24)),
+    );
+  }
+}
+
+// --- PANTALLA 3: PEDIDOS (Estructura base) ---
+class PedidosView extends StatelessWidget {
+  const PedidosView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text('📋 Tabla histórica y formulario de nuevos encargos', style: TextStyle(color: AppColors.textMain, fontSize: 24)),
     );
   }
 }
