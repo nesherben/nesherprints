@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/material_repository.dart';
-import '../../data/repositories/order_repository.dart'; // <--- NUEVO
+import '../../data/repositories/order_repository.dart';
+import '../../data/repositories/client_repository.dart'; // <--- NUEVO
 import 'material_dialog.dart';
+import 'client_dialog.dart'; // <--- NUEVO
 
 class _FilamentEntry {
   int? materialId;
@@ -26,22 +28,25 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
   // Repositorios
   final _settingsRepo = SettingsRepository();
   final _materialRepo = MaterialRepository();
-  final _orderRepo = OrderRepository(); // <--- NUEVO
+  final _orderRepo = OrderRepository();
+  final _clientRepo = ClientRepository(); // <--- NUEVO
 
   // Constantes del sistema
   double _margenBeneficio = 45.0;
   double _costeHoraPintado = 15.0;
   double _costePlacaExtra = 2.50;
 
-  // Inventario
+  // Listas de la Base de Datos
   List<Map<String, dynamic>> _resins = [];
   List<Map<String, dynamic>> _filaments = [];
+  List<Map<String, dynamic>> _clients = []; // <--- NUEVO
 
   // Variables del formulario
   late String _selectedStatus;
   late bool _isPainted;
   String _materialMode = 'filament';
   double _suggestedPrice = 0.0;
+  int? _selectedClientId; // <--- NUEVO
 
   // Controladores básicos
   final _nameController = TextEditingController();
@@ -71,18 +76,22 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
     _resins = materials.where((m) => m['type'] == 'resin').toList();
     _filaments = materials.where((m) => m['type'] == 'filament').toList();
 
+    // Cargamos los clientes
+    _clients = await _clientRepo.getAllClients();
+
     final order = widget.initialOrder;
     _nameController.text = order?['name'] ?? '';
     _platesController.text = (order?['plates'] ?? '1').toString();
     _selectedStatus = order?['status'] ?? 'Draft';
     _isPainted = order?['is_painted'] == 1;
+    _selectedClientId =
+        order?['client_id']; // Cargamos el cliente si ya existía
 
     if (order != null) {
       _priceController.text = (order['price'] as num).toStringAsFixed(2);
       _paidController.text = ((order['paid_amount'] ?? 0) as num)
           .toStringAsFixed(2);
 
-      // --- SOLUCIÓN 1: CARGAMOS LOS MATERIALES AL EDITAR ---
       final items = await _orderRepo.getOrderItems(order['id']);
       if (items.isNotEmpty) {
         int firstMatId = items.first['material_id'];
@@ -94,7 +103,7 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
           _resinGramsController.text = items.first['grams_used'].toString();
         } else {
           _materialMode = 'filament';
-          _filamentEntries.clear(); // Vaciamos el primer hueco
+          _filamentEntries.clear();
           for (var item in items) {
             final entry = _FilamentEntry();
             entry.materialId = item['material_id'];
@@ -109,7 +118,6 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
     _calculateEstimate();
   }
 
-  // --- SOLUCIÓN 2: LA CALCULADORA YA NO SOBREESCRIBE EL PRECIO ---
   void _calculateEstimate() {
     double costMaterial = 0.0;
 
@@ -140,11 +148,27 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
     });
   }
 
-  // BOTÓN MANUAL PARA COPIAR EL PRECIO
   void _applySuggestedPrice() {
     setState(() {
       _priceController.text = _suggestedPrice.toStringAsFixed(2);
     });
+  }
+
+  // --- CREAR CLIENTE AL VUELO ---
+  void _addNewClientOnTheFly() {
+    showDialog(
+      context: context,
+      builder: (context) => ClientDialog(
+        onSave: (newClient) async {
+          int newId = await _clientRepo.insertClient(newClient);
+          final updatedClients = await _clientRepo.getAllClients();
+          setState(() {
+            _clients = updatedClients;
+            _selectedClientId = newId; // Lo dejamos seleccionado
+          });
+        },
+      ),
+    );
   }
 
   void _addNewMaterialOnTheFly(String type, Function(int) onSelected) {
@@ -206,6 +230,50 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // --- ZONA 1: CLIENTE (NUEVO) ---
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: _selectedClientId,
+                      decoration: const InputDecoration(
+                        labelText: 'Cliente (Opcional)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      items: [
+                        const DropdownMenuItem<int>(
+                          value: null,
+                          child: Text('Sin asignar'),
+                        ),
+                        ..._clients.map(
+                          (c) => DropdownMenuItem<int>(
+                            value: c['id'],
+                            child: Text(c['name']),
+                          ),
+                        ),
+                      ],
+                      onChanged: _isLocked
+                          ? null
+                          : (v) => setState(() {
+                              _selectedClientId = v;
+                            }),
+                    ),
+                  ),
+                  if (!_isLocked)
+                    IconButton(
+                      icon: const Icon(
+                        Icons.person_add,
+                        color: AppColors.primary,
+                      ),
+                      tooltip: 'Crear nuevo cliente',
+                      onPressed: _addNewClientOnTheFly,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // --- ZONA 2: PROYECTO Y ESTADO ---
               Row(
                 children: [
                   Expanded(
@@ -213,7 +281,7 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
                     child: TextField(
                       controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: 'Proyecto',
+                        labelText: 'Nombre del Proyecto',
                         border: OutlineInputBorder(),
                       ),
                       enabled: !_isLocked,
@@ -228,7 +296,6 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
                         border: OutlineInputBorder(),
                       ),
                       items: () {
-                        // Generamos la lista base sin 'Completed'
                         List<String> options = [
                           'Draft',
                           'Reserved',
@@ -236,7 +303,6 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
                           'Shipped',
                           'Canceled',
                         ];
-                        // Solo si el pedido YA está completado, lo añadimos para que Flutter no se bloquee
                         if (_selectedStatus == 'Completed')
                           options.add('Completed');
                         return options
@@ -245,7 +311,6 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
                             )
                             .toList();
                       }(),
-                      // Si está bloqueado (Completed o Shipped), desactivamos el desplegable (null)
                       onChanged: _isLocked
                           ? null
                           : (v) => setState(() {
@@ -257,6 +322,7 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
               ),
               const Divider(height: 32),
 
+              // --- RESTO DEL FORMULARIO (Igual que antes) ---
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(
@@ -334,7 +400,6 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
 
               const Divider(height: 32),
 
-              // --- ZONA CONTABLE MEJORADA ---
               Row(
                 children: [
                   Expanded(
@@ -644,6 +709,7 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
 
   void _saveOrder() {
     Map<String, dynamic> orderData = {
+      'client_id': _selectedClientId, // <--- GUARDAMOS EL CLIENTE
       'name': _nameController.text,
       'price': double.tryParse(_priceController.text) ?? 0.0,
       'paid_amount': double.tryParse(_paidController.text) ?? 0.0,

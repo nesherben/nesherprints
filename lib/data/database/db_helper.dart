@@ -12,7 +12,7 @@ class DatabaseHelper {
   Future<Database> get database async {
     if (_database != null) return _database!;
     // Pasamos a la v3 para crear las tablas desde cero
-    _database = await _initDB('nesher_erp_v4.db');
+    _database = await _initDB('nesher_erp_v5.db');
     return _database!;
   }
 
@@ -28,42 +28,56 @@ class DatabaseHelper {
   }
 
   Future _createDB(Database db, int version) async {
-    // 1. SETTINGS
+    // 1. SETTINGS (Igual)
     await db.execute('''
       CREATE TABLE settings (
-        key TEXT PRIMARY KEY,
-        value REAL NOT NULL
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key TEXT UNIQUE,
+        value REAL
       )
     ''');
 
-    // 2. MATERIALS
+    // 2. MATERIALS (Igual)
     await db.execute('''
       CREATE TABLE materials (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
+        color TEXT NOT NULL,
         type TEXT NOT NULL,
-        color TEXT,
         cost_per_kg REAL NOT NULL,
         stock_g REAL NOT NULL
       )
     ''');
 
-    // 3. ORDERS (Ya no tiene material_id)
+    // 3. NUEVA TABLA: CLIENTS
+    await db.execute('''
+      CREATE TABLE clients (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        phone TEXT,
+        email TEXT,
+        notes TEXT
+      )
+    ''');
+
+    // 4. ORDERS (Añadimos client_id)
     await db.execute('''
       CREATE TABLE orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id INTEGER, -- NUEVO: Relación con el cliente
         name TEXT NOT NULL,
         price REAL NOT NULL,
-        paid_amount REAL DEFAULT 0.0, -- NUEVO: Para adelantos
+        paid_amount REAL DEFAULT 0.0,
         date TEXT NOT NULL,
         status TEXT NOT NULL,
         grams REAL NOT NULL,
         plates INTEGER NOT NULL,
-        is_painted INTEGER NOT NULL
+        is_painted INTEGER NOT NULL,
+        FOREIGN KEY (client_id) REFERENCES clients (id)
       )
     ''');
 
-    // 4. ORDER_ITEMS (La tabla puente mágica)
+    // 5. ORDER_ITEMS (Igual)
     await db.execute('''
       CREATE TABLE order_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +88,8 @@ class DatabaseHelper {
         FOREIGN KEY (material_id) REFERENCES materials (id)
       )
     ''');
-    // 5. ORDER_WASTE (NUEVA: Para registrar fallos por pedido)
+
+    // 6. ORDER_WASTE (Igual)
     await db.execute('''
       CREATE TABLE order_waste (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,16 +101,11 @@ class DatabaseHelper {
         FOREIGN KEY (material_id) REFERENCES materials (id)
       )
     ''');
-    // Valores por defecto
-    await db.rawInsert(
-      "INSERT INTO settings (key, value) VALUES ('margen_beneficio', 45.0)",
-    );
-    await db.rawInsert(
-      "INSERT INTO settings (key, value) VALUES ('coste_hora_pintado', 15.0)",
-    );
-    await db.rawInsert(
-      "INSERT INTO settings (key, value) VALUES ('coste_placa_extra', 2.50)",
-    );
+
+    // Inserts por defecto (Settings)
+    await db.insert('settings', {'key': 'margen_beneficio', 'value': 45.0});
+    await db.insert('settings', {'key': 'coste_hora_pintado', 'value': 15.0});
+    await db.insert('settings', {'key': 'coste_placa_extra', 'value': 2.50});
   }
 
   Future close() async {

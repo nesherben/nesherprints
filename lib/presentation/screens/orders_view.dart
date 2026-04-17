@@ -3,6 +3,7 @@ import '../../core/theme/app_colors.dart';
 import '../widgets/order_dialog.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../data/repositories/material_repository.dart';
+import '../../data/repositories/client_repository.dart';
 
 class OrdersView extends StatefulWidget {
   final List<Map<String, dynamic>> orders;
@@ -29,6 +30,7 @@ class _OrdersViewState extends State<OrdersView> {
   int? _sortColumnIndex;
   bool _isAscending = false;
   List<Map<String, dynamic>> _displayOrders = [];
+  final Map<int, String> _clientNames = {};
 
   final List<String> _statusOptions = [
     'Todos',
@@ -43,13 +45,26 @@ class _OrdersViewState extends State<OrdersView> {
   @override
   void initState() {
     super.initState();
+    _loadClients();
     _applyFiltersAndSort();
+  }
+
+  Future<void> _loadClients() async {
+    final clients = await ClientRepository().getAllClients();
+    if (mounted) {
+      setState(() {
+        for (var c in clients) {
+          _clientNames[c['id']] = c['name'];
+        }
+      });
+    }
   }
 
   @override
   void didUpdateWidget(covariant OrdersView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.orders != oldWidget.orders) {
+      _loadClients(); // <--- ¡LA LÍNEA MÁGICA! Recargamos la agenda
       _applyFiltersAndSort();
     }
   }
@@ -345,6 +360,8 @@ class _OrdersViewState extends State<OrdersView> {
             ),
           ),
           const SizedBox(height: 24),
+
+          // --- BARRA DE BÚSQUEDA Y FILTROS ---
           Row(
             children: [
               Expanded(
@@ -352,7 +369,7 @@ class _OrdersViewState extends State<OrdersView> {
                 child: TextField(
                   controller: _searchController,
                   decoration: const InputDecoration(
-                    labelText: 'Buscar...',
+                    labelText: 'Buscar proyecto...',
                     prefixIcon: Icon(Icons.search),
                     border: OutlineInputBorder(),
                     isDense: true,
@@ -369,7 +386,7 @@ class _OrdersViewState extends State<OrdersView> {
                 child: DropdownButtonFormField<String>(
                   initialValue: _statusFilter,
                   decoration: const InputDecoration(
-                    labelText: 'Estado',
+                    labelText: 'Filtrar por Estado',
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
@@ -389,7 +406,7 @@ class _OrdersViewState extends State<OrdersView> {
                 ElevatedButton.icon(
                   onPressed: _resetFilters,
                   icon: const Icon(Icons.filter_alt_off),
-                  label: const Text('Limpiar'),
+                  label: const Text('Limpiar Filtros'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.surface,
                     foregroundColor: AppColors.textMain,
@@ -399,11 +416,18 @@ class _OrdersViewState extends State<OrdersView> {
                 const SizedBox(width: 150),
             ],
           ),
+
           const SizedBox(height: 16),
+
+          // --- TABLA DE PEDIDOS ---
           Expanded(
             child: Card(
               child: _displayOrders.isEmpty
-                  ? const Center(child: Text("No se encontraron pedidos."))
+                  ? const Center(
+                      child: Text(
+                        "No se encontraron pedidos con estos filtros.",
+                      ),
+                    )
                   : SingleChildScrollView(
                       child: SizedBox(
                         width: double.infinity,
@@ -417,7 +441,7 @@ class _OrdersViewState extends State<OrdersView> {
                           ),
                           columns: [
                             DataColumn(
-                              label: const Text('ID/Fecha'),
+                              label: const Text('ID / Fecha'),
                               onSort: _onSort,
                             ),
                             DataColumn(
@@ -437,6 +461,7 @@ class _OrdersViewState extends State<OrdersView> {
                             const DataColumn(label: Text('Acciones')),
                           ],
                           rows: _displayOrders.map((o) {
+                            // Lógica de dineros
                             double price = (o['price'] as num).toDouble();
                             double paid = ((o['paid_amount'] ?? 0) as num)
                                 .toDouble();
@@ -453,22 +478,47 @@ class _OrdersViewState extends State<OrdersView> {
                                     ),
                                   ),
                                 ),
+
+                                // --- CELDA DE PROYECTO (CON CLIENTE INYECTADO) ---
                                 DataCell(
-                                  Text(
-                                    o['name'],
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        o['name'],
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      if (o['client_id'] != null &&
+                                          _clientNames.containsKey(
+                                            o['client_id'],
+                                          ))
+                                        Text(
+                                          "👤 ${_clientNames[o['client_id']]}",
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
+
+                                // --- ESTADO INTERACTIVO ---
                                 DataCell(_buildInteractiveStatusBadge(o)),
+
+                                // --- FINANZAS ---
                                 DataCell(
                                   Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
-                                        '€${price.toStringAsFixed(2)}',
+                                        'Total: €${price.toStringAsFixed(2)}',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 14,
@@ -494,6 +544,8 @@ class _OrdersViewState extends State<OrdersView> {
                                     ],
                                   ),
                                 ),
+
+                                // --- DETALLES TÉCNICOS ---
                                 DataCell(
                                   Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -545,10 +597,12 @@ class _OrdersViewState extends State<OrdersView> {
                                     ],
                                   ),
                                 ),
+
+                                // --- ACCIONES COMPLETAS ---
                                 DataCell(
                                   Row(
                                     children: [
-                                      // BOTÓN COMPLETAR BLINDADO
+                                      // Botón Completar
                                       if (o['status'] != 'Completed' &&
                                           o['status'] != 'Shipped' &&
                                           o['status'] != 'Canceled')
@@ -563,7 +617,7 @@ class _OrdersViewState extends State<OrdersView> {
                                           onPressed: () => _showConfirmationDialog(
                                             title: '¿Completar Pedido?',
                                             content:
-                                                'Al completar este pedido, se restará el material correspondiente de tu inventario de forma permanente.\n\n¿La impresión ha sido exitosa?',
+                                                'Al completar este pedido, se restará el material de tu inventario. ¿La impresión ha sido exitosa?',
                                             confirmColor:
                                                 AppColors.statusCompletado,
                                             confirmText: 'Sí, completar',
@@ -576,24 +630,14 @@ class _OrdersViewState extends State<OrdersView> {
                                               ).showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
-                                                    'Pedido completado. Stock actualizado.',
+                                                    'Pedido completado y stock actualizado',
                                                   ),
                                                 ),
                                               );
                                             },
                                           ),
                                         ),
-                                      // BOTÓN DE MERMAS (NUEVO)
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.recycling,
-                                          color: Colors.orange,
-                                          size: 20,
-                                        ),
-                                        tooltip: 'Registrar Impresión Fallida',
-                                        onPressed: () => _showWasteDialog(o),
-                                      ),
-                                      // BOTÓN EDITAR (Sin cambios)
+                                      // Botón Editar
                                       IconButton(
                                         icon: const Icon(
                                           Icons.edit_outlined,
@@ -609,7 +653,17 @@ class _OrdersViewState extends State<OrdersView> {
                                           ),
                                         ),
                                       ),
-                                      // BOTÓN BORRAR BLINDADO
+                                      // Botón Mermas
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.recycling,
+                                          color: Colors.orange,
+                                          size: 20,
+                                        ),
+                                        tooltip: 'Registrar Impresión Fallida',
+                                        onPressed: () => _showWasteDialog(o),
+                                      ),
+                                      // Botón Borrar
                                       IconButton(
                                         icon: const Icon(
                                           Icons.delete_outline,
@@ -619,7 +673,7 @@ class _OrdersViewState extends State<OrdersView> {
                                         onPressed: () => _showConfirmationDialog(
                                           title: '¿Eliminar Pedido?',
                                           content:
-                                              'Esta acción no se puede deshacer. Los datos financieros y de historial desaparecerán para siempre.',
+                                              'Esta acción no se puede deshacer. Los datos financieros desaparecerán.',
                                           confirmColor:
                                               AppColors.alertBajoStock,
                                           confirmText: 'Eliminar',

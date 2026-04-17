@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/presentation/screens/dashboard_view.dart';
 import 'package:nesherprints/presentation/screens/inventory_view.dart';
+import 'package:nesherprints/presentation/screens/clients_view.dart';
 import 'package:nesherprints/presentation/screens/orders_view.dart';
 import 'package:nesherprints/presentation/widgets/order_dialog.dart';
 import 'dart:io'; // Para detectar si estamos en Windows
@@ -150,6 +151,7 @@ class _MainNavigationState extends State<MainNavigation> {
         onUpdate: _updateOrder,
         onComplete: _completeOrder,
       ),
+      const ClientsView(),
       const AdminView(),
     ];
 
@@ -184,6 +186,11 @@ class _MainNavigationState extends State<MainNavigation> {
               NavigationRailDestination(
                 icon: Icon(Icons.receipt_long_outlined),
                 label: Text('Orders'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.people_outline),
+                selectedIcon: Icon(Icons.people),
+                label: Text('Clientes'),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.settings_outlined),
