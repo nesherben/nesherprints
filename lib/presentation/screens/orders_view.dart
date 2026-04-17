@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:nesherprints/presentation/widgets/order_dialog.dart';
 import '../../core/theme/app_colors.dart';
+import '../widgets/order_dialog.dart';
 
 class OrdersView extends StatefulWidget {
   final List<Map<String, dynamic>> orders;
@@ -21,350 +21,363 @@ class OrdersView extends StatefulWidget {
 }
 
 class _OrdersViewState extends State<OrdersView> {
-  final Set<String> _selectedStatuses = {};
-  String _searchQuery = "";
-  final TextEditingController _searchController = TextEditingController();
-  final MenuController _menuController = MenuController();
+  // Variables de estado para TODOS los filtros
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _statusFilter = 'Todos';
+  int? _sortColumnIndex;
+  bool _isAscending = false;
+  List<Map<String, dynamic>> _displayOrders = [];
 
-  List<Map<String, dynamic>> get _filteredOrders {
-    return widget.orders.where((order) {
-      final matchesSearch = order['name'].toLowerCase().contains(
-        _searchQuery.toLowerCase(),
-      );
-      final matchesStatus =
-          _selectedStatuses.isEmpty ||
-          _selectedStatuses.contains(order['status']);
-      return matchesSearch && matchesStatus;
-    }).toList();
-  }
+  // Lista de estados disponibles para el filtro
+  final List<String> _statusOptions = [
+    'Todos',
+    'Draft',
+    'Reserved',
+    'In Progress',
+    'Completed',
+    'Shipped',
+    'Canceled',
+  ];
 
-  void _toggleStatus(String status) {
-    setState(() {
-      if (_selectedStatuses.contains(status)) {
-        _selectedStatuses.remove(status);
-      } else {
-        _selectedStatuses.add(status);
-      }
-    });
-  }
-
-  void _resetFilters() {
-    setState(() {
-      _searchController.text = "";
-      _searchQuery = "";
-      _selectedStatuses.clear();
-    });
-    if (_menuController.isOpen) _menuController.close();
-  }
-
-  // --- DIÁLOGO DE CONFIRMACIÓN ---
-  void _confirmDelete(BuildContext context, Map<String, dynamic> order) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Confirm Delete'),
-        content: Text(
-          'Are you sure you want to delete "${order['name']}"? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.textMuted),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.statusCancelado,
-            ),
-            onPressed: () {
-              widget.onDelete(order);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Order deleted successfully')),
-              );
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _applyFiltersAndSort(); // Carga inicial
   }
 
   @override
-  Widget build(BuildContext context) {
-    bool hasFilters = _selectedStatuses.isNotEmpty || _searchQuery.isNotEmpty;
+  void didUpdateWidget(covariant OrdersView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.orders != oldWidget.orders) {
+      _applyFiltersAndSort();
+    }
+  }
 
+  // Comprueba si hay algún filtro activo para mostrar el botón de limpiar
+  bool get _hasActiveFilters =>
+      _searchQuery.isNotEmpty ||
+      _statusFilter != 'Todos' ||
+      _sortColumnIndex != null;
+
+  // --- LÓGICA UNIFICADA ---
+  void _resetFilters() {
+    setState(() {
+      _searchController.clear();
+      _searchQuery = '';
+      _statusFilter = 'Todos';
+      _sortColumnIndex = null;
+      _isAscending = false;
+      _applyFiltersAndSort();
+    });
+  }
+
+  void _onSort(int columnIndex, bool ascending) {
+    setState(() {
+      _sortColumnIndex = columnIndex;
+      _isAscending = ascending;
+      _applyFiltersAndSort();
+    });
+  }
+
+  void _applyFiltersAndSort() {
+    // 1. Aplicamos Filtros de Texto y Estado
+    var filtered = widget.orders.where((o) {
+      final matchesSearch = o['name'].toString().toLowerCase().contains(
+        _searchQuery.toLowerCase(),
+      );
+      final matchesStatus =
+          _statusFilter == 'Todos' || o['status'] == _statusFilter;
+      return matchesSearch && matchesStatus;
+    }).toList();
+
+    // 2. Aplicamos Ordenamiento
+    if (_sortColumnIndex == null) {
+      // Por defecto: ID descendente (el último arriba)
+      filtered.sort((a, b) => b['id'].compareTo(a['id']));
+    } else {
+      filtered.sort((a, b) {
+        Comparable valueA;
+        Comparable valueB;
+
+        switch (_sortColumnIndex) {
+          case 0:
+            valueA = a['id'];
+            valueB = b['id'];
+            break;
+          case 1:
+            valueA = a['name'].toString().toLowerCase();
+            valueB = b['name'].toString().toLowerCase();
+            break;
+          case 2:
+            valueA = a['status'];
+            valueB = b['status'];
+            break;
+          case 3:
+            valueA = (a['price'] as num);
+            valueB = (b['price'] as num);
+            break;
+          default:
+            return 0;
+        }
+        return _isAscending
+            ? Comparable.compare(valueA, valueB)
+            : Comparable.compare(valueB, valueA);
+      });
+    }
+
+    setState(() {
+      _displayOrders = filtered;
+    });
+  }
+
+  // --- INTERFAZ DE USUARIO ---
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(32.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Orders Management',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textMain,
-                ),
-              ),
-              if (hasFilters)
-                TextButton.icon(
-                  onPressed: _resetFilters,
-                  icon: const Icon(Icons.filter_alt_off, size: 20),
-                  label: const Text(
-                    'Clear All Filters',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.alertBajoStock,
-                  ),
-                ),
-            ],
+          const Text(
+            'Registro de Pedidos',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textMain,
+            ),
           ),
           const SizedBox(height: 24),
+
+          // BARRA DE HERRAMIENTAS (Buscador, Filtro Estado, Limpiar)
           Row(
             children: [
               Expanded(
+                flex: 2,
                 child: TextField(
                   controller: _searchController,
-                  onChanged: (v) => setState(() => _searchQuery = v),
-                  decoration: InputDecoration(
-                    hintText: 'Search projects...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: AppColors.surface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = "");
-                            },
-                          )
-                        : null,
+                  decoration: const InputDecoration(
+                    labelText: 'Buscar proyecto...',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                    isDense: true,
                   ),
+                  onChanged: (val) {
+                    _searchQuery = val;
+                    _applyFiltersAndSort();
+                  },
                 ),
               ),
               const SizedBox(width: 16),
-              _buildFilterMenu(),
+              Expanded(
+                flex: 1,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _statusFilter,
+                  decoration: const InputDecoration(
+                    labelText: 'Filtrar por Estado',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: _statusOptions
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      _statusFilter = val;
+                      _applyFiltersAndSort();
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Solo mostramos el botón de limpiar si hay algo que limpiar
+              if (_hasActiveFilters)
+                ElevatedButton.icon(
+                  onPressed: _resetFilters,
+                  icon: const Icon(Icons.filter_alt_off),
+                  label: const Text('Limpiar Filtros'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.surface,
+                    foregroundColor: AppColors.textMain,
+                  ),
+                )
+              else
+                const SizedBox(
+                  width: 150,
+                ), // Espaciador para mantener estructura
             ],
           ),
 
-          // RE-AÑADIDOS: LOS CHIPS DE FILTRO
-          if (_selectedStatuses.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              children: _selectedStatuses
-                  .map(
-                    (s) => Chip(
-                      label: Text(s, style: const TextStyle(fontSize: 12)),
-                      onDeleted: () => _toggleStatus(s),
-                      backgroundColor: AppColors.primary.withAlpha(25),
-                      deleteIconColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary.withAlpha(51)),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
-
           const SizedBox(height: 16),
-          Expanded(child: _buildTable()),
+
+          // TABLA DE DATOS
+          Expanded(
+            child: Card(
+              child: _displayOrders.isEmpty
+                  ? const Center(
+                      child: Text(
+                        "No se encontraron pedidos con estos filtros.",
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: DataTable(
+                          sortColumnIndex: _sortColumnIndex,
+                          sortAscending: _isAscending,
+                          headingTextStyle: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textMain,
+                          ),
+                          columns: [
+                            DataColumn(
+                              label: const Text('ID / Fecha'),
+                              onSort: _onSort,
+                            ),
+                            DataColumn(
+                              label: const Text('Proyecto'),
+                              onSort: _onSort,
+                            ),
+                            DataColumn(
+                              label: const Text('Estado'),
+                              onSort: _onSort,
+                            ),
+                            DataColumn(
+                              label: const Text('Precio Final'),
+                              numeric: true,
+                              onSort: _onSort,
+                            ),
+                            const DataColumn(label: Text('Acciones')),
+                          ],
+                          rows: _displayOrders.map((o) {
+                            return DataRow(
+                              cells: [
+                                DataCell(
+                                  Text(
+                                    '#${o['id']} - ${o['date']}',
+                                    style: const TextStyle(
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    o['name'],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                DataCell(_buildStatusBadge(o['status'])),
+                                DataCell(
+                                  Text(
+                                    '€${(o['price'] as num).toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Row(
+                                    children: [
+                                      if (o['status'] != 'Completed' &&
+                                          o['status'] != 'Shipped' &&
+                                          o['status'] != 'Canceled')
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.check_circle_outline,
+                                            color: AppColors.statusCompletado,
+                                            size: 20,
+                                          ),
+                                          tooltip: 'Marcar como Completado',
+                                          onPressed: () {
+                                            widget.onComplete(o);
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Pedido completado y stock actualizado',
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.edit_outlined,
+                                          color: AppColors.statusReservado,
+                                          size: 20,
+                                        ),
+                                        onPressed: () => showDialog(
+                                          context: context,
+                                          builder: (context) => NewOrderDialog(
+                                            initialOrder: o,
+                                            onSave: (updated) =>
+                                                widget.onUpdate(o, updated),
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: AppColors.statusCancelado,
+                                          size: 20,
+                                        ),
+                                        onPressed: () => widget.onDelete(o),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterMenu() {
-    final options = [
-      'Draft',
-      'Reserved',
-      'In Progress',
-      'Completed',
-      'Shipped',
-      'Canceled',
-    ];
-    return MenuAnchor(
-      controller: _menuController,
-      menuChildren: options
-          .map(
-            (s) => CheckboxMenuButton(
-              value: _selectedStatuses.contains(s),
-              onChanged: (_) => _toggleStatus(s),
-              closeOnActivate: false,
-              child: Text(s),
-            ),
-          )
-          .toList(),
-      builder: (context, controller, child) => IconButton.filledTonal(
-        onPressed: () =>
-            controller.isOpen ? controller.close() : controller.open(),
-        icon: Icon(
-          Icons.filter_list,
-          color: _selectedStatuses.isNotEmpty
-              ? AppColors.primary
-              : AppColors.textMuted,
-        ),
-        style: IconButton.styleFrom(
-          backgroundColor: AppColors.surface,
-          padding: const EdgeInsets.all(12),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTable() {
-    final orders = _filteredOrders;
-    return Card(
-      child: orders.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: Text("No orders found matching your criteria"),
-              ),
-            )
-          : SingleChildScrollView(
-              child: SizedBox(
-                width: double.infinity,
-                child: DataTable(
-                  headingTextStyle: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textMain,
-                  ),
-                  columns: const [
-                    DataColumn(label: Text('Date')),
-                    DataColumn(label: Text('Project')),
-                    DataColumn(label: Text('Price')),
-                    DataColumn(label: Text('Status')),
-                    DataColumn(label: Text('Actions')),
-                  ],
-                  rows: orders
-                      .map(
-                        (o) => DataRow(
-                          cells: [
-                            DataCell(
-                              Text(
-                                o['date'] ?? '-',
-                                style: const TextStyle(
-                                  color: AppColors.textMuted,
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              Text(
-                                o['name'] ?? '',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              Text(
-                                '€${(o['price'] ?? 0.0).toStringAsFixed(2)}',
-                              ),
-                            ),
-                            // RE-AÑADIDO: EL BADGE DE COLOR
-                            DataCell(_buildStatusBadge(o['status'] ?? 'Draft')),
-                            DataCell(
-                              Row(
-                                children: [
-                                  if (o['status'] != 'Completed' &&
-                                      o['status'] != 'Shipped' &&
-                                      o['status'] != 'Canceled')
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.check_circle_outline,
-                                        color: AppColors.statusCompletado,
-                                        size: 20,
-                                      ),
-                                      tooltip: 'Marcar como Completado',
-                                      onPressed: () {
-                                        widget.onComplete(o);
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Pedido completado y stock actualizado',
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  // Tu botón de Editar actual...
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit_outlined,
-                                      color: AppColors.statusReservado,
-                                      size: 20,
-                                    ),
-                                    onPressed: () => showDialog(
-                                      context: context,
-                                      builder: (context) => NewOrderDialog(
-                                        initialOrder:
-                                            o, // Pasamos el pedido actual
-                                        onSave: (updatedOrder) =>
-                                            widget.onUpdate(
-                                              o,
-                                              updatedOrder,
-                                            ), // Guardamos cambios
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete_outline,
-                                      color: AppColors.statusCancelado,
-                                      size: 20,
-                                    ),
-                                    onPressed: () => _confirmDelete(context, o),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-            ),
-    );
-  }
-
-  // RE-AÑADIDO: LA FUNCIÓN DE LOS PILLS DE COLORES
   Widget _buildStatusBadge(String status) {
-    Color color = AppColors.textMuted;
-    if (status == 'Completed') color = AppColors.statusCompletado;
-    if (status == 'In Progress') color = AppColors.statusEnProceso;
-    if (status == 'Reserved') color = AppColors.statusReservado;
-    if (status == 'Shipped') color = AppColors.statusEnviado;
-    if (status == 'Canceled') color = AppColors.statusCancelado;
+    Color bgColor;
+    Color textColor;
+
+    switch (status) {
+      case 'Completed':
+      case 'Shipped':
+        bgColor = AppColors.statusCompletado.withOpacity(0.2);
+        textColor = AppColors.statusCompletado;
+        break;
+      case 'In Progress':
+        bgColor = AppColors.primary.withOpacity(0.2);
+        textColor = AppColors.primary;
+        break;
+      case 'Canceled':
+        bgColor = AppColors.statusCancelado.withOpacity(0.2);
+        textColor = AppColors.statusCancelado;
+        break;
+      default:
+        bgColor = Colors.grey.withOpacity(0.2);
+        textColor = Colors.grey;
+    }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withAlpha(25),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withAlpha(128)),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         status,
         style: TextStyle(
-          color: color,
+          color: textColor,
+          fontSize: 12,
           fontWeight: FontWeight.bold,
-          fontSize: 11,
         ),
       ),
     );
