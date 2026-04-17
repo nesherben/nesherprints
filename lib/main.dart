@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
-import 'core/theme/app_colors.dart';
-import 'presentation/screens/dashboard_view.dart';
-import 'presentation/screens/inventory_view.dart';
-import 'presentation/screens/orders_view.dart';
-import 'presentation/widgets/order_dialog.dart'; // <--- Importante: Importar el diálogo
+import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/presentation/screens/dashboard_view.dart';
+import 'package:nesherprints/presentation/screens/inventory_view.dart';
+import 'package:nesherprints/presentation/screens/orders_view.dart';
+import 'package:nesherprints/presentation/widgets/order_dialog.dart';
+import 'dart:io'; // Para detectar si estamos en Windows
+import 'package:sqflite_common_ffi/sqflite_ffi.dart'; // El motor de escritorio
+import 'data/repositories/order_repository.dart'; // <--- IMPORTAMOS EL REPOSITORIO
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializamos SQLite para Windows/Desktop
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
+
   runApp(const NesherPrintsApp());
 }
 
@@ -24,7 +35,6 @@ class NesherPrintsApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
         cardTheme: const CardThemeData(
-          // Corregido: CardThemeData -> CardTheme
           color: AppColors.surface,
           elevation: 4,
           margin: EdgeInsets.all(8),
@@ -46,66 +56,75 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
-  // --- ESTADO CENTRALIZADO DE PEDIDOS ---
-  final List<Map<String, dynamic>> _allOrders = [
-    {
-      'name': 'Pennywise 40cm',
-      'price': 50.0,
-      'date': '2026-02-10',
-      'status': 'Completed',
-    },
-    {
-      'name': 'Terminator 40cm',
-      'price': 70.0,
-      'date': '2026-02-24',
-      'status': 'In Progress',
-    },
-    {
-      'name': 'D&D Dragon',
-      'price': 120.0,
-      'date': '2026-03-01',
-      'status': 'Reserved',
-    },
-  ];
+  // 1. Instanciamos el Repositorio
+  final OrderRepository _repo = OrderRepository();
 
-  // 1. FUNCIÓN PARA AÑADIR NUEVOS PEDIDOS
-  void _addNewOrder(Map<String, dynamic> newOrder) {
+  // 2. La lista ahora empieza vacía y añadimos un estado de carga
+  List<Map<String, dynamic>> _allOrders = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshOrders(); // Cargamos los datos al iniciar la app
+  }
+
+  // --- LÓGICA DE BASE DE DATOS ---
+
+  // Leer todos los pedidos de SQLite
+  Future<void> _refreshOrders() async {
+    final data = await _repo.getAllOrders();
     setState(() {
-      _allOrders.add(newOrder);
+      _allOrders = data;
+      _isLoading = false;
     });
   }
 
-  void _deleteOrder(Map<String, dynamic> order) {
-    setState(() {
-      _allOrders.remove(order);
-    });
+  // Crear un nuevo pedido en SQLite
+  Future<void> _addNewOrder(Map<String, dynamic> newOrder) async {
+    await _repo.insertOrder(newOrder);
+    _refreshOrders(); // Recargamos la lista desde la DB
   }
 
-  void _updateOrder(
+  // Actualizar un pedido en SQLite
+  Future<void> _updateOrder(
     Map<String, dynamic> oldOrder,
     Map<String, dynamic> updatedOrder,
-  ) {
-    setState(() {
-      final index = _allOrders.indexOf(oldOrder);
-      if (index != -1) {
-        _allOrders[index] = updatedOrder;
-      }
-    });
+  ) async {
+    // Es vital pasarle el ID que tenía el pedido original
+    updatedOrder['id'] = oldOrder['id'];
+    await _repo.updateOrder(updatedOrder);
+    _refreshOrders();
+  }
+
+  // Borrar de SQLite
+  Future<void> _deleteOrder(Map<String, dynamic> order) async {
+    await _repo.deleteOrder(order['id']);
+    _refreshOrders();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Si está cargando la base de datos, mostramos un spinner circular
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+
     final List<Widget> screens = [
       DashboardView(orders: _allOrders),
       const InventoryView(),
       OrdersView(
         orders: _allOrders,
         onDelete: _deleteOrder,
-        onUpdate: _updateOrder, // <--- Nueva función
+        onUpdate: _updateOrder,
       ),
     ];
+
     return Scaffold(
-      // 3. AÑADIMOS EL BOTÓN FLOTANTE GLOBAL
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showDialog(
           context: context,

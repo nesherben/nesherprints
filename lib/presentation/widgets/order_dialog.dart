@@ -253,7 +253,11 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
               'status': _selectedStatus,
               'grams': double.tryParse(_gramsController.text) ?? 0.0,
               'plates': int.tryParse(_platesController.text) ?? 1,
-              'is_painted': _isPainted ? 1 : 0,
+              'is_painted': _isPainted
+                  ? 1
+                  : 0, // <--- Importante: 1 o 0 para SQLite
+              'material_id':
+                  null, // <--- Temporalmente null hasta que hagamos el Inventario
             });
             Navigator.pop(context);
           },
