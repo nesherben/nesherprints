@@ -12,7 +12,7 @@ class DatabaseHelper {
   Future<Database> get database async {
     if (_database != null) return _database!;
     // Pasamos a la v3 para crear las tablas desde cero
-    _database = await _initDB('nesher_erp_v3.db');
+    _database = await _initDB('nesher_erp_v4.db');
     return _database!;
   }
 
@@ -54,6 +54,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         price REAL NOT NULL,
+        paid_amount REAL DEFAULT 0.0, -- NUEVO: Para adelantos
         date TEXT NOT NULL,
         status TEXT NOT NULL,
         grams REAL NOT NULL,
@@ -73,7 +74,18 @@ class DatabaseHelper {
         FOREIGN KEY (material_id) REFERENCES materials (id)
       )
     ''');
-
+    // 5. ORDER_WASTE (NUEVA: Para registrar fallos por pedido)
+    await db.execute('''
+      CREATE TABLE order_waste (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        material_id INTEGER NOT NULL,
+        grams_wasted REAL NOT NULL,
+        reason TEXT,
+        FOREIGN KEY (order_id) REFERENCES orders (id),
+        FOREIGN KEY (material_id) REFERENCES materials (id)
+      )
+    ''');
     // Valores por defecto
     await db.rawInsert(
       "INSERT INTO settings (key, value) VALUES ('margen_beneficio', 45.0)",

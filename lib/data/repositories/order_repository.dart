@@ -84,4 +84,45 @@ class OrderRepository {
       whereArgs: [orderId],
     );
   }
+
+  // --- GESTIÓN DE COBROS ---
+  Future<int> updatePayment(int orderId, double amount) async {
+    final db = await dbHelper.database;
+    return await db.update(
+      'orders',
+      {'paid_amount': amount},
+      where: 'id = ?',
+      whereArgs: [orderId],
+    );
+  }
+
+  // --- GESTIÓN DE MERMAS (FALLOS) ---
+  Future<void> addWaste(
+    int orderId,
+    int materialId,
+    double grams,
+    String reason,
+  ) async {
+    final db = await dbHelper.database;
+    await db.transaction((txn) async {
+      // 1. Registramos el fallo
+      await txn.insert('order_waste', {
+        'order_id': orderId,
+        'material_id': materialId,
+        'grams_wasted': grams,
+        'reason': reason,
+      });
+      // 2. IMPORTANTE: Restamos ese material del inventario general
+      await txn.rawUpdate(
+        'UPDATE materials SET stock_g = stock_g - ? WHERE id = ?',
+        [grams, materialId],
+      );
+    });
+  }
+
+  // Para el Dashboard: Obtener todos los fallos
+  Future<List<Map<String, dynamic>>> getAllWaste() async {
+    final db = await dbHelper.database;
+    return await db.query('order_waste');
+  }
 }

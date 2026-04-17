@@ -43,7 +43,6 @@ class _DashboardViewState extends State<DashboardView> {
   Future<void> _calculateFinances() async {
     setState(() => _isLoading = true);
 
-    // 1. Obtener los costes de los materiales actuales
     final materials = await _materialRepo.getAllMaterials();
     Map<int, double> materialCosts = {};
     for (var m in materials) {
@@ -51,8 +50,10 @@ class _DashboardViewState extends State<DashboardView> {
     }
 
     double totalGross = 0.0;
-    double totalCost = 0.0;
-    double pending = 0.0;
+    double totalMaterialCost = 0.0;
+    double totalWasteCost = 0.0;
+    double totalPendingCollect = 0.0; // LO QUE REALMENTE TE DEBEN
+
     Map<String, Map<String, double>> monthly = {};
     Map<String, int> counts = {
       'Draft': 0,
@@ -63,30 +64,33 @@ class _DashboardViewState extends State<DashboardView> {
       'Canceled': 0,
     };
 
-    // 2. Procesar cada pedido
     for (var o in widget.orders) {
       String status = o['status'];
       double price = (o['price'] as num).toDouble();
-      String month = o['date'].toString().substring(0, 7); // Extrae 'YYYY-MM'
+      double paid = ((o['paid_amount'] ?? 0) as num).toDouble();
+      String month = o['date'].toString().substring(0, 7);
 
-      // Contar estados para el gráfico de pastel
-      if (counts.containsKey(status)) {
-        counts[status] = counts[status]! + 1;
+      if (counts.containsKey(status)) counts[status] = counts[status]! + 1;
+
+      // --- NUEVA LÓGICA DE DEUDAS ---
+      // Solo nos deben dinero de pedidos que están en marcha o terminados (no borradores ni cancelados)
+      if (status != 'Draft' && status != 'Canceled') {
+        double owed = price - paid;
+        if (owed > 0) {
+          totalPendingCollect += owed;
+        }
       }
 
-      if (status == 'In Progress' || status == 'Reserved') {
-        pending += price;
-      } else if (status == 'Completed' || status == 'Shipped') {
+      // --- LÓGICA DE INGRESOS BRUTOS Y NETOS (Solo completados) ---
+      if (status == 'Completed' || status == 'Shipped') {
         totalGross += price;
 
-        // Inicializar el mes si no existe
         monthly.putIfAbsent(
           month,
           () => {'gross': 0.0, 'net': 0.0, 'cost': 0.0},
         );
         monthly[month]!['gross'] = monthly[month]!['gross']! + price;
 
-        // 3. Calcular el coste real de los materiales de este pedido
         double orderCost = 0.0;
         final items = await _orderRepo.getOrderItems(o['id']);
         for (var item in items) {
@@ -95,18 +99,26 @@ class _DashboardViewState extends State<DashboardView> {
           orderCost += kgUsed * costPerKg;
         }
 
-        totalCost += orderCost;
+        totalMaterialCost += orderCost;
         monthly[month]!['cost'] = monthly[month]!['cost']! + orderCost;
         monthly[month]!['net'] =
             monthly[month]!['gross']! - monthly[month]!['cost']!;
       }
     }
 
+    // Calcular coste de los fallos (order_waste)
+    final allWaste = await _orderRepo.getAllWaste();
+    for (var w in allWaste) {
+      double costPerKg = materialCosts[w['material_id']] ?? 0.0;
+      totalWasteCost += (w['grams_wasted'] / 1000) * costPerKg;
+    }
+
     if (mounted) {
       setState(() {
         _grossRevenue = totalGross;
-        _netRevenue = totalGross - totalCost;
-        _pendingRevenue = pending;
+        _netRevenue = totalGross - totalMaterialCost - totalWasteCost;
+        _pendingRevenue =
+            totalPendingCollect; // Asignamos la deuda real a la tarjeta
         _monthlyData = monthly;
         _statusCounts = counts;
         _isLoading = false;

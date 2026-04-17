@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/material_repository.dart';
+import '../../data/repositories/order_repository.dart'; // <--- NUEVO
+import 'material_dialog.dart';
 
-// Pequeña clase de ayuda para gestionar las filas de los filamentos
 class _FilamentEntry {
   int? materialId;
   final TextEditingController gramsController = TextEditingController();
@@ -25,6 +26,7 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
   // Repositorios
   final _settingsRepo = SettingsRepository();
   final _materialRepo = MaterialRepository();
+  final _orderRepo = OrderRepository(); // <--- NUEVO
 
   // Constantes del sistema
   double _margenBeneficio = 45.0;
@@ -38,23 +40,20 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
   // Variables del formulario
   late String _selectedStatus;
   late bool _isPainted;
-  String _materialMode = 'filament'; // 'filament' o 'resin'
+  String _materialMode = 'filament';
   double _suggestedPrice = 0.0;
 
   // Controladores básicos
   final _nameController = TextEditingController();
   final _platesController = TextEditingController();
   final _priceController = TextEditingController();
-  final _paintHoursController = TextEditingController(
-    text: '1',
-  ); // Horas de pintura
+  final _paidController = TextEditingController(text: '0.00');
+  final _paintHoursController = TextEditingController(text: '1');
 
   // Controladores de Material
   int? _selectedResinId;
   final _resinGramsController = TextEditingController();
-  final List<_FilamentEntry> _filamentEntries = [
-    _FilamentEntry(),
-  ]; // Empezamos con 1 hueco
+  final List<_FilamentEntry> _filamentEntries = [_FilamentEntry()];
 
   @override
   void initState() {
@@ -63,18 +62,15 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
   }
 
   Future<void> _loadInitialData() async {
-    // 1. Cargar constantes
     final settings = await _settingsRepo.getAllSettings();
     _margenBeneficio = settings['margen_beneficio'] ?? 45.0;
     _costeHoraPintado = settings['coste_hora_pintado'] ?? 15.0;
     _costePlacaExtra = settings['coste_placa_extra'] ?? 2.50;
 
-    // 2. Cargar inventario
     final materials = await _materialRepo.getAllMaterials();
     _resins = materials.where((m) => m['type'] == 'resin').toList();
     _filaments = materials.where((m) => m['type'] == 'filament').toList();
 
-    // 3. Inicializar valores (Si estamos editando)
     final order = widget.initialOrder;
     _nameController.text = order?['name'] ?? '';
     _platesController.text = (order?['plates'] ?? '1').toString();
@@ -83,26 +79,45 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
 
     if (order != null) {
       _priceController.text = (order['price'] as num).toStringAsFixed(2);
-      // Nota: La carga de order_items al editar la haremos en la siguiente iteración para no complicarlo hoy.
-      // Por ahora, asumimos que estamos creando o editando datos básicos.
+      _paidController.text = ((order['paid_amount'] ?? 0) as num)
+          .toStringAsFixed(2);
+
+      // --- SOLUCIÓN 1: CARGAMOS LOS MATERIALES AL EDITAR ---
+      final items = await _orderRepo.getOrderItems(order['id']);
+      if (items.isNotEmpty) {
+        int firstMatId = items.first['material_id'];
+        bool isResin = _resins.any((r) => r['id'] == firstMatId);
+
+        if (isResin) {
+          _materialMode = 'resin';
+          _selectedResinId = firstMatId;
+          _resinGramsController.text = items.first['grams_used'].toString();
+        } else {
+          _materialMode = 'filament';
+          _filamentEntries.clear(); // Vaciamos el primer hueco
+          for (var item in items) {
+            final entry = _FilamentEntry();
+            entry.materialId = item['material_id'];
+            entry.gramsController.text = item['grams_used'].toString();
+            _filamentEntries.add(entry);
+          }
+        }
+      }
     }
 
     setState(() => _isLoading = false);
-    _calculateEstimate(updateManualPrice: order == null);
+    _calculateEstimate();
   }
 
-  // --- LÓGICA FINANCIERA ---
-  void _calculateEstimate({bool updateManualPrice = true}) {
+  // --- SOLUCIÓN 2: LA CALCULADORA YA NO SOBREESCRIBE EL PRECIO ---
+  void _calculateEstimate() {
     double costMaterial = 0.0;
 
-    // Calcular coste de Resina
     if (_materialMode == 'resin' && _selectedResinId != null) {
       final res = _resins.firstWhere((r) => r['id'] == _selectedResinId);
       double g = double.tryParse(_resinGramsController.text) ?? 0;
       costMaterial = (g / 1000) * (res['cost_per_kg'] as num);
-    }
-    // Calcular coste de Filamentos (Suma de todos)
-    else if (_materialMode == 'filament') {
+    } else if (_materialMode == 'filament') {
       for (var entry in _filamentEntries) {
         if (entry.materialId != null) {
           final fil = _filaments.firstWhere((f) => f['id'] == entry.materialId);
@@ -112,25 +127,47 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
       }
     }
 
-    // Calcular placas extra y pintura
     double plates = double.tryParse(_platesController.text) ?? 1;
     double costPlates = (plates > 1) ? (plates - 1) * _costePlacaExtra : 0;
 
     double paintHours = double.tryParse(_paintHoursController.text) ?? 0;
     double costPaint = _isPainted ? (paintHours * _costeHoraPintado) : 0.0;
 
-    // FÓRMULA MAESTRA CON VARIABLES REALES
     setState(() {
       _suggestedPrice =
           (costMaterial + costPlates) * (1 + (_margenBeneficio / 100)) +
           costPaint;
-      if (updateManualPrice) {
-        _priceController.text = _suggestedPrice.toStringAsFixed(2);
-      }
     });
   }
 
-  // --- REGLA DE NEGOCIO: BLOQUEO POR COMPLETADO ---
+  // BOTÓN MANUAL PARA COPIAR EL PRECIO
+  void _applySuggestedPrice() {
+    setState(() {
+      _priceController.text = _suggestedPrice.toStringAsFixed(2);
+    });
+  }
+
+  void _addNewMaterialOnTheFly(String type, Function(int) onSelected) {
+    showDialog(
+      context: context,
+      builder: (context) => MaterialDialog(
+        initialMaterial: {'type': type},
+        onSave: (newMaterial) async {
+          int newId = await _materialRepo.insertMaterial(newMaterial);
+          final materials = await _materialRepo.getAllMaterials();
+          setState(() {
+            _resins = materials.where((m) => m['type'] == 'resin').toList();
+            _filaments = materials
+                .where((m) => m['type'] == 'filament')
+                .toList();
+          });
+          onSelected(newId);
+          _calculateEstimate();
+        },
+      ),
+    );
+  }
+
   bool get _isLocked =>
       _selectedStatus == 'Completed' || _selectedStatus == 'Shipped';
 
@@ -144,8 +181,10 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
         ),
       );
 
-    double manualPrice = double.tryParse(_priceController.text) ?? 0.0;
-    bool isUnderpriced = manualPrice < (_suggestedPrice - 0.01);
+    double price = double.tryParse(_priceController.text) ?? 0.0;
+    double paid = double.tryParse(_paidController.text) ?? 0.0;
+    double pending = price - paid;
+    bool isUnderpriced = price < (_suggestedPrice - 0.01) && price > 0;
 
     return AlertDialog(
       backgroundColor: AppColors.surface,
@@ -167,7 +206,6 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. DATOS BÁSICOS
               Row(
                 children: [
                   Expanded(
@@ -212,7 +250,6 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
               ),
               const Divider(height: 32),
 
-              // 2. SELECTOR DE MATERIAL
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(
@@ -238,7 +275,6 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
               ),
               const SizedBox(height: 16),
 
-              // ZONA RESINA VS ZONA FILAMENTO
               if (_materialMode == 'resin')
                 _buildResinZone()
               else
@@ -246,7 +282,6 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
 
               const Divider(height: 32),
 
-              // 3. EXTRAS (Placas y Pintura)
               Row(
                 children: [
                   Expanded(
@@ -292,48 +327,137 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
 
               const Divider(height: 32),
 
-              // 4. PRECIO FINAL
+              // --- ZONA CONTABLE MEJORADA ---
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    "Precio Sugerido (Costes + $_margenBeneficio%):",
-                    style: const TextStyle(color: AppColors.textMuted),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Contabilidad del Pedido",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              "Sugerido: €${_suggestedPrice.toStringAsFixed(2)}",
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                            if (!_isLocked)
+                              TextButton(
+                                onPressed: _applySuggestedPrice,
+                                style: TextButton.styleFrom(
+                                  minimumSize: Size.zero,
+                                  padding: const EdgeInsets.only(left: 8),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: const Text(
+                                  "Copiar al Final",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (isUnderpriced)
+                          const Text(
+                            "⚠️ Vendiendo por debajo del sugerido",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.alertBajoStock,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                  Text(
-                    "€${_suggestedPrice.toStringAsFixed(2)}",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: pending > 0
+                          ? AppColors.alertBajoStock.withOpacity(0.1)
+                          : AppColors.statusCompletado.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      "Pendiente: €${pending.toStringAsFixed(2)}",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: pending > 0
+                            ? AppColors.alertBajoStock
+                            : AppColors.statusCompletado,
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _priceController,
-                enabled: !_isLocked,
-                onChanged: (v) => setState(() {}),
-                style: TextStyle(
-                  color: isUnderpriced
-                      ? AppColors.alertBajoStock
-                      : AppColors.primary,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: InputDecoration(
-                  prefixIcon: Icon(
-                    Icons.euro,
-                    color: isUnderpriced
-                        ? AppColors.alertBajoStock
-                        : AppColors.primary,
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _priceController,
+                      enabled: !_isLocked,
+                      decoration: InputDecoration(
+                        labelText: 'Precio Final (€)',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: Icon(
+                          Icons.euro,
+                          color: isUnderpriced
+                              ? AppColors.alertBajoStock
+                              : AppColors.primary,
+                        ),
+                      ),
+                      style: TextStyle(
+                        color: isUnderpriced
+                            ? AppColors.alertBajoStock
+                            : AppColors.primary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
                   ),
-                  border: const OutlineInputBorder(),
-                ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      controller: _paidController,
+                      enabled: !_isLocked,
+                      decoration: const InputDecoration(
+                        labelText: 'Pagado / Adelanto (€)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(
+                          Icons.account_balance_wallet,
+                          color: AppColors.statusCompletado,
+                        ),
+                      ),
+                      style: const TextStyle(
+                        color: AppColors.statusCompletado,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -358,32 +482,46 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
     );
   }
 
-  // ZONA DE RESINA (Solo 1 tanque)
   Widget _buildResinZone() {
     return Row(
       children: [
         Expanded(
           flex: 2,
-          child: DropdownButtonFormField<int>(
-            initialValue: _selectedResinId,
-            decoration: const InputDecoration(
-              labelText: 'Selecciona Resina',
-              border: OutlineInputBorder(),
-            ),
-            items: _resins
-                .map(
-                  (r) => DropdownMenuItem<int>(
-                    value: r['id'],
-                    child: Text("${r['name']} (${r['color']})"),
+          child: Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  initialValue: _selectedResinId,
+                  decoration: const InputDecoration(
+                    labelText: 'Selecciona Resina',
+                    border: OutlineInputBorder(),
                   ),
-                )
-                .toList(),
-            onChanged: _isLocked
-                ? null
-                : (v) => setState(() {
-                    _selectedResinId = v;
-                    _calculateEstimate();
-                  }),
+                  items: _resins
+                      .map(
+                        (r) => DropdownMenuItem<int>(
+                          value: r['id'],
+                          child: Text("${r['name']} (${r['color']})"),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _isLocked
+                      ? null
+                      : (v) => setState(() {
+                          _selectedResinId = v;
+                          _calculateEstimate();
+                        }),
+                ),
+              ),
+              if (!_isLocked)
+                IconButton(
+                  icon: const Icon(Icons.add_circle, color: AppColors.primary),
+                  tooltip: 'Añadir nueva resina',
+                  onPressed: () => _addNewMaterialOnTheFly(
+                    'resin',
+                    (newId) => setState(() => _selectedResinId = newId),
+                  ),
+                ),
+            ],
           ),
         ),
         const SizedBox(width: 16),
@@ -403,7 +541,6 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
     );
   }
 
-  // ZONA DE FILAMENTO (Hasta 4 colores)
   Widget _buildFilamentZone() {
     return Column(
       children: [
@@ -416,26 +553,45 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
               children: [
                 Expanded(
                   flex: 2,
-                  child: DropdownButtonFormField<int>(
-                    initialValue: fEntry.materialId,
-                    decoration: InputDecoration(
-                      labelText: 'Filamento ${index + 1}',
-                      border: const OutlineInputBorder(),
-                    ),
-                    items: _filaments
-                        .map(
-                          (f) => DropdownMenuItem<int>(
-                            value: f['id'],
-                            child: Text("${f['name']} (${f['color']})"),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          initialValue: fEntry.materialId,
+                          decoration: InputDecoration(
+                            labelText: 'Filamento ${index + 1}',
+                            border: const OutlineInputBorder(),
                           ),
-                        )
-                        .toList(),
-                    onChanged: _isLocked
-                        ? null
-                        : (v) => setState(() {
-                            fEntry.materialId = v;
-                            _calculateEstimate();
-                          }),
+                          items: _filaments
+                              .map(
+                                (f) => DropdownMenuItem<int>(
+                                  value: f['id'],
+                                  child: Text("${f['name']} (${f['color']})"),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: _isLocked
+                              ? null
+                              : (v) => setState(() {
+                                  fEntry.materialId = v;
+                                  _calculateEstimate();
+                                }),
+                        ),
+                      ),
+                      if (!_isLocked)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.add_circle,
+                            color: AppColors.primary,
+                          ),
+                          tooltip: 'Añadir nuevo filamento',
+                          onPressed: () => _addNewMaterialOnTheFly(
+                            'filament',
+                            (newId) =>
+                                setState(() => fEntry.materialId = newId),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -479,23 +635,20 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
     );
   }
 
-  // GUARDAR: Preparar la estructura mágica para main.dart
   void _saveOrder() {
-    // 1. Datos del pedido
     Map<String, dynamic> orderData = {
       'name': _nameController.text,
       'price': double.tryParse(_priceController.text) ?? 0.0,
+      'paid_amount': double.tryParse(_paidController.text) ?? 0.0,
       'date':
           widget.initialOrder?['date'] ??
           DateTime.now().toString().split(' ')[0],
       'status': _selectedStatus,
-      'grams':
-          0.0, // Ya no se usa directamente, se calcula por los items, pero lo mantenemos por ahora
+      'grams': 0.0,
       'plates': int.tryParse(_platesController.text) ?? 1,
       'is_painted': _isPainted ? 1 : 0,
     };
 
-    // 2. Materiales gastados (order_items)
     List<Map<String, dynamic>> items = [];
     if (_materialMode == 'resin' && _selectedResinId != null) {
       items.add({
@@ -513,9 +666,9 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
       }
     }
 
-    // Truco: Metemos los items dentro del mapa para pasarlo fácil al main
     orderData['items'] = items;
     widget.onSave(orderData);
+
     if (mounted) {
       Navigator.pop(context);
     }
