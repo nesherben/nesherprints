@@ -227,23 +227,30 @@ class _NewOrderDialogState extends State<NewOrderDialog> {
                         labelText: 'Estado',
                         border: OutlineInputBorder(),
                       ),
-                      items:
-                          [
-                                'Draft',
-                                'Reserved',
-                                'In Progress',
-                                'Completed',
-                                'Shipped',
-                                'Canceled',
-                              ]
-                              .map(
-                                (s) =>
-                                    DropdownMenuItem(value: s, child: Text(s)),
-                              )
-                              .toList(),
-                      onChanged: (v) => setState(() {
-                        _selectedStatus = v!;
-                      }),
+                      items: () {
+                        // Generamos la lista base sin 'Completed'
+                        List<String> options = [
+                          'Draft',
+                          'Reserved',
+                          'In Progress',
+                          'Shipped',
+                          'Canceled',
+                        ];
+                        // Solo si el pedido YA está completado, lo añadimos para que Flutter no se bloquee
+                        if (_selectedStatus == 'Completed')
+                          options.add('Completed');
+                        return options
+                            .map(
+                              (s) => DropdownMenuItem(value: s, child: Text(s)),
+                            )
+                            .toList();
+                      }(),
+                      // Si está bloqueado (Completed o Shipped), desactivamos el desplegable (null)
+                      onChanged: _isLocked
+                          ? null
+                          : (v) => setState(() {
+                              _selectedStatus = v!;
+                            }),
                     ),
                   ),
                 ],

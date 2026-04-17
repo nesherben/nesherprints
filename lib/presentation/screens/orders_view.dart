@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../widgets/order_dialog.dart';
-import '../../data/repositories/order_repository.dart'; // <--- AÑADE ESTO
+import '../../data/repositories/order_repository.dart';
+import '../../data/repositories/material_repository.dart';
 
 class OrdersView extends StatefulWidget {
   final List<Map<String, dynamic>> orders;
@@ -93,7 +94,6 @@ class _OrdersViewState extends State<OrdersView> {
       filtered.sort((a, b) {
         Comparable valueA;
         Comparable valueB;
-
         switch (_sortColumnIndex) {
           case 0:
             valueA = a['id'];
@@ -119,10 +119,214 @@ class _OrdersViewState extends State<OrdersView> {
             : Comparable.compare(valueB, valueA);
       });
     }
+    setState(() => _displayOrders = filtered);
+  }
 
-    setState(() {
-      _displayOrders = filtered;
-    });
+  // --- NUEVA FUNCIÓN DE SEGURIDAD (DIÁLOGOS DE CONFIRMACIÓN) ---
+  void _showConfirmationDialog({
+    required String title,
+    required String content,
+    required Color confirmColor,
+    required String confirmText,
+    required VoidCallback onConfirm,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          title,
+          style: TextStyle(color: confirmColor, fontWeight: FontWeight.bold),
+        ),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: confirmColor,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(context); // Cierra el diálogo
+              onConfirm(); // Ejecuta la acción
+            },
+            child: Text(confirmText),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showWasteDialog(Map<String, dynamic> order) async {
+    final materials = await MaterialRepository().getAllMaterials();
+    int? selectedMaterialId;
+    final gramsController = TextEditingController();
+    final reasonController = TextEditingController();
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Registrar Merma - ${order['name']}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Añade los gramos de material perdido (espaguetis, fallos de soporte...). Se restarán de tu inventario físico y afectarán a tu beneficio neto real.',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<int>(
+              decoration: const InputDecoration(
+                labelText: 'Bobina / Resina Fallida',
+                border: OutlineInputBorder(),
+              ),
+              items: materials
+                  .map(
+                    (m) => DropdownMenuItem<int>(
+                      value: m['id'],
+                      child: Text("${m['name']} (${m['color']})"),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (val) => selectedMaterialId = val,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: gramsController,
+              decoration: const InputDecoration(
+                labelText: 'Gramos perdidos',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (Opcional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.alertBajoStock,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              if (selectedMaterialId != null &&
+                  gramsController.text.isNotEmpty) {
+                double grams = double.tryParse(gramsController.text) ?? 0.0;
+                // Guardamos la pérdida en la base de datos
+                await OrderRepository().addWaste(
+                  order['id'],
+                  selectedMaterialId!,
+                  grams,
+                  reasonController.text,
+                );
+
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Pérdida registrada. Stock actualizado.'),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Registrar Pérdida'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- ETIQUETA INTERACTIVA BLINDADA ---
+  Widget _buildInteractiveStatusBadge(Map<String, dynamic> order) {
+    String status = order['status'];
+    Color bgColor;
+    Color textColor;
+
+    switch (status) {
+      case 'Completed':
+      case 'Shipped':
+        bgColor = AppColors.statusCompletado.withOpacity(0.2);
+        textColor = AppColors.statusCompletado;
+        break;
+      case 'In Progress':
+        bgColor = AppColors.primary.withOpacity(0.2);
+        textColor = AppColors.primary;
+        break;
+      case 'Canceled':
+        bgColor = AppColors.statusCancelado.withOpacity(0.2);
+        textColor = AppColors.statusCancelado;
+        break;
+      default:
+        bgColor = Colors.grey.withOpacity(0.2);
+        textColor = Colors.grey;
+    }
+
+    return PopupMenuButton<String>(
+      initialValue: status,
+      tooltip: 'Cambiar estado rápidamente',
+      onSelected: (String newStatus) async {
+        if (newStatus == status) return;
+
+        final rawItems = await OrderRepository().getOrderItems(order['id']);
+        final modifiableItems = rawItems
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+        final updatedOrder = Map<String, dynamic>.from(order);
+        updatedOrder['status'] = newStatus;
+        updatedOrder['items'] = modifiableItems;
+
+        widget.onUpdate(order, updatedOrder);
+      },
+      itemBuilder: (BuildContext context) {
+        // ATENCIÓN AQUÍ: Hemos quitado 'Completed' de la lista rápida
+        return ['Draft', 'Reserved', 'In Progress', 'Shipped', 'Canceled']
+            .map(
+              (String choice) =>
+                  PopupMenuItem<String>(value: choice, child: Text(choice)),
+            )
+            .toList();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              status,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (status != 'Completed') ...[
+              const SizedBox(width: 4),
+              Icon(Icons.arrow_drop_down, size: 14, color: textColor),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -141,7 +345,6 @@ class _OrdersViewState extends State<OrdersView> {
             ),
           ),
           const SizedBox(height: 24),
-
           Row(
             children: [
               Expanded(
@@ -149,7 +352,7 @@ class _OrdersViewState extends State<OrdersView> {
                 child: TextField(
                   controller: _searchController,
                   decoration: const InputDecoration(
-                    labelText: 'Buscar proyecto...',
+                    labelText: 'Buscar...',
                     prefixIcon: Icon(Icons.search),
                     border: OutlineInputBorder(),
                     isDense: true,
@@ -166,7 +369,7 @@ class _OrdersViewState extends State<OrdersView> {
                 child: DropdownButtonFormField<String>(
                   initialValue: _statusFilter,
                   decoration: const InputDecoration(
-                    labelText: 'Filtrar por Estado',
+                    labelText: 'Estado',
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
@@ -186,7 +389,7 @@ class _OrdersViewState extends State<OrdersView> {
                 ElevatedButton.icon(
                   onPressed: _resetFilters,
                   icon: const Icon(Icons.filter_alt_off),
-                  label: const Text('Limpiar Filtros'),
+                  label: const Text('Limpiar'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.surface,
                     foregroundColor: AppColors.textMain,
@@ -196,32 +399,25 @@ class _OrdersViewState extends State<OrdersView> {
                 const SizedBox(width: 150),
             ],
           ),
-
           const SizedBox(height: 16),
-
           Expanded(
             child: Card(
               child: _displayOrders.isEmpty
-                  ? const Center(
-                      child: Text(
-                        "No se encontraron pedidos con estos filtros.",
-                      ),
-                    )
+                  ? const Center(child: Text("No se encontraron pedidos."))
                   : SingleChildScrollView(
                       child: SizedBox(
                         width: double.infinity,
                         child: DataTable(
                           sortColumnIndex: _sortColumnIndex,
                           sortAscending: _isAscending,
-                          dataRowMaxHeight:
-                              70, // Hacemos la fila un poco más alta para que quepa la información
+                          dataRowMaxHeight: 70,
                           headingTextStyle: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: AppColors.textMain,
                           ),
                           columns: [
                             DataColumn(
-                              label: const Text('ID / Fecha'),
+                              label: const Text('ID/Fecha'),
                               onSort: _onSort,
                             ),
                             DataColumn(
@@ -237,13 +433,10 @@ class _OrdersViewState extends State<OrdersView> {
                               numeric: true,
                               onSort: _onSort,
                             ),
-                            const DataColumn(
-                              label: Text('Detalles'),
-                            ), // Columna nueva
+                            const DataColumn(label: Text('Detalles')),
                             const DataColumn(label: Text('Acciones')),
                           ],
                           rows: _displayOrders.map((o) {
-                            // Lógica de dineros
                             double price = (o['price'] as num).toDouble();
                             double paid = ((o['paid_amount'] ?? 0) as num)
                                 .toDouble();
@@ -269,15 +462,13 @@ class _OrdersViewState extends State<OrdersView> {
                                   ),
                                 ),
                                 DataCell(_buildInteractiveStatusBadge(o)),
-
-                                // CELDA DE FINANZAS ENRIQUECIDA
                                 DataCell(
                                   Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
-                                        'Total: €${price.toStringAsFixed(2)}',
+                                        '€${price.toStringAsFixed(2)}',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 14,
@@ -303,8 +494,6 @@ class _OrdersViewState extends State<OrdersView> {
                                     ],
                                   ),
                                 ),
-
-                                // CELDA DE DETALLES TÉCNICOS
                                 DataCell(
                                   Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -356,10 +545,10 @@ class _OrdersViewState extends State<OrdersView> {
                                     ],
                                   ),
                                 ),
-
                                 DataCell(
                                   Row(
                                     children: [
+                                      // BOTÓN COMPLETAR BLINDADO
                                       if (o['status'] != 'Completed' &&
                                           o['status'] != 'Shipped' &&
                                           o['status'] != 'Canceled')
@@ -369,20 +558,42 @@ class _OrdersViewState extends State<OrdersView> {
                                             color: AppColors.statusCompletado,
                                             size: 20,
                                           ),
-                                          tooltip: 'Marcar como Completado',
-                                          onPressed: () {
-                                            widget.onComplete(o);
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Pedido completado y stock actualizado',
+                                          tooltip:
+                                              'Marcar como Completado (Resta Stock)',
+                                          onPressed: () => _showConfirmationDialog(
+                                            title: '¿Completar Pedido?',
+                                            content:
+                                                'Al completar este pedido, se restará el material correspondiente de tu inventario de forma permanente.\n\n¿La impresión ha sido exitosa?',
+                                            confirmColor:
+                                                AppColors.statusCompletado,
+                                            confirmText: 'Sí, completar',
+                                            onConfirm: () {
+                                              widget.onComplete(
+                                                Map<String, dynamic>.from(o),
+                                              );
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Pedido completado. Stock actualizado.',
+                                                  ),
                                                 ),
-                                              ),
-                                            );
-                                          },
+                                              );
+                                            },
+                                          ),
                                         ),
+                                      // BOTÓN DE MERMAS (NUEVO)
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.recycling,
+                                          color: Colors.orange,
+                                          size: 20,
+                                        ),
+                                        tooltip: 'Registrar Impresión Fallida',
+                                        onPressed: () => _showWasteDialog(o),
+                                      ),
+                                      // BOTÓN EDITAR (Sin cambios)
                                       IconButton(
                                         icon: const Icon(
                                           Icons.edit_outlined,
@@ -398,13 +609,22 @@ class _OrdersViewState extends State<OrdersView> {
                                           ),
                                         ),
                                       ),
+                                      // BOTÓN BORRAR BLINDADO
                                       IconButton(
                                         icon: const Icon(
                                           Icons.delete_outline,
                                           color: AppColors.statusCancelado,
                                           size: 20,
                                         ),
-                                        onPressed: () => widget.onDelete(o),
+                                        onPressed: () => _showConfirmationDialog(
+                                          title: '¿Eliminar Pedido?',
+                                          content:
+                                              'Esta acción no se puede deshacer. Los datos financieros y de historial desaparecerán para siempre.',
+                                          confirmColor:
+                                              AppColors.alertBajoStock,
+                                          confirmText: 'Eliminar',
+                                          onConfirm: () => widget.onDelete(o),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -418,105 +638,6 @@ class _OrdersViewState extends State<OrdersView> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildInteractiveStatusBadge(Map<String, dynamic> order) {
-    String status = order['status'];
-    Color bgColor;
-    Color textColor;
-
-    switch (status) {
-      case 'Completed':
-      case 'Shipped':
-        bgColor = AppColors.statusCompletado.withOpacity(0.2);
-        textColor = AppColors.statusCompletado;
-        break;
-      case 'In Progress':
-        bgColor = AppColors.primary.withOpacity(0.2);
-        textColor = AppColors.primary;
-        break;
-      case 'Canceled':
-        bgColor = AppColors.statusCancelado.withOpacity(0.2);
-        textColor = AppColors.statusCancelado;
-        break;
-      default:
-        bgColor = Colors.grey.withOpacity(0.2);
-        textColor = Colors.grey;
-    }
-
-    return PopupMenuButton<String>(
-      initialValue: status,
-      tooltip: 'Cambiar estado rápidamente',
-      onSelected: (String newStatus) async {
-        if (newStatus == status) return;
-
-        if (newStatus == 'Completed') {
-          // Desbloqueamos el pedido principal haciendo una copia por si la función intenta modificarlo
-          widget.onComplete(Map<String, dynamic>.from(order));
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Pedido completado y stock actualizado'),
-              ),
-            );
-          }
-        } else {
-          // 1. Buscamos los materiales blindados de SQLite
-          final rawItems = await OrderRepository().getOrderItems(order['id']);
-
-          // 2. MAGIA AQUÍ: Hacemos una copia "desbloqueada" y editable de cada material
-          final modifiableItems = rawItems
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList();
-
-          // 3. Preparamos el pedido completo (también desbloqueado)
-          final updatedOrder = Map<String, dynamic>.from(order);
-          updatedOrder['status'] = newStatus;
-          updatedOrder['items'] =
-              modifiableItems; // Le pasamos la lista editable
-
-          // 4. Actualizamos sin miedo a que colapse
-          widget.onUpdate(order, updatedOrder);
-        }
-      },
-      itemBuilder: (BuildContext context) {
-        return [
-              'Draft',
-              'Reserved',
-              'In Progress',
-              'Completed',
-              'Shipped',
-              'Canceled',
-            ]
-            .map(
-              (String choice) =>
-                  PopupMenuItem<String>(value: choice, child: Text(choice)),
-            )
-            .toList();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              status,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.arrow_drop_down, size: 14, color: textColor),
-          ],
-        ),
       ),
     );
   }
