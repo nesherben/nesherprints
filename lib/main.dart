@@ -7,6 +7,7 @@ import 'package:nesherprints/presentation/widgets/order_dialog.dart';
 import 'dart:io'; // Para detectar si estamos en Windows
 import 'package:sqflite_common_ffi/sqflite_ffi.dart'; // El motor de escritorio
 import 'data/repositories/order_repository.dart'; // <--- IMPORTAMOS EL REPOSITORIO
+import 'package:nesherprints/presentation/screens/admin_view.dart'; // <--- NUEVO
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -122,6 +123,7 @@ class _MainNavigationState extends State<MainNavigation> {
         onDelete: _deleteOrder,
         onUpdate: _updateOrder,
       ),
+      const AdminView(),
     ];
 
     return Scaffold(
@@ -155,6 +157,10 @@ class _MainNavigationState extends State<MainNavigation> {
               NavigationRailDestination(
                 icon: Icon(Icons.receipt_long_outlined),
                 label: Text('Orders'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.settings_outlined),
+                label: Text('Admin'),
               ),
             ],
           ),
