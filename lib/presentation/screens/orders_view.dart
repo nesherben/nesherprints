@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../widgets/order_dialog.dart';
+import '../../data/repositories/order_repository.dart'; // <--- AÑADE ESTO
 
 class OrdersView extends StatefulWidget {
   final List<Map<String, dynamic>> orders;
@@ -21,7 +22,6 @@ class OrdersView extends StatefulWidget {
 }
 
 class _OrdersViewState extends State<OrdersView> {
-  // Variables de estado para TODOS los filtros
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String _statusFilter = 'Todos';
@@ -29,7 +29,6 @@ class _OrdersViewState extends State<OrdersView> {
   bool _isAscending = false;
   List<Map<String, dynamic>> _displayOrders = [];
 
-  // Lista de estados disponibles para el filtro
   final List<String> _statusOptions = [
     'Todos',
     'Draft',
@@ -43,7 +42,7 @@ class _OrdersViewState extends State<OrdersView> {
   @override
   void initState() {
     super.initState();
-    _applyFiltersAndSort(); // Carga inicial
+    _applyFiltersAndSort();
   }
 
   @override
@@ -54,13 +53,11 @@ class _OrdersViewState extends State<OrdersView> {
     }
   }
 
-  // Comprueba si hay algún filtro activo para mostrar el botón de limpiar
   bool get _hasActiveFilters =>
       _searchQuery.isNotEmpty ||
       _statusFilter != 'Todos' ||
       _sortColumnIndex != null;
 
-  // --- LÓGICA UNIFICADA ---
   void _resetFilters() {
     setState(() {
       _searchController.clear();
@@ -81,7 +78,6 @@ class _OrdersViewState extends State<OrdersView> {
   }
 
   void _applyFiltersAndSort() {
-    // 1. Aplicamos Filtros de Texto y Estado
     var filtered = widget.orders.where((o) {
       final matchesSearch = o['name'].toString().toLowerCase().contains(
         _searchQuery.toLowerCase(),
@@ -91,9 +87,7 @@ class _OrdersViewState extends State<OrdersView> {
       return matchesSearch && matchesStatus;
     }).toList();
 
-    // 2. Aplicamos Ordenamiento
     if (_sortColumnIndex == null) {
-      // Por defecto: ID descendente (el último arriba)
       filtered.sort((a, b) => b['id'].compareTo(a['id']));
     } else {
       filtered.sort((a, b) {
@@ -131,7 +125,6 @@ class _OrdersViewState extends State<OrdersView> {
     });
   }
 
-  // --- INTERFAZ DE USUARIO ---
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -149,7 +142,6 @@ class _OrdersViewState extends State<OrdersView> {
           ),
           const SizedBox(height: 24),
 
-          // BARRA DE HERRAMIENTAS (Buscador, Filtro Estado, Limpiar)
           Row(
             children: [
               Expanded(
@@ -190,7 +182,6 @@ class _OrdersViewState extends State<OrdersView> {
                 ),
               ),
               const SizedBox(width: 16),
-              // Solo mostramos el botón de limpiar si hay algo que limpiar
               if (_hasActiveFilters)
                 ElevatedButton.icon(
                   onPressed: _resetFilters,
@@ -202,15 +193,12 @@ class _OrdersViewState extends State<OrdersView> {
                   ),
                 )
               else
-                const SizedBox(
-                  width: 150,
-                ), // Espaciador para mantener estructura
+                const SizedBox(width: 150),
             ],
           ),
 
           const SizedBox(height: 16),
 
-          // TABLA DE DATOS
           Expanded(
             child: Card(
               child: _displayOrders.isEmpty
@@ -225,6 +213,8 @@ class _OrdersViewState extends State<OrdersView> {
                         child: DataTable(
                           sortColumnIndex: _sortColumnIndex,
                           sortAscending: _isAscending,
+                          dataRowMaxHeight:
+                              70, // Hacemos la fila un poco más alta para que quepa la información
                           headingTextStyle: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: AppColors.textMain,
@@ -243,20 +233,30 @@ class _OrdersViewState extends State<OrdersView> {
                               onSort: _onSort,
                             ),
                             DataColumn(
-                              label: const Text('Precio Final'),
+                              label: const Text('Finanzas'),
                               numeric: true,
                               onSort: _onSort,
                             ),
+                            const DataColumn(
+                              label: Text('Detalles'),
+                            ), // Columna nueva
                             const DataColumn(label: Text('Acciones')),
                           ],
                           rows: _displayOrders.map((o) {
+                            // Lógica de dineros
+                            double price = (o['price'] as num).toDouble();
+                            double paid = ((o['paid_amount'] ?? 0) as num)
+                                .toDouble();
+                            double pending = price - paid;
+
                             return DataRow(
                               cells: [
                                 DataCell(
                                   Text(
-                                    '#${o['id']} - ${o['date']}',
+                                    '#${o['id']}\n${o['date']}',
                                     style: const TextStyle(
                                       color: AppColors.textMuted,
+                                      fontSize: 12,
                                     ),
                                   ),
                                 ),
@@ -268,16 +268,95 @@ class _OrdersViewState extends State<OrdersView> {
                                     ),
                                   ),
                                 ),
-                                DataCell(_buildStatusBadge(o['status'])),
+                                DataCell(_buildInteractiveStatusBadge(o)),
+
+                                // CELDA DE FINANZAS ENRIQUECIDA
                                 DataCell(
-                                  Text(
-                                    '€${(o['price'] as num).toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primary,
-                                    ),
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        'Total: €${price.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Pagado: €${paid.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          color: AppColors.statusCompletado,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      if (pending > 0)
+                                        Text(
+                                          'Falta: €${pending.toStringAsFixed(2)}',
+                                          style: const TextStyle(
+                                            color: AppColors.alertBajoStock,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
+
+                                // CELDA DE DETALLES TÉCNICOS
+                                DataCell(
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (o['is_painted'] == 1)
+                                        const Row(
+                                          children: [
+                                            Icon(
+                                              Icons.brush,
+                                              size: 12,
+                                              color: AppColors.statusReservado,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              "Pintado",
+                                              style: TextStyle(fontSize: 12),
+                                            ),
+                                          ],
+                                        ),
+                                      if ((o['plates'] as num) > 1)
+                                        Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.layers,
+                                              size: 12,
+                                              color: AppColors.textMuted,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              "${o['plates']} Placas",
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      if (o['is_painted'] == 0 &&
+                                          (o['plates'] as num) <= 1)
+                                        const Text(
+                                          "Estándar",
+                                          style: TextStyle(
+                                            color: AppColors.textMuted,
+                                            fontSize: 12,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+
                                 DataCell(
                                   Row(
                                     children: [
@@ -343,7 +422,8 @@ class _OrdersViewState extends State<OrdersView> {
     );
   }
 
-  Widget _buildStatusBadge(String status) {
+  Widget _buildInteractiveStatusBadge(Map<String, dynamic> order) {
+    String status = order['status'];
     Color bgColor;
     Color textColor;
 
@@ -366,18 +446,76 @@ class _OrdersViewState extends State<OrdersView> {
         textColor = Colors.grey;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
+    return PopupMenuButton<String>(
+      initialValue: status,
+      tooltip: 'Cambiar estado rápidamente',
+      onSelected: (String newStatus) async {
+        if (newStatus == status) return;
+
+        if (newStatus == 'Completed') {
+          // Desbloqueamos el pedido principal haciendo una copia por si la función intenta modificarlo
+          widget.onComplete(Map<String, dynamic>.from(order));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Pedido completado y stock actualizado'),
+              ),
+            );
+          }
+        } else {
+          // 1. Buscamos los materiales blindados de SQLite
+          final rawItems = await OrderRepository().getOrderItems(order['id']);
+
+          // 2. MAGIA AQUÍ: Hacemos una copia "desbloqueada" y editable de cada material
+          final modifiableItems = rawItems
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+
+          // 3. Preparamos el pedido completo (también desbloqueado)
+          final updatedOrder = Map<String, dynamic>.from(order);
+          updatedOrder['status'] = newStatus;
+          updatedOrder['items'] =
+              modifiableItems; // Le pasamos la lista editable
+
+          // 4. Actualizamos sin miedo a que colapse
+          widget.onUpdate(order, updatedOrder);
+        }
+      },
+      itemBuilder: (BuildContext context) {
+        return [
+              'Draft',
+              'Reserved',
+              'In Progress',
+              'Completed',
+              'Shipped',
+              'Canceled',
+            ]
+            .map(
+              (String choice) =>
+                  PopupMenuItem<String>(value: choice, child: Text(choice)),
+            )
+            .toList();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              status,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.arrow_drop_down, size: 14, color: textColor),
+          ],
         ),
       ),
     );
