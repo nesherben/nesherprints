@@ -34,4 +34,13 @@ class MaterialRepository {
     final db = await dbHelper.database;
     return await db.delete('materials', where: 'id = ?', whereArgs: [id]);
   }
+
+  Future<void> reduceStock(int id, double amountUsed) async {
+    final db = await dbHelper.database;
+    // Con rawUpdate le decimos a SQLite: "Coge el stock actual y réstale esta cantidad"
+    await db.rawUpdate(
+      'UPDATE materials SET stock_g = stock_g - ? WHERE id = ?',
+      [amountUsed, id],
+    );
+  }
 }

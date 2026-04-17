@@ -8,6 +8,7 @@ import 'dart:io'; // Para detectar si estamos en Windows
 import 'package:sqflite_common_ffi/sqflite_ffi.dart'; // El motor de escritorio
 import 'data/repositories/order_repository.dart'; // <--- IMPORTAMOS EL REPOSITORIO
 import 'package:nesherprints/presentation/screens/admin_view.dart'; // <--- NUEVO
+import 'data/repositories/material_repository.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -107,6 +108,28 @@ class _MainNavigationState extends State<MainNavigation> {
     _refreshOrders();
   }
 
+  final MaterialRepository _materialRepo =
+      MaterialRepository(); // Instanciamos el repo
+
+  // La función mágica de Completar + Restar Stock
+  Future<void> _completeOrder(Map<String, dynamic> order) async {
+    // 1. Clonamos el pedido y le cambiamos el estado
+    final updatedOrder = Map<String, dynamic>.from(order);
+    updatedOrder['status'] = 'Completed';
+
+    // 2. Guardamos el nuevo estado en la base de datos
+    await _repo.updateOrder(updatedOrder);
+
+    // 3. Buscamos qué materiales usó este pedido y restamos el stock
+    final items = await _repo.getOrderItems(order['id']);
+    for (var item in items) {
+      await _materialRepo.reduceStock(item['material_id'], item['grams_used']);
+    }
+
+    // 4. Refrescamos la pantalla
+    _refreshOrders();
+  }
+
   @override
   Widget build(BuildContext context) {
     // Si está cargando la base de datos, mostramos un spinner circular
@@ -125,6 +148,7 @@ class _MainNavigationState extends State<MainNavigation> {
         orders: _allOrders,
         onDelete: _deleteOrder,
         onUpdate: _updateOrder,
+        onComplete: _completeOrder,
       ),
       const AdminView(),
     ];

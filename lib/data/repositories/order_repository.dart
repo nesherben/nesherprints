@@ -75,4 +75,13 @@ class OrderRepository {
       ); // Borrar padre
     });
   }
+
+  Future<List<Map<String, dynamic>>> getOrderItems(int orderId) async {
+    final db = await dbHelper.database;
+    return await db.query(
+      'order_items',
+      where: 'order_id = ?',
+      whereArgs: [orderId],
+    );
+  }
 }

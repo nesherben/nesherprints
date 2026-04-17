@@ -6,12 +6,14 @@ class OrdersView extends StatefulWidget {
   final List<Map<String, dynamic>> orders;
   final Function(Map<String, dynamic>) onDelete;
   final Function(Map<String, dynamic>, Map<String, dynamic>) onUpdate;
+  final Function(Map<String, dynamic>) onComplete;
 
   const OrdersView({
     super.key,
     required this.orders,
     required this.onDelete,
     required this.onUpdate,
+    required this.onComplete,
   });
 
   @override
@@ -277,6 +279,30 @@ class _OrdersViewState extends State<OrdersView> {
                             DataCell(
                               Row(
                                 children: [
+                                  if (o['status'] != 'Completed' &&
+                                      o['status'] != 'Shipped' &&
+                                      o['status'] != 'Canceled')
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.check_circle_outline,
+                                        color: AppColors.statusCompletado,
+                                        size: 20,
+                                      ),
+                                      tooltip: 'Marcar como Completado',
+                                      onPressed: () {
+                                        widget.onComplete(o);
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Pedido completado y stock actualizado',
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  // Tu botón de Editar actual...
                                   IconButton(
                                     icon: const Icon(
                                       Icons.edit_outlined,
