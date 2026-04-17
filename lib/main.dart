@@ -83,8 +83,10 @@ class _MainNavigationState extends State<MainNavigation> {
 
   // Crear un nuevo pedido en SQLite
   Future<void> _addNewOrder(Map<String, dynamic> newOrder) async {
-    await _repo.insertOrder(newOrder);
-    _refreshOrders(); // Recargamos la lista desde la DB
+    // Extraemos la lista de materiales antes de guardar
+    List<Map<String, dynamic>> items = newOrder.remove('items');
+    await _repo.insertOrder(newOrder, items: items);
+    _refreshOrders();
   }
 
   // Actualizar un pedido en SQLite
@@ -92,9 +94,10 @@ class _MainNavigationState extends State<MainNavigation> {
     Map<String, dynamic> oldOrder,
     Map<String, dynamic> updatedOrder,
   ) async {
-    // Es vital pasarle el ID que tenía el pedido original
     updatedOrder['id'] = oldOrder['id'];
-    await _repo.updateOrder(updatedOrder);
+    // Extraemos la lista de materiales antes de guardar
+    List<Map<String, dynamic>> items = updatedOrder.remove('items');
+    await _repo.updateOrder(updatedOrder, items: items);
     _refreshOrders();
   }
 

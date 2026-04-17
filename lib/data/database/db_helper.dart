@@ -1,8 +1,9 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'dart:io';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class DatabaseHelper {
-  // Patrón Singleton: Garantiza que solo haya una conexión a la base de datos abierta
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
 
@@ -10,21 +11,24 @@ class DatabaseHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('nesher_erp.db');
+    // Pasamos a la v3 para crear las tablas desde cero
+    _database = await _initDB('nesher_erp_v3.db');
     return _database!;
   }
 
   Future<Database> _initDB(String filePath) async {
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    // Abre la base de datos y llama a _createDB si es la primera vez que se ejecuta
     return await openDatabase(path, version: 1, onCreate: _createDB);
   }
 
-  // --- DEFINICIÓN DE LA ARQUITECTURA DE DATOS ---
   Future _createDB(Database db, int version) async {
-    // 1. TABLA DE CONFIGURACIÓN GLOBAL (El Panel Admin)
+    // 1. SETTINGS
     await db.execute('''
       CREATE TABLE settings (
         key TEXT PRIMARY KEY,
@@ -32,19 +36,19 @@ class DatabaseHelper {
       )
     ''');
 
-    // 2. TABLA DE INVENTARIO (Resinas y Filamentos con sus costes propios)
+    // 2. MATERIALS
     await db.execute('''
       CREATE TABLE materials (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        type TEXT NOT NULL, -- 'resin' o 'filament'
+        type TEXT NOT NULL,
         color TEXT,
-        cost_per_kg REAL NOT NULL, -- ¡Justo lo que comentabas!
+        cost_per_kg REAL NOT NULL,
         stock_g REAL NOT NULL
       )
     ''');
 
-    // 3. TABLA DE PEDIDOS (Conexión con el material usado)
+    // 3. ORDERS (Ya no tiene material_id)
     await db.execute('''
       CREATE TABLE orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,13 +58,23 @@ class DatabaseHelper {
         status TEXT NOT NULL,
         grams REAL NOT NULL,
         plates INTEGER NOT NULL,
-        is_painted INTEGER NOT NULL,
-        material_id INTEGER, -- Relación directa con el material gastado
+        is_painted INTEGER NOT NULL
+      )
+    ''');
+
+    // 4. ORDER_ITEMS (La tabla puente mágica)
+    await db.execute('''
+      CREATE TABLE order_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        material_id INTEGER NOT NULL,
+        grams_used REAL NOT NULL,
+        FOREIGN KEY (order_id) REFERENCES orders (id),
         FOREIGN KEY (material_id) REFERENCES materials (id)
       )
     ''');
 
-    // INSERCIÓN DE VALORES POR DEFECTO PARA EL PANEL ADMIN
+    // Valores por defecto
     await db.rawInsert(
       "INSERT INTO settings (key, value) VALUES ('margen_beneficio', 45.0)",
     );
@@ -72,7 +86,6 @@ class DatabaseHelper {
     );
   }
 
-  // Cerrar la base de datos (buena práctica)
   Future close() async {
     final db = await instance.database;
     db.close();
