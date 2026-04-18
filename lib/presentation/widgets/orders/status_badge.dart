@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../data/repositories/order_repository.dart';
+import '../../../data/service_locator.dart';
 
 class StatusBadge extends StatelessWidget {
   final Map<String, dynamic> order;
@@ -19,16 +20,16 @@ class StatusBadge extends StatelessWidget {
     Color textColor;
 
     switch (status) {
-      case 'Completed':
-      case 'Shipped':
+      case OrderStatus.completed:
+      case OrderStatus.shipped:
         bgColor = AppColors.statusCompletado.withOpacity(0.2);
         textColor = AppColors.statusCompletado;
         break;
-      case 'In Progress':
+      case OrderStatus.inProgress:
         bgColor = AppColors.primary.withOpacity(0.2);
         textColor = AppColors.primary;
         break;
-      case 'Canceled':
+      case OrderStatus.canceled:
         bgColor = AppColors.statusCancelado.withOpacity(0.2);
         textColor = AppColors.statusCancelado;
         break;
@@ -44,7 +45,9 @@ class StatusBadge extends StatelessWidget {
         if (newStatus == status) return;
 
         // ✅ COPIA DEFENSIVA: Evitar errores de read-only de SQLite
-        final rawItems = await OrderRepository().getOrderItems(order['id']);
+        final rawItems = await ServiceLocator.orderRepo.getOrderItems(
+          order['id'],
+        );
         final modifiableItems = rawItems
             .map((e) => Map<String, dynamic>.from(e))
             .toList();
@@ -56,7 +59,13 @@ class StatusBadge extends StatelessWidget {
         onStatusChanged(order, updatedOrder);
       },
       itemBuilder: (BuildContext context) {
-        return ['Draft', 'Reserved', 'In Progress', 'Shipped', 'Canceled']
+        return [
+              OrderStatus.draft,
+              OrderStatus.reserved,
+              OrderStatus.inProgress,
+              OrderStatus.shipped,
+              OrderStatus.canceled,
+            ]
             .map(
               (String choice) =>
                   PopupMenuItem<String>(value: choice, child: Text(choice)),
@@ -80,7 +89,7 @@ class StatusBadge extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            if (status != 'Completed') ...[
+            if (status != OrderStatus.completed) ...[
               const SizedBox(width: 4),
               Icon(Icons.arrow_drop_down, size: 14, color: textColor),
             ],

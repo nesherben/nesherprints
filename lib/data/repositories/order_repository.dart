@@ -1,7 +1,27 @@
+import '../../core/constants.dart';
 import '../database/db_helper.dart';
 
 class OrderRepository {
   final dbHelper = DatabaseHelper.instance;
+
+  Map<String, dynamic> _sanitizeOrderFields(Map<String, dynamic> order) {
+    final allowedColumns = {
+      DbColumns.orderClientId,
+      DbColumns.orderName,
+      DbColumns.orderPrice,
+      DbColumns.orderPaidAmount,
+      'date',
+      DbColumns.orderStatus,
+      DbColumns.orderIsPainted,
+      'notes',
+    };
+
+    final sanitized = Map<String, dynamic>.from(order);
+    sanitized.removeWhere(
+      (key, _) => !allowedColumns.contains(key) && key != 'id',
+    );
+    return sanitized;
+  }
 
   // CREAR: Guarda el pedido y sus materiales de golpe
   // --- GUARDAR PEDIDO CON SUS PLACAS ---
@@ -10,14 +30,15 @@ class OrderRepository {
     List<Map<String, dynamic>> plates,
   ) async {
     final db = await dbHelper.database;
+    final sanitizedOrder = _sanitizeOrderFields(orderData);
     return await db.transaction((txn) async {
       // 1. Insertar el pedido
-      int orderId = await txn.insert('orders', orderData);
+      int orderId = await txn.insert(DbTables.orders, sanitizedOrder);
 
       // 2. Insertar cada placa vinculada
       for (var plate in plates) {
-        plate['order_id'] = orderId;
-        await txn.insert('order_plates', plate);
+        plate[DbColumns.plateOrderId] = orderId;
+        await txn.insert(DbTables.orderPlates, plate);
       }
       return orderId;
     });
@@ -26,8 +47,8 @@ class OrderRepository {
   Future<List<Map<String, dynamic>>> getOrderPlates(int orderId) async {
     final db = await dbHelper.database;
     return await db.query(
-      'order_plates',
-      where: 'order_id = ?',
+      DbTables.orderPlates,
+      where: '${DbColumns.plateOrderId} = ?',
       whereArgs: [orderId],
     );
   }
@@ -38,8 +59,8 @@ class OrderRepository {
     await db.transaction((txn) async {
       // 1. Buscamos los datos de la placa
       final plates = await txn.query(
-        'order_plates',
-        where: 'id = ?',
+        DbTables.orderPlates,
+        where: '${DbColumns.plateId} = ?',
         whereArgs: [plateId],
       );
       if (plates.isEmpty) return;
@@ -47,23 +68,23 @@ class OrderRepository {
 
       // 2. Marcamos la placa como fallida
       await txn.update(
-        'order_plates',
-        {'status': 'Failed'},
-        where: 'id = ?',
+        DbTables.orderPlates,
+        {DbColumns.plateStatus: 'Failed'},
+        where: '${DbColumns.plateId} = ?',
         whereArgs: [plateId],
       );
 
       // 3. Insertamos en la tabla de mermas (waste) para que el Dashboard lo detecte
-      await txn.insert('order_waste', {
-        'order_id': plate['order_id'],
-        'material_id': plate['material_id'],
+      await txn.insert(DbTables.orderWaste, {
+        DbColumns.orderForeignId: plate['order_id'],
+        DbColumns.materialForeignId: plate['material_id'],
         'grams_wasted': plate['grams'],
         'reason': 'Fallo en placa: ${plate['name']}. $reason',
       });
 
       // 4. Restamos el stock del inventario (porque el material se consumió igual)
       await txn.execute(
-        'UPDATE materials SET stock_g = stock_g - ? WHERE id = ?',
+        'UPDATE ${DbTables.materials} SET stock_g = stock_g - ? WHERE ${DbColumns.materialId} = ?',
         [plate['grams'], plate['material_id']],
       );
     });
@@ -77,21 +98,21 @@ class OrderRepository {
     SELECT 
       o.*,
       -- Coste de material de las placas (lo que debería haber gastado)
-      (SELECT SUM((p.grams / 1000) * m.cost_per_kg) 
-       FROM order_plates p 
-       JOIN materials m ON p.material_id = m.id 
-       WHERE p.order_id = o.id) as material_cost,
+      (SELECT SUM((p.${DbColumns.plateGrams} / 1000) * m.${DbColumns.materialCostPerKg}) 
+       FROM ${DbTables.orderPlates} p 
+       JOIN ${DbTables.materials} m ON p.${DbColumns.plateMaterialId} = m.${DbColumns.materialId} 
+       WHERE p.${DbColumns.plateOrderId} = o.${DbColumns.orderId}) as material_cost,
       
       -- Gramos totales teóricos (para el cálculo de tasa de fallo)
-      (SELECT SUM(p.grams) FROM order_plates p WHERE p.order_id = o.id) as total_theoretical_grams,
+      (SELECT SUM(p.${DbColumns.plateGrams}) FROM ${DbTables.orderPlates} p WHERE p.${DbColumns.plateOrderId} = o.${DbColumns.orderId}) as total_theoretical_grams,
       
       -- Gramos reales perdidos en mermas
-      (SELECT SUM(w.grams_wasted) FROM order_waste w WHERE w.order_id = o.id) as total_wasted_grams,
+      (SELECT SUM(w.grams_wasted) FROM ${DbTables.orderWaste} w WHERE w.${DbColumns.orderId} = o.${DbColumns.orderId}) as total_wasted_grams,
 
-      (SELECT GROUP_CONCAT(p.name, ', ') FROM order_plates p WHERE p.order_id = o.id) as plates_names,
-      (SELECT COUNT(*) FROM order_plates WHERE order_id = o.id) as plates_count
-    FROM orders o
-    ORDER BY o.id DESC
+      (SELECT GROUP_CONCAT(p.${DbColumns.plateName}, ', ') FROM ${DbTables.orderPlates} p WHERE p.${DbColumns.plateOrderId} = o.${DbColumns.orderId}) as plates_names,
+      (SELECT COUNT(*) FROM ${DbTables.orderPlates} WHERE ${DbColumns.plateOrderId} = o.${DbColumns.orderId}) as plates_count
+    FROM ${DbTables.orders} o
+    ORDER BY o.${DbColumns.orderId} DESC
   ''');
 
     return results;
@@ -104,26 +125,32 @@ class OrderRepository {
   ]) async {
     final db = await dbHelper.database;
     int orderId = order['id'];
+    final sanitizedOrder = _sanitizeOrderFields(order)..remove('id');
 
     return await db.transaction((txn) async {
       // 1. Actualizamos los datos básicos del pedido (estado, precio, etc.)
-      await txn.update('orders', order, where: 'id = ?', whereArgs: [orderId]);
+      await txn.update(
+        DbTables.orders,
+        sanitizedOrder,
+        where: '${DbColumns.orderId} = ?',
+        whereArgs: [orderId],
+      );
 
       // 2. Si nos pasan placas nuevas/modificadas, resincronizamos la tabla
       if (plates != null) {
         // Borramos las placas anteriores de este pedido
         await txn.delete(
-          'order_plates',
-          where: 'order_id = ?',
+          DbTables.orderPlates,
+          where: '${DbColumns.plateOrderId} = ?',
           whereArgs: [orderId],
         );
 
         // Insertamos la nueva lista de placas
         for (var plate in plates) {
-          plate['order_id'] = orderId;
+          plate[DbColumns.plateOrderId] = orderId;
           // Nos aseguramos de que no pierda su estado por defecto
-          plate.putIfAbsent('status', () => 'Pending');
-          await txn.insert('order_plates', plate);
+          plate.putIfAbsent(DbColumns.plateStatus, () => OrderStatus.pending);
+          await txn.insert(DbTables.orderPlates, plate);
         }
       }
       return orderId;
@@ -135,13 +162,13 @@ class OrderRepository {
     final db = await dbHelper.database;
     await db.transaction((txn) async {
       await txn.delete(
-        'order_items',
-        where: 'order_id = ?',
+        DbTables.orderItems,
+        where: '${DbColumns.orderForeignId} = ?',
         whereArgs: [id],
       ); // Borrar hijos
       await txn.delete(
-        'orders',
-        where: 'id = ?',
+        DbTables.orders,
+        where: '${DbColumns.orderId} = ?',
         whereArgs: [id],
       ); // Borrar padre
     });
@@ -150,8 +177,8 @@ class OrderRepository {
   Future<List<Map<String, dynamic>>> getOrderItems(int orderId) async {
     final db = await dbHelper.database;
     return await db.query(
-      'order_items',
-      where: 'order_id = ?',
+      DbTables.orderItems,
+      where: '${DbColumns.orderForeignId} = ?',
       whereArgs: [orderId],
     );
   }
@@ -160,9 +187,9 @@ class OrderRepository {
   Future<int> updatePayment(int orderId, double amount) async {
     final db = await dbHelper.database;
     return await db.update(
-      'orders',
-      {'paid_amount': amount},
-      where: 'id = ?',
+      DbTables.orders,
+      {DbColumns.orderPaidAmount: amount},
+      where: '${DbColumns.orderId} = ?',
       whereArgs: [orderId],
     );
   }
@@ -182,9 +209,9 @@ class OrderRepository {
       // pero parece que hubo un lío en la creación.
       // Si la columna en tu CREATE TABLE era 'date', asegúrate de que existe.
 
-      await txn.insert('order_waste', {
-        'order_id': orderId,
-        'material_id': materialId,
+      await txn.insert(DbTables.orderWaste, {
+        DbColumns.orderForeignId: orderId,
+        DbColumns.materialForeignId: materialId,
         'grams_wasted': grams,
         'reason': reason,
         // Si el error dice que no existe 'date', prueba a comentar esta línea
@@ -194,7 +221,7 @@ class OrderRepository {
 
       // 2. Restamos el material del inventario
       await txn.rawUpdate(
-        'UPDATE materials SET stock_g = stock_g - ? WHERE id = ?',
+        'UPDATE ${DbTables.materials} SET stock_g = stock_g - ? WHERE ${DbColumns.materialId} = ?',
         [grams, materialId],
       );
     });
@@ -203,6 +230,6 @@ class OrderRepository {
   // Para el Dashboard: Obtener todos los fallos
   Future<List<Map<String, dynamic>>> getAllWaste() async {
     final db = await dbHelper.database;
-    return await db.query('order_waste');
+    return await db.query(DbTables.orderWaste);
   }
 }

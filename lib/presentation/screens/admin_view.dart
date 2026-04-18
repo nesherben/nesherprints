@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../core/constants.dart';
 import '../../core/theme/app_colors.dart';
-import '../../data/repositories/settings_repository.dart';
+import '../../data/service_locator.dart';
 
 class AdminView extends StatefulWidget {
   const AdminView({super.key});
@@ -10,7 +11,6 @@ class AdminView extends StatefulWidget {
 }
 
 class _AdminViewState extends State<AdminView> {
-  final SettingsRepository _repo = SettingsRepository();
   bool _isLoading = true;
 
   final _marginController = TextEditingController();
@@ -25,30 +25,30 @@ class _AdminViewState extends State<AdminView> {
 
   // Cargamos los valores de la base de datos a los cuadros de texto
   Future<void> _loadSettings() async {
-    final data = await _repo.getAllSettings();
+    final data = await ServiceLocator.settingsRepo.getAllSettings();
     setState(() {
       _marginController.text =
-          data['margen_beneficio']?.toStringAsFixed(2) ?? '45.00';
+          data[SettingKeys.margenBeneficio]?.toStringAsFixed(2) ?? '45.00';
       _paintHourController.text =
-          data['coste_hora_pintado']?.toStringAsFixed(2) ?? '15.00';
+          data[SettingKeys.costeHoraPintado]?.toStringAsFixed(2) ?? '15.00';
       _plateExtraController.text =
-          data['coste_placa_extra']?.toStringAsFixed(2) ?? '2.50';
+          data[SettingKeys.costePlacaExtra]?.toStringAsFixed(2) ?? '2.50';
       _isLoading = false;
     });
   }
 
   // Guardamos los cambios en SQLite
   Future<void> _saveSettings() async {
-    await _repo.updateSetting(
-      'margen_beneficio',
+    await ServiceLocator.settingsRepo.updateSetting(
+      SettingKeys.margenBeneficio,
       double.tryParse(_marginController.text) ?? 45.0,
     );
-    await _repo.updateSetting(
-      'coste_hora_pintado',
+    await ServiceLocator.settingsRepo.updateSetting(
+      SettingKeys.costeHoraPintado,
       double.tryParse(_paintHourController.text) ?? 15.0,
     );
-    await _repo.updateSetting(
-      'coste_placa_extra',
+    await ServiceLocator.settingsRepo.updateSetting(
+      SettingKeys.costePlacaExtra,
       double.tryParse(_plateExtraController.text) ?? 2.50,
     );
 

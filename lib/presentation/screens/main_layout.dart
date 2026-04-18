@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../core/constants.dart';
 import '../../core/theme/app_colors.dart';
-import '../../data/repositories/order_repository.dart';
-import '../../data/repositories/material_repository.dart';
+import '../../data/service_locator.dart';
 import 'dashboard_view.dart';
 import 'inventory_view.dart';
 import 'orders_view.dart';
@@ -19,10 +19,6 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
 
-  // --- REPOSITORIOS ---
-  final OrderRepository _orderRepo = OrderRepository();
-  final MaterialRepository _materialRepo = MaterialRepository();
-
   // --- ESTADO ---
   List<Map<String, dynamic>> _allOrders = [];
   bool _isLoading = true;
@@ -37,7 +33,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   /// Carga todos los pedidos desde SQLite
   Future<void> _refreshOrders() async {
-    final data = await _orderRepo.getAllOrdersWithDetails();
+    final data = await ServiceLocator.orderRepo.getAllOrdersWithDetails();
     setState(() {
       _allOrders = data;
       _isLoading = false;
@@ -57,7 +53,7 @@ class _MainLayoutState extends State<MainLayout> {
         .toList();
 
     // 3. Ahora newOrder está "limpio" de listas y a SQLite le encantará
-    await _orderRepo.insertOrder(newOrder, plates);
+    await ServiceLocator.orderRepo.insertOrder(newOrder, plates);
 
     // 4. Refrescar la pantalla
     _refreshOrders(); // O la función que uses para recargar tu estado
@@ -79,9 +75,9 @@ class _MainLayoutState extends State<MainLayout> {
 
     // 3. Guardamos los cambios limpios
     if (plates.isNotEmpty) {
-      await _orderRepo.updateOrder(updatedOrder, plates);
+      await ServiceLocator.orderRepo.updateOrder(updatedOrder, plates);
     } else {
-      await _orderRepo.updateOrder(
+      await ServiceLocator.orderRepo.updateOrder(
         updatedOrder,
       ); // Por si solo se cambia el estado desde la tabla
     }
@@ -91,7 +87,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   /// Elimina un pedido de SQLite
   Future<void> _deleteOrder(Map<String, dynamic> order) async {
-    await _orderRepo.deleteOrder(order['id']);
+    await ServiceLocator.orderRepo.deleteOrder(order['id']);
     _refreshOrders();
   }
 
@@ -99,15 +95,18 @@ class _MainLayoutState extends State<MainLayout> {
   Future<void> _completeOrder(Map<String, dynamic> order) async {
     // 1. Clonamos el pedido y cambiamos el estado
     final updatedOrder = Map<String, dynamic>.from(order);
-    updatedOrder['status'] = 'Completed';
+    updatedOrder['status'] = OrderStatus.completed;
 
     // 2. Guardamos el nuevo estado en la base de datos
-    await _orderRepo.updateOrder(updatedOrder);
+    await ServiceLocator.orderRepo.updateOrder(updatedOrder);
 
     // 3. Buscamos los materiales usados y restamos el stock
-    final items = await _orderRepo.getOrderItems(order['id']);
+    final items = await ServiceLocator.orderRepo.getOrderItems(order['id']);
     for (var item in items) {
-      await _materialRepo.reduceStock(item['material_id'], item['grams_used']);
+      await ServiceLocator.materialRepo.reduceStock(
+        item['material_id'],
+        item['grams_used'],
+      );
     }
 
     // 4. Refrescamos la pantalla
@@ -150,7 +149,7 @@ class _MainLayoutState extends State<MainLayout> {
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showNewOrderDialog,
-        label: const Text('New Order'),
+        label: Text(UiStrings.newOrder),
         icon: const Icon(Icons.add),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.background,
@@ -167,24 +166,24 @@ class _MainLayoutState extends State<MainLayout> {
             destinations: const [
               NavigationRailDestination(
                 icon: Icon(Icons.dashboard_outlined),
-                label: Text('Dashboard'),
+                label: Text(UiStrings.dashboard),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.inventory_2_outlined),
-                label: Text('Inventory'),
+                label: Text(UiStrings.inventory),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.receipt_long_outlined),
-                label: Text('Orders'),
+                label: Text(UiStrings.orders),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.people_outline),
                 selectedIcon: Icon(Icons.people),
-                label: Text('Clientes'),
+                label: Text(UiStrings.clients),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.settings_outlined),
-                label: Text('Admin'),
+                label: Text(UiStrings.admin),
               ),
             ],
           ),

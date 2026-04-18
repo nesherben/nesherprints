@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
-import '../../data/repositories/client_repository.dart';
+import '../../data/service_locator.dart';
 import '../widgets/clients/client_form_dialog.dart';
 import '../widgets/clients/client_card.dart';
 
@@ -12,7 +12,6 @@ class ClientsView extends StatefulWidget {
 }
 
 class _ClientsViewState extends State<ClientsView> {
-  final _clientRepo = ClientRepository();
   List<Map<String, dynamic>> _clients = [];
   bool _isLoading = true;
 
@@ -25,7 +24,7 @@ class _ClientsViewState extends State<ClientsView> {
   // --- CARGAR CLIENTES DE LA BASE DE DATOS ---
   Future<void> _loadClients() async {
     setState(() => _isLoading = true);
-    final data = await _clientRepo.getAllClients();
+    final data = await ServiceLocator.clientRepo.getAllClients();
 
     if (mounted) {
       setState(() {
@@ -44,9 +43,9 @@ class _ClientsViewState extends State<ClientsView> {
         onSave: (clientData) async {
           // Si no tiene ID, es nuevo. Si tiene ID, lo actualizamos.
           if (clientData['id'] == null) {
-            await _clientRepo.insertClient(clientData);
+            await ServiceLocator.clientRepo.insertClient(clientData);
           } else {
-            await _clientRepo.updateClient(clientData);
+            await ServiceLocator.clientRepo.updateClient(clientData);
           }
           // Recargamos la lista para ver los cambios
           _loadClients();

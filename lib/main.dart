@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'core/theme/app_colors.dart';
+import 'package:nesherprints/core.dart';
 import 'presentation/screens/main_layout.dart';
 
 void main() {
@@ -24,6 +24,8 @@ class NesherPrintsApp extends StatelessWidget {
     return MaterialApp(
       title: 'NesherPrints ERP',
       debugShowCheckedModeBanner: false,
+      initialRoute: AppRoutes.home,
+      routes: {AppRoutes.home: (context) => const MainLayout()},
       theme: ThemeData(
         scaffoldBackgroundColor: AppColors.background,
         colorScheme: ColorScheme.fromSeed(
@@ -37,7 +39,6 @@ class NesherPrintsApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const MainLayout(),
     );
   }
 }

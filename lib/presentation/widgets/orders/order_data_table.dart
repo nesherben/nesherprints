@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../widgets/forms/order_form_dialog.dart';
 import 'status_badge.dart';
-import 'waste_dialog.dart';
 
 class OrderDataTable extends StatelessWidget {
   // Datos
@@ -273,9 +273,9 @@ class OrderDataTable extends StatelessWidget {
                   Row(
                     children: [
                       // Botón Completar
-                      if (o['status'] != 'Completed' &&
-                          o['status'] != 'Shipped' &&
-                          o['status'] != 'Canceled')
+                      if (o['status'] != OrderStatus.completed &&
+                          o['status'] != OrderStatus.shipped &&
+                          o['status'] != OrderStatus.canceled)
                         IconButton(
                           icon: const Icon(
                             Icons.check_circle_outline,

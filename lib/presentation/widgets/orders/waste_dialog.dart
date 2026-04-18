@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../data/repositories/order_repository.dart';
+import '../../../data/service_locator.dart';
 
 class WasteDialog extends StatefulWidget {
   final int orderId;
@@ -13,7 +13,6 @@ class WasteDialog extends StatefulWidget {
 }
 
 class _WasteDialogState extends State<WasteDialog> {
-  final _orderRepo = OrderRepository();
   bool _isLoading = true;
 
   List<Map<String, dynamic>> _plates = [];
@@ -29,7 +28,9 @@ class _WasteDialogState extends State<WasteDialog> {
 
   Future<void> _loadPlates() async {
     // Descargamos las placas específicas de este pedido
-    final plates = await _orderRepo.getOrderPlates(widget.orderId);
+    final plates = await ServiceLocator.orderRepo.getOrderPlates(
+      widget.orderId,
+    );
     setState(() {
       _plates = plates;
       if (_plates.isNotEmpty) {
@@ -63,7 +64,7 @@ class _WasteDialogState extends State<WasteDialog> {
         : _reasonController.text;
 
     // Llamamos a tu repositorio para guardar la merma y restar stock
-    await _orderRepo.addWaste(
+    await ServiceLocator.orderRepo.addWaste(
       orderId: widget.orderId,
       materialId: materialId,
       grams: gramsWasted,

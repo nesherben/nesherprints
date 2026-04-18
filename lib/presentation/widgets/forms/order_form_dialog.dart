@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../data/repositories/settings_repository.dart';
-import '../../../data/repositories/material_repository.dart';
-import '../../../data/repositories/order_repository.dart';
-import '../../../data/repositories/client_repository.dart';
+import '../../../data/service_locator.dart';
 import '../client_dialog.dart';
 import '../material_dialog.dart';
 import 'material_form_section.dart';
@@ -22,12 +20,6 @@ class OrderFormDialog extends StatefulWidget {
 class _OrderFormDialogState extends State<OrderFormDialog> {
   // ==================== ESTADO DE CARGA ====================
   bool _isLoading = true;
-
-  // ==================== REPOSITORIOS ====================
-  final _settingsRepo = SettingsRepository();
-  final _materialRepo = MaterialRepository();
-  final _orderRepo = OrderRepository();
-  final _clientRepo = ClientRepository();
 
   // ==================== CONFIGURACIÓN GLOBAL ====================
   double _margenBeneficio = 45.0;
@@ -74,18 +66,18 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
 
   // ==================== CARGA DE DATOS INICIALES ====================
   Future<void> _loadInitialData() async {
-    final settings = await _settingsRepo.getAllSettings();
-    _margenBeneficio = settings['margen_beneficio'] ?? 45.0;
-    _costeHoraPintado = settings['coste_hora_pintado'] ?? 15.0;
+    final settings = await ServiceLocator.settingsRepo.getAllSettings();
+    _margenBeneficio = settings[SettingKeys.margenBeneficio] ?? 45.0;
+    _costeHoraPintado = settings[SettingKeys.costeHoraPintado] ?? 15.0;
 
     // Cargar materiales (Todos juntos)
-    _materials = await _materialRepo.getAllMaterials();
-    _clients = await _clientRepo.getAllClients();
+    _materials = await ServiceLocator.materialRepo.getAllMaterials();
+    _clients = await ServiceLocator.clientRepo.getAllClients();
 
     final order = widget.initialOrder;
     if (order != null) {
       _nameController.text = order['name'] ?? '';
-      _selectedStatus = order['status'] ?? 'Draft';
+      _selectedStatus = order['status'] ?? OrderStatus.draft;
       _isPainted = order['is_painted'] == 1;
       _selectedClientId = order['client_id'];
       _priceController.text = (order['price'] as num).toStringAsFixed(2);
@@ -93,11 +85,13 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
           .toStringAsFixed(2);
 
       // Cargar placas desde la v6 de la base de datos
-      final loadedPlates = await _orderRepo.getOrderPlates(order['id']);
+      final loadedPlates = await ServiceLocator.orderRepo.getOrderPlates(
+        order['id'],
+      );
       _plates = loadedPlates.map((p) => Map<String, dynamic>.from(p)).toList();
       _platesController.text = _plates.length.toString();
     } else {
-      _selectedStatus = 'Draft';
+      _selectedStatus = OrderStatus.draft;
       _isPainted = false;
       _selectedClientId = null;
     }
@@ -146,15 +140,18 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
 
   // ==================== MANEJO DE ESTADO ====================
   bool get _isLocked =>
-      _selectedStatus == 'Completed' || _selectedStatus == 'Shipped';
+      _selectedStatus == OrderStatus.completed ||
+      _selectedStatus == OrderStatus.shipped;
 
   void _onAddNewMaterial(Function(int) onSelected) {
     showDialog(
       context: context,
       builder: (context) => MaterialDialog(
         onSave: (newMaterial) async {
-          int newId = await _materialRepo.insertMaterial(newMaterial);
-          _materials = await _materialRepo.getAllMaterials();
+          int newId = await ServiceLocator.materialRepo.insertMaterial(
+            newMaterial,
+          );
+          _materials = await ServiceLocator.materialRepo.getAllMaterials();
           setState(() {
             onSelected(newId);
             _calculateEstimate();
@@ -169,8 +166,9 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       context: context,
       builder: (context) => ClientDialog(
         onSave: (newClient) async {
-          int newId = await _clientRepo.insertClient(newClient);
-          final updatedClients = await _clientRepo.getAllClients();
+          int newId = await ServiceLocator.clientRepo.insertClient(newClient);
+          final updatedClients = await ServiceLocator.clientRepo
+              .getAllClients();
           setState(() {
             _clients = updatedClients;
             _selectedClientId = newId;
@@ -302,14 +300,14 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                       ),
                       items: () {
                         List<String> options = [
-                          'Draft',
-                          'Reserved',
-                          'In Progress',
-                          'Shipped',
-                          'Canceled',
+                          OrderStatus.draft,
+                          OrderStatus.reserved,
+                          OrderStatus.inProgress,
+                          OrderStatus.shipped,
+                          OrderStatus.canceled,
                         ];
-                        if (_selectedStatus == 'Completed')
-                          options.add('Completed');
+                        if (_selectedStatus == OrderStatus.completed)
+                          options.add(OrderStatus.completed);
                         return options
                             .map(
                               (s) => DropdownMenuItem(value: s, child: Text(s)),

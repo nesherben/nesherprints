@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
-import '../../data/repositories/material_repository.dart';
+import '../../data/service_locator.dart';
 import '../widgets/material_dialog.dart';
 
 class InventoryView extends StatefulWidget {
@@ -11,7 +11,6 @@ class InventoryView extends StatefulWidget {
 }
 
 class _InventoryViewState extends State<InventoryView> {
-  final MaterialRepository _repo = MaterialRepository();
   List<Map<String, dynamic>> _materials = [];
   bool _isLoading = true;
 
@@ -22,7 +21,7 @@ class _InventoryViewState extends State<InventoryView> {
   }
 
   Future<void> _loadMaterials() async {
-    final data = await _repo.getAllMaterials();
+    final data = await ServiceLocator.materialRepo.getAllMaterials();
     setState(() {
       _materials = data;
       _isLoading = false;
@@ -31,15 +30,15 @@ class _InventoryViewState extends State<InventoryView> {
 
   Future<void> _saveMaterial(Map<String, dynamic> material) async {
     if (material['id'] == null) {
-      await _repo.insertMaterial(material);
+      await ServiceLocator.materialRepo.insertMaterial(material);
     } else {
-      await _repo.updateMaterial(material);
+      await ServiceLocator.materialRepo.updateMaterial(material);
     }
     _loadMaterials();
   }
 
   Future<void> _deleteMaterial(int id) async {
-    await _repo.deleteMaterial(id);
+    await ServiceLocator.materialRepo.deleteMaterial(id);
     _loadMaterials();
   }
 

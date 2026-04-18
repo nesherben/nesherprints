@@ -1,3 +1,4 @@
+import '../../core/constants.dart';
 import '../database/db_helper.dart';
 
 class MaterialRepository {
@@ -6,15 +7,15 @@ class MaterialRepository {
   // CREAR
   Future<int> insertMaterial(Map<String, dynamic> material) async {
     final db = await dbHelper.database;
-    return await db.insert('materials', material);
+    return await db.insert(DbTables.materials, material);
   }
 
   // LEER TODOS
   Future<List<Map<String, dynamic>>> getAllMaterials() async {
     final db = await dbHelper.database;
     return await db.query(
-      'materials',
-      orderBy: 'type DESC, name ASC',
+      DbTables.materials,
+      orderBy: '${DbColumns.materialType} DESC, ${DbColumns.materialName} ASC',
     ); // Resina primero, luego alfabético
   }
 
@@ -22,9 +23,9 @@ class MaterialRepository {
   Future<int> updateMaterial(Map<String, dynamic> material) async {
     final db = await dbHelper.database;
     return await db.update(
-      'materials',
+      DbTables.materials,
       material,
-      where: 'id = ?',
+      where: '${DbColumns.materialId} = ?',
       whereArgs: [material['id']],
     );
   }
@@ -32,14 +33,18 @@ class MaterialRepository {
   // BORRAR
   Future<int> deleteMaterial(int id) async {
     final db = await dbHelper.database;
-    return await db.delete('materials', where: 'id = ?', whereArgs: [id]);
+    return await db.delete(
+      DbTables.materials,
+      where: '${DbColumns.materialId} = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<void> reduceStock(int id, double amountUsed) async {
     final db = await dbHelper.database;
     // Con rawUpdate le decimos a SQLite: "Coge el stock actual y réstale esta cantidad"
     await db.rawUpdate(
-      'UPDATE materials SET stock_g = stock_g - ? WHERE id = ?',
+      'UPDATE ${DbTables.materials} SET stock_g = stock_g - ? WHERE ${DbColumns.materialId} = ?',
       [amountUsed, id],
     );
   }

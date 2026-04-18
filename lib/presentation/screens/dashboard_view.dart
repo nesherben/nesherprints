@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../core/constants.dart';
 import '../../core/theme/app_colors.dart';
-import '../../data/repositories/order_repository.dart';
-import '../../data/repositories/material_repository.dart';
+import '../../data/service_locator.dart';
 
 class DashboardView extends StatefulWidget {
   final List<Map<String, dynamic>> orders;
@@ -14,9 +14,6 @@ class DashboardView extends StatefulWidget {
 }
 
 class _DashboardViewState extends State<DashboardView> {
-  final OrderRepository _orderRepo = OrderRepository();
-  final MaterialRepository _materialRepo = MaterialRepository();
-
   bool _isLoading = true;
 
   // Métricas calculadas
@@ -43,7 +40,7 @@ class _DashboardViewState extends State<DashboardView> {
   Future<void> _calculateFinances() async {
     setState(() => _isLoading = true);
 
-    final materials = await _materialRepo.getAllMaterials();
+    final materials = await ServiceLocator.materialRepo.getAllMaterials();
     Map<int, double> materialCosts = {};
     for (var m in materials) {
       materialCosts[m['id']] = (m['cost_per_kg'] as num).toDouble();
@@ -56,12 +53,12 @@ class _DashboardViewState extends State<DashboardView> {
 
     Map<String, Map<String, double>> monthly = {};
     Map<String, int> counts = {
-      'Draft': 0,
-      'Reserved': 0,
-      'In Progress': 0,
-      'Completed': 0,
-      'Shipped': 0,
-      'Canceled': 0,
+      OrderStatus.draft: 0,
+      OrderStatus.reserved: 0,
+      OrderStatus.inProgress: 0,
+      OrderStatus.completed: 0,
+      OrderStatus.shipped: 0,
+      OrderStatus.canceled: 0,
     };
 
     for (var o in widget.orders) {
@@ -74,7 +71,7 @@ class _DashboardViewState extends State<DashboardView> {
 
       // --- NUEVA LÓGICA DE DEUDAS ---
       // Solo nos deben dinero de pedidos que están en marcha o terminados (no borradores ni cancelados)
-      if (status != 'Draft' && status != 'Canceled') {
+      if (status != OrderStatus.draft && status != OrderStatus.canceled) {
         double owed = price - paid;
         if (owed > 0) {
           totalPendingCollect += owed;
@@ -82,7 +79,7 @@ class _DashboardViewState extends State<DashboardView> {
       }
 
       // --- LÓGICA DE INGRESOS BRUTOS Y NETOS (Solo completados) ---
-      if (status == 'Completed' || status == 'Shipped') {
+      if (status == OrderStatus.completed || status == OrderStatus.shipped) {
         totalGross += price;
 
         monthly.putIfAbsent(
@@ -92,7 +89,7 @@ class _DashboardViewState extends State<DashboardView> {
         monthly[month]!['gross'] = monthly[month]!['gross']! + price;
 
         double orderCost = 0.0;
-        final items = await _orderRepo.getOrderItems(o['id']);
+        final items = await ServiceLocator.orderRepo.getOrderItems(o['id']);
         for (var item in items) {
           double kgUsed = (item['grams_used'] as num).toDouble() / 1000;
           double costPerKg = materialCosts[item['material_id']] ?? 0.0;
@@ -107,7 +104,7 @@ class _DashboardViewState extends State<DashboardView> {
     }
 
     // Calcular coste de los fallos (order_waste)
-    final allWaste = await _orderRepo.getAllWaste();
+    final allWaste = await ServiceLocator.orderRepo.getAllWaste();
     for (var w in allWaste) {
       double costPerKg = materialCosts[w['material_id']] ?? 0.0;
       totalWasteCost += (w['grams_wasted'] / 1000) * costPerKg;
@@ -128,14 +125,14 @@ class _DashboardViewState extends State<DashboardView> {
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'Completed':
-      case 'Shipped':
+      case OrderStatus.completed:
+      case OrderStatus.shipped:
         return AppColors.statusCompletado;
-      case 'In Progress':
+      case OrderStatus.inProgress:
         return AppColors.primary;
-      case 'Reserved':
+      case OrderStatus.reserved:
         return AppColors.statusReservado;
-      case 'Canceled':
+      case OrderStatus.canceled:
         return AppColors.statusCancelado;
       default:
         return Colors.grey;

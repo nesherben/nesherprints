@@ -1,3 +1,4 @@
+import '../../core/constants.dart';
 import '../database/db_helper.dart';
 
 class SettingsRepository {
@@ -6,7 +7,7 @@ class SettingsRepository {
   // Obtener todos los ajustes en un formato fácil de usar: {'margen_beneficio': 45.0, ...}
   Future<Map<String, double>> getAllSettings() async {
     final db = await dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query('settings');
+    final List<Map<String, dynamic>> maps = await db.query(DbTables.settings);
 
     Map<String, double> settings = {};
     for (var map in maps) {
@@ -19,9 +20,9 @@ class SettingsRepository {
   Future<int> updateSetting(String key, double value) async {
     final db = await dbHelper.database;
     return await db.update(
-      'settings',
-      {'value': value},
-      where: 'key = ?',
+      DbTables.settings,
+      {DbColumns.settingValue: value},
+      where: '${DbColumns.settingKey} = ?',
       whereArgs: [key],
     );
   }

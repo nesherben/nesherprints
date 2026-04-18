@@ -1,3 +1,4 @@
+import '../../core/constants.dart';
 import '../database/db_helper.dart';
 
 class ClientRepository {
@@ -6,22 +7,25 @@ class ClientRepository {
   // Crear cliente
   Future<int> insertClient(Map<String, dynamic> client) async {
     final db = await dbHelper.database;
-    return await db.insert('clients', client);
+    return await db.insert(DbTables.clients, client);
   }
 
   // Obtener todos
   Future<List<Map<String, dynamic>>> getAllClients() async {
     final db = await dbHelper.database;
-    return await db.query('clients', orderBy: 'name ASC');
+    return await db.query(
+      DbTables.clients,
+      orderBy: '${DbColumns.clientName} ASC',
+    );
   }
 
   // Actualizar
   Future<int> updateClient(Map<String, dynamic> client) async {
     final db = await dbHelper.database;
     return await db.update(
-      'clients',
+      DbTables.clients,
       client,
-      where: 'id = ?',
+      where: '${DbColumns.clientId} = ?',
       whereArgs: [client['id']],
     );
   }

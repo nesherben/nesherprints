@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../core/constants.dart';
 import '../../core/theme/app_colors.dart';
-import '../../data/repositories/client_repository.dart';
+import '../../data/service_locator.dart';
 import '../widgets/orders/order_data_table.dart';
 import '../widgets/orders/waste_dialog.dart';
 
@@ -25,20 +26,20 @@ class OrdersView extends StatefulWidget {
 class _OrdersViewState extends State<OrdersView> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
-  String _statusFilter = 'Todos';
+  String _statusFilter = UiStrings.all;
   int? _sortColumnIndex;
   bool _isAscending = false;
   List<Map<String, dynamic>> _displayOrders = [];
   final Map<int, String> _clientNames = {};
 
   final List<String> _statusOptions = [
-    'Todos',
-    'Draft',
-    'Reserved',
-    'In Progress',
-    'Completed',
-    'Shipped',
-    'Canceled',
+    UiStrings.all,
+    OrderStatus.draft,
+    OrderStatus.reserved,
+    OrderStatus.inProgress,
+    OrderStatus.completed,
+    OrderStatus.shipped,
+    OrderStatus.canceled,
   ];
 
   @override
@@ -56,7 +57,7 @@ class _OrdersViewState extends State<OrdersView> {
 
   // ==================== CARGA DE CLIENTES ====================
   Future<void> _loadClients() async {
-    final clients = await ClientRepository().getAllClients();
+    final clients = await ServiceLocator.clientRepo.getAllClients();
     if (mounted) {
       setState(() {
         for (var c in clients) {
@@ -100,14 +101,14 @@ class _OrdersViewState extends State<OrdersView> {
 
   bool get _hasActiveFilters =>
       _searchQuery.isNotEmpty ||
-      _statusFilter != 'Todos' ||
+      _statusFilter != UiStrings.all ||
       _sortColumnIndex != null;
 
   void _resetFilters() {
     setState(() {
       _searchController.clear();
       _searchQuery = '';
-      _statusFilter = 'Todos';
+      _statusFilter = UiStrings.all;
       _sortColumnIndex = null;
       _isAscending = false;
       _applyFiltersAndSort();
@@ -128,7 +129,7 @@ class _OrdersViewState extends State<OrdersView> {
         _searchQuery.toLowerCase(),
       );
       final matchesStatus =
-          _statusFilter == 'Todos' || o['status'] == _statusFilter;
+          _statusFilter == UiStrings.all || o['status'] == _statusFilter;
       return matchesSearch && matchesStatus;
     }).toList();
 
