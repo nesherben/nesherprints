@@ -97,17 +97,17 @@ class OrderRepository {
     final List<Map<String, dynamic>> results = await db.rawQuery('''
     SELECT 
       o.*,
-      -- Coste de material de las placas (lo que debería haber gastado)
+      -- Coste de material de las placas
       (SELECT SUM((p.${DbColumns.plateGrams} / 1000) * m.${DbColumns.materialCostPerKg}) 
        FROM ${DbTables.orderPlates} p 
        JOIN ${DbTables.materials} m ON p.${DbColumns.plateMaterialId} = m.${DbColumns.materialId} 
        WHERE p.${DbColumns.plateOrderId} = o.${DbColumns.orderId}) as material_cost,
       
-      -- Gramos totales teóricos (para el cálculo de tasa de fallo)
+      -- Gramos totales teóricos
       (SELECT SUM(p.${DbColumns.plateGrams}) FROM ${DbTables.orderPlates} p WHERE p.${DbColumns.plateOrderId} = o.${DbColumns.orderId}) as total_theoretical_grams,
       
-      -- Gramos reales perdidos en mermas
-      (SELECT SUM(w.grams_wasted) FROM ${DbTables.orderWaste} w WHERE w.${DbColumns.orderId} = o.${DbColumns.orderId}) as total_wasted_grams,
+      -- Gramos reales perdidos (CORREGIDO: Usamos orderForeignId)
+      (SELECT SUM(w.grams_wasted) FROM ${DbTables.orderWaste} w WHERE w.${DbColumns.orderForeignId} = o.${DbColumns.orderId}) as total_wasted_grams,
 
       (SELECT GROUP_CONCAT(p.${DbColumns.plateName}, ', ') FROM ${DbTables.orderPlates} p WHERE p.${DbColumns.plateOrderId} = o.${DbColumns.orderId}) as plates_names,
       (SELECT COUNT(*) FROM ${DbTables.orderPlates} WHERE ${DbColumns.plateOrderId} = o.${DbColumns.orderId}) as plates_count

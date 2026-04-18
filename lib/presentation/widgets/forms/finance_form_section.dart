@@ -9,6 +9,8 @@ class FinanceFormSection extends StatelessWidget {
   final TextEditingController paidController;
   final bool isPainted;
   final double suggestedPrice;
+  final double totalCost;
+  final double margenBeneficio;
   final bool isLocked;
 
   final Function(bool) onPaintedChanged;
@@ -26,6 +28,8 @@ class FinanceFormSection extends StatelessWidget {
     required this.paidController,
     required this.isPainted,
     required this.suggestedPrice,
+    required this.totalCost,
+    required this.margenBeneficio,
     required this.isLocked,
     required this.onPaintedChanged,
     required this.onPlatesChanged,
@@ -37,6 +41,30 @@ class FinanceFormSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Color getPriceColor(String currentPriceText) {
+      // 1. Limpiamos por si escribes con coma
+      String cleanText = currentPriceText.replaceAll(',', '.');
+      double price = double.tryParse(cleanText) ?? 0.0;
+
+      // Si no hay precio o coste, lo dejamos del color estándar
+      if (price <= 0 || totalCost <= 0) return AppColors.primary;
+
+      // --- TU LÓGICA DE NEGOCIO EXACTA ---
+
+      // 1. Si es el precio sugerido o más -> VERDE
+      if (price >= suggestedPrice) {
+        return Colors.green;
+      }
+
+      // 2. Si está entre el gasto y el sugerido -> NARANJA
+      if (price > totalCost && price < suggestedPrice) {
+        return Colors.orange;
+      }
+
+      // 3. Si es el precio de coste o menos (pérdidas) -> ROJO
+      return Colors.red;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -115,11 +143,33 @@ class FinanceFormSection extends StatelessWidget {
             border: Border.all(color: AppColors.primary.withOpacity(0.3)),
           ),
           child: Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start, // Alineamos todo arriba
             children: [
+              // --- COLUMNA 1: DATOS INTERNOS (COSTE Y SUGERIDO) ---
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // 1. Coste Real (NUEVO)
+                    const Text(
+                      'Coste Fabricación',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '€${totalCost.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey, // Discreto para que no abrume
+                      ),
+                    ),
+                    const SizedBox(height: 12), // Separador
+                    // 2. Precio Sugerido (LO QUE YA TENÍAS)
                     const Text(
                       'Precio Sugerido',
                       style: TextStyle(
@@ -127,11 +177,11 @@ class FinanceFormSection extends StatelessWidget {
                         fontSize: 12,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       '€${suggestedPrice.toStringAsFixed(2)}',
                       style: const TextStyle(
-                        fontSize: 24,
+                        fontSize: 22, // Un pelín más grande para destacar
                         fontWeight: FontWeight.bold,
                         color: AppColors.primary,
                       ),
@@ -139,8 +189,11 @@ class FinanceFormSection extends StatelessWidget {
                     if (!isLocked)
                       TextButton.icon(
                         onPressed: onApplySuggestedPrice,
-                        icon: const Icon(Icons.arrow_downward, size: 16),
-                        label: const Text('Aplicar al Precio Final'),
+                        icon: const Icon(
+                          Icons.arrow_forward,
+                          size: 16,
+                        ), // Cambiado a flecha lateral (opcional)
+                        label: const Text('Aplicar'),
                         style: TextButton.styleFrom(
                           padding: EdgeInsets.zero,
                           minimumSize: const Size(0, 0),
@@ -150,23 +203,28 @@ class FinanceFormSection extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
+
+              // --- COLUMNA 2: PRECIO FINAL ---
               Expanded(
-                child: TextFormField(
+                child: TextField(
                   controller: priceController,
                   decoration: const InputDecoration(
-                    labelText: 'Precio Final',
+                    labelText: 'Precio Final (€)',
                     border: OutlineInputBorder(),
-                    prefixText: '€ ',
                   ),
-                  keyboardType: TextInputType.number,
-                  readOnly: isLocked,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                  ],
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: getPriceColor(priceController.text),
+                  ),
                   onChanged: onPriceChanged,
+                  readOnly:
+                      isLocked, // ¡Importante bloquearlo si está completado!
                 ),
               ),
               const SizedBox(width: 16),
+
+              // --- COLUMNA 3: PAGADO / ADELANTO ---
               Expanded(
                 child: TextFormField(
                   controller: paidController,

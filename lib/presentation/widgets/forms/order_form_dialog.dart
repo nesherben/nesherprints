@@ -47,6 +47,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
 
   // ==================== ESTADO CALCULADO ====================
   double _suggestedPrice = 0.0;
+  double _totalCost = 0.0;
 
   @override
   void initState() {
@@ -125,6 +126,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     double costPaint = _isPainted ? (paintHours * _costeHoraPintado) : 0.0;
 
     setState(() {
+      _totalCost = costMaterial + costPaint;
       _suggestedPrice =
           (costMaterial) * (1 + (_margenBeneficio / 100)) + costPaint;
       _platesController.text = _plates.length
@@ -347,6 +349,8 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                 paidController: _paidController,
                 isPainted: _isPainted,
                 suggestedPrice: _suggestedPrice,
+                totalCost: _totalCost,
+                margenBeneficio: _margenBeneficio,
                 isLocked: _isLocked,
                 onPaintedChanged: (val) => setState(() {
                   _isPainted = val;

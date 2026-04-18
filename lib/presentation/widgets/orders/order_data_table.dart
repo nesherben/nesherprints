@@ -126,60 +126,103 @@ class OrderDataTable extends StatelessWidget {
 
                 // --- CELDA: FINANZAS ---
                 DataCell(
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Total: €${price.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: AppColors.primary,
+                  Container(
+                    // Le damos un poco de aire para que el fondo se vea bien
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      // Se ilumina de verde si está completado O si la deuda es 0
+                      color:
+                          (o['status'] == OrderStatus.completed || pending <= 0)
+                          ? Colors.green.withOpacity(0.1)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // 1. TOTAL (Le añadimos la fila para poder ponerle el check de completado al lado)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Total: €${price.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                // El Total se pone verde si está todo pagado, si no, usa tu AppColors.primary
+                                color:
+                                    (o['status'] == OrderStatus.completed ||
+                                        pending <= 0)
+                                    ? Colors.green
+                                    : AppColors.primary,
+                              ),
+                            ),
+                            // El iconito de Check solo sale si ya está finiquitado
+                            if (o['status'] == OrderStatus.completed ||
+                                pending <= 0) ...[
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 14,
+                              ),
+                            ],
+                          ],
                         ),
-                      ),
-                      Text(
-                        'Pagado: €${paid.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: AppColors.statusCompletado,
-                          fontSize: 12,
-                        ),
-                      ),
-                      if (pending > 0)
+
+                        // 2. PAGADO (Intacto)
                         Text(
-                          'Falta: €${pending.toStringAsFixed(2)}',
+                          'Pagado: €${paid.toStringAsFixed(2)}',
                           style: const TextStyle(
-                            color: AppColors.alertBajoStock,
-                            fontWeight: FontWeight.bold,
+                            color: AppColors.statusCompletado,
                             fontSize: 12,
                           ),
                         ),
-                    ],
+
+                        // 3. FALTA (Intacto)
+                        if (pending > 0)
+                          Text(
+                            'Falta: €${pending.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: AppColors.alertBajoStock,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-
                 // --- CELDA: DETALLES TÉCNICOS (TODO INCLUIDO) ---
                 DataCell(
                   Builder(
                     builder: (context) {
-                      // 1. Recuperamos datos de la consulta SQL
+                      // 1. Recuperamos datos
                       int platesCount =
-                          int.tryParse(o['plates_count']?.toString() ?? '1') ??
-                          1;
+                          int.tryParse(o['plates_count']?.toString() ?? '0') ??
+                          0;
                       double wasted = (o['total_wasted_grams'] as num? ?? 0.0)
                           .toDouble();
                       double theoretical =
                           (o['total_theoretical_grams'] as num? ?? 1.0)
                               .toDouble();
-                      if (theoretical == 0)
-                        theoretical = 1.0; // Evitar división por cero
-                      double failureRate = (wasted / theoretical) * 100;
+
+                      if (theoretical == 0) theoretical = 1.0;
+
+                      // 2. CÁLCULO DE MERMA ACUMULATIVA (Sin límite de 100%)
+                      // Si wasted es 50 y theoretical es 100 -> 50% de merma
+                      // Si wasted es 150 y theoretical es 100 -> 150% de merma (más material perdido que el propio peso de la pieza)
+                      double wasteRate = (wasted / theoretical) * 100;
 
                       return Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // FILA A: Pintura (Solo si aplica)
+                          // FILA A: Pintura
                           if (o['is_painted'] == 1)
                             const Row(
                               children: [
@@ -193,7 +236,7 @@ class OrderDataTable extends StatelessWidget {
                               ],
                             ),
 
-                          // FILA B: Contador de Placas y Tasa de Fallo
+                          // FILA B: Placas y Tasa de Merma
                           Row(
                             children: [
                               const Icon(
@@ -203,11 +246,11 @@ class OrderDataTable extends StatelessWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                "$platesCount Placa${platesCount > 1 ? 's' : ''}",
+                                "$platesCount Placa${platesCount != 1 ? 's' : ''}",
                                 style: const TextStyle(fontSize: 11),
                               ),
 
-                              // INDICADOR DE FALLO (Pegado al contador de placas si existe)
+                              // INDICADOR DE MERMA ACUMULATIVA
                               if (wasted > 0) ...[
                                 const SizedBox(width: 8),
                                 Container(
@@ -216,19 +259,24 @@ class OrderDataTable extends StatelessWidget {
                                     vertical: 1,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: failureRate > 20
+                                    // Lógica de colores según gravedad de la pérdida
+                                    color: wasteRate > 30
                                         ? Colors.red.withOpacity(0.1)
-                                        : Colors.orange.withOpacity(0.1),
+                                        : (wasteRate > 10
+                                              ? Colors.orange.withOpacity(0.1)
+                                              : Colors.green.withOpacity(0.1)),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
-                                    "${failureRate.toStringAsFixed(0)}% Error",
+                                    "+${wasteRate.toStringAsFixed(0)}% Merma",
                                     style: TextStyle(
                                       fontSize: 9,
                                       fontWeight: FontWeight.bold,
-                                      color: failureRate > 20
+                                      color: wasteRate > 30
                                           ? Colors.red
-                                          : Colors.orange,
+                                          : (wasteRate > 10
+                                                ? Colors.orange
+                                                : Colors.green),
                                     ),
                                   ),
                                 ),
@@ -236,7 +284,7 @@ class OrderDataTable extends StatelessWidget {
                             ],
                           ),
 
-                          // FILA C: Nombres de las Placas (En pequeño e itálica)
+                          // FILA C: Nombres de las Placas
                           if (o['plates_names'] != null &&
                               o['plates_names'].toString().isNotEmpty)
                             Text(
@@ -249,25 +297,11 @@ class OrderDataTable extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-
-                          // FALLBACK: Si no hay nada especial
-                          if (o['is_painted'] == 0 &&
-                              platesCount == 0 &&
-                              wasted == 0)
-                            const Text(
-                              "Estándar",
-                              style: TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 11,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
                         ],
                       );
                     },
                   ),
                 ),
-
                 // --- CELDA: ACCIONES ---
                 DataCell(
                   Row(

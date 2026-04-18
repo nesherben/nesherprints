@@ -10,6 +10,7 @@ class OrdersView extends StatefulWidget {
   final Function(Map<String, dynamic>) onDelete;
   final Function(Map<String, dynamic>, Map<String, dynamic>) onUpdate;
   final Function(Map<String, dynamic>) onComplete;
+  final VoidCallback onRefresh;
 
   const OrdersView({
     super.key,
@@ -17,6 +18,7 @@ class OrdersView extends StatefulWidget {
     required this.onDelete,
     required this.onUpdate,
     required this.onComplete,
+    required this.onRefresh,
   });
 
   @override
@@ -74,10 +76,8 @@ class _OrdersViewState extends State<OrdersView> {
       builder: (context) => WasteDialog(
         orderId: order['id'],
         onSaved: () {
-          // Como los pedidos vienen por el widget.orders (desde main.dart),
-          // necesitamos avisar al main que algo cambió.
-          // Por ahora, refrescamos lo que tenemos.
-          _applyFiltersAndSort();
+          // Pedimos al padre que lea la base de datos de nuevo
+          widget.onRefresh();
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -293,7 +293,7 @@ class _OrdersViewState extends State<OrdersView> {
                 onDelete: widget.onDelete,
                 onSort: _onSort,
                 showConfirmationDialog: _showConfirmationDialog,
-                onWaste: _onWaste, // <--- AÑADE ESTA LÍNEA AQUÍ
+                onWaste: _onWaste,
               ),
             ),
           ),

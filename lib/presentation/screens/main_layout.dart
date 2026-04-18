@@ -93,23 +93,28 @@ class _MainLayoutState extends State<MainLayout> {
 
   /// Marca un pedido como completado y reduce el stock de materiales
   Future<void> _completeOrder(Map<String, dynamic> order) async {
-    // 1. Clonamos el pedido y cambiamos el estado
     final updatedOrder = Map<String, dynamic>.from(order);
+
+    // 1. Cambiamos el estado a Completado
     updatedOrder['status'] = OrderStatus.completed;
 
-    // 2. Guardamos el nuevo estado en la base de datos
+    // 2. ---> ¡LA CLAVE QUE FALTABA! <---
+    // Le decimos a la base de datos que el dinero pagado ahora es igual al precio total
+    updatedOrder['paid_amount'] = updatedOrder['price'];
+
+    // 3. Guardamos en DB
     await ServiceLocator.orderRepo.updateOrder(updatedOrder);
 
-    // 3. Buscamos los materiales usados y restamos el stock
-    final items = await ServiceLocator.orderRepo.getOrderItems(order['id']);
-    for (var item in items) {
+    // 4. Restamos stock por placas
+    final plates = await ServiceLocator.orderRepo.getOrderPlates(order['id']);
+    for (var plate in plates) {
       await ServiceLocator.materialRepo.reduceStock(
-        item['material_id'],
-        item['grams_used'],
+        plate['material_id'],
+        (plate['grams'] as num).toDouble(),
       );
     }
 
-    // 4. Refrescamos la pantalla
+    // 5. Refrescamos
     _refreshOrders();
   }
 
@@ -141,6 +146,7 @@ class _MainLayoutState extends State<MainLayout> {
         onDelete: _deleteOrder,
         onUpdate: _updateOrder,
         onComplete: _completeOrder,
+        onRefresh: _refreshOrders,
       ),
       const ClientsView(),
       const AdminView(),
