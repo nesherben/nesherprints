@@ -1,25 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 
 class FinanceFormSection extends StatelessWidget {
-  // Datos de entrada
   final TextEditingController platesController;
   final TextEditingController paintHoursController;
   final TextEditingController priceController;
   final TextEditingController paidController;
-
-  // Estados
   final bool isPainted;
   final double suggestedPrice;
   final bool isLocked;
 
-  // Callbacks
   final Function(bool) onPaintedChanged;
   final Function(String) onPlatesChanged;
   final Function(String) onPaintHoursChanged;
   final Function(String) onPriceChanged;
   final Function(String) onPaidChanged;
-  final Function() onApplySuggestedPrice;
+  final VoidCallback onApplySuggestedPrice;
 
   const FinanceFormSection({
     super.key,
@@ -40,185 +37,154 @@ class FinanceFormSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    double price = double.tryParse(priceController.text) ?? 0.0;
-    double paid = double.tryParse(paidController.text) ?? 0.0;
-    double pending = price - paid;
-    bool isUnderpriced = price < (suggestedPrice - 0.01) && price > 0;
-
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- SECCIÓN 1: PLACAS Y PINTURA ---
+        const Text(
+          'Finanzas y Tiempos Extra',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textMain,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // --- FILA 1: Placas (Automáticas) y Pintura ---
         Row(
           children: [
             Expanded(
-              child: TextField(
+              child: TextFormField(
                 controller: platesController,
                 decoration: const InputDecoration(
-                  labelText: 'Nº Placas',
+                  labelText: 'Total Placas (Automático)',
                   border: OutlineInputBorder(),
+                  filled: true,
+                  // Color de fondo para indicar visualmente que no se puede editar
+                  fillColor: AppColors.surface,
+                  prefixIcon: Icon(Icons.layers, color: AppColors.textMuted),
                 ),
-                keyboardType: TextInputType.number,
-                enabled: !isLocked,
-                onChanged: onPlatesChanged,
+                readOnly: true, // ¡BLOQUEO ACTIVADO!
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: CheckboxListTile(
-                title: const Text("Pintado a mano"),
+                title: const Text('Servicio de Pintura'),
                 value: isPainted,
-                enabled: !isLocked,
-                activeColor: AppColors.primary,
+                onChanged: isLocked
+                    ? null
+                    : (v) => onPaintedChanged(v ?? false),
+                controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
-                onChanged: (v) => onPaintedChanged(v ?? false),
               ),
             ),
-            if (isPainted)
+            if (isPainted) ...[
+              const SizedBox(width: 16),
               Expanded(
-                child: TextField(
+                child: TextFormField(
                   controller: paintHoursController,
                   decoration: const InputDecoration(
-                    labelText: 'Horas',
+                    labelText: 'Horas Pintura',
                     border: OutlineInputBorder(),
+                    suffixText: 'h',
                   ),
                   keyboardType: TextInputType.number,
-                  enabled: !isLocked,
+                  readOnly: isLocked,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                  ],
                   onChanged: onPaintHoursChanged,
                 ),
               ),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        // --- SECCIÓN 2: ANÁLISIS DE PRECIO ---
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Contabilidad del Pedido",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        "Sugerido: €${suggestedPrice.toStringAsFixed(2)}",
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                      if (!isLocked)
-                        TextButton(
-                          onPressed: onApplySuggestedPrice,
-                          style: TextButton.styleFrom(
-                            minimumSize: Size.zero,
-                            padding: const EdgeInsets.only(left: 8),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: const Text(
-                            "Copiar al Final",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  if (isUnderpriced)
-                    const Text(
-                      "⚠️ Vendiendo por debajo del sugerido",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.alertBajoStock,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: pending > 0
-                    ? AppColors.alertBajoStock.withOpacity(0.1)
-                    : AppColors.statusCompletado.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                "Pendiente: €${pending.toStringAsFixed(2)}",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: pending > 0
-                      ? AppColors.alertBajoStock
-                      : AppColors.statusCompletado,
-                ),
-              ),
-            ),
+            ],
           ],
         ),
         const SizedBox(height: 16),
 
-        // --- SECCIÓN 3: ENTRADA DE PRECIOS ---
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: priceController,
-                enabled: !isLocked,
-                decoration: InputDecoration(
-                  labelText: 'Precio Final (€)',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: Icon(
-                    Icons.euro,
-                    color: isUnderpriced
-                        ? AppColors.alertBajoStock
-                        : AppColors.primary,
-                  ),
+        // --- FILA 2: Precios y Pagos ---
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Precio Sugerido',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '€${suggestedPrice.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    if (!isLocked)
+                      TextButton.icon(
+                        onPressed: onApplySuggestedPrice,
+                        icon: const Icon(Icons.arrow_downward, size: 16),
+                        label: const Text('Aplicar al Precio Final'),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 0),
+                        ),
+                      ),
+                  ],
                 ),
-                style: TextStyle(
-                  color: isUnderpriced
-                      ? AppColors.alertBajoStock
-                      : AppColors.primary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                onChanged: onPriceChanged,
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: TextField(
-                controller: paidController,
-                enabled: !isLocked,
-                decoration: const InputDecoration(
-                  labelText: 'Pagado / Adelanto (€)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(
-                    Icons.account_balance_wallet,
-                    color: AppColors.statusCompletado,
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextFormField(
+                  controller: priceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Precio Final',
+                    border: OutlineInputBorder(),
+                    prefixText: '€ ',
                   ),
+                  keyboardType: TextInputType.number,
+                  readOnly: isLocked,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                  ],
+                  onChanged: onPriceChanged,
                 ),
-                style: const TextStyle(
-                  color: AppColors.statusCompletado,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                onChanged: onPaidChanged,
               ),
-            ),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextFormField(
+                  controller: paidController,
+                  decoration: const InputDecoration(
+                    labelText: 'Pagado / Adelanto',
+                    border: OutlineInputBorder(),
+                    prefixText: '€ ',
+                  ),
+                  keyboardType: TextInputType.number,
+                  readOnly: isLocked,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                  ],
+                  onChanged: onPaidChanged,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );

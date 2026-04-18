@@ -8,7 +8,6 @@ import '../client_dialog.dart';
 import '../material_dialog.dart';
 import 'material_form_section.dart';
 import 'finance_form_section.dart';
-import 'filament_entry.dart';
 
 class OrderFormDialog extends StatefulWidget {
   final Function(Map<String, dynamic>) onSave;
@@ -33,29 +32,26 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   // ==================== CONFIGURACIÓN GLOBAL ====================
   double _margenBeneficio = 45.0;
   double _costeHoraPintado = 15.0;
-  double _costePlacaExtra = 2.50;
+  final double _costePlacaExtra =
+      2.50; // Ya no aplica tanto, pero lo mantenemos por si acaso
 
   // ==================== DATOS DE BASE DE DATOS ====================
-  List<Map<String, dynamic>> _resins = [];
-  List<Map<String, dynamic>> _filaments = [];
+  List<Map<String, dynamic>> _materials = []; // ¡Lista unificada!
   List<Map<String, dynamic>> _clients = [];
 
-  // ==================== ESTADO DEL FORMULARIO BÁSICO ====================
+  // ==================== ESTADO DEL FORMULARIO ====================
   late String _selectedStatus;
   late bool _isPainted;
   int? _selectedClientId;
 
   final _nameController = TextEditingController();
-  final _platesController = TextEditingController();
+  final _platesController = TextEditingController(text: '1');
   final _priceController = TextEditingController();
   final _paidController = TextEditingController(text: '0.00');
   final _paintHoursController = TextEditingController(text: '1');
 
-  // ==================== ESTADO DEL FORMULARIO MATERIAL ====================
-  String _materialMode = 'filament';
-  int? _selectedResinId;
-  final _resinGramsController = TextEditingController();
-  final List<FilamentEntry> _filamentEntries = [FilamentEntry()];
+  // LA NUEVA JOYA: La lista de placas
+  List<Map<String, dynamic>> _plates = [];
 
   // ==================== ESTADO CALCULADO ====================
   double _suggestedPrice = 0.0;
@@ -73,34 +69,22 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     _priceController.dispose();
     _paidController.dispose();
     _paintHoursController.dispose();
-    _resinGramsController.dispose();
-    for (var entry in _filamentEntries) {
-      entry.gramsController.dispose();
-    }
     super.dispose();
   }
 
   // ==================== CARGA DE DATOS INICIALES ====================
   Future<void> _loadInitialData() async {
-    // 1. Cargar configuración global
     final settings = await _settingsRepo.getAllSettings();
     _margenBeneficio = settings['margen_beneficio'] ?? 45.0;
     _costeHoraPintado = settings['coste_hora_pintado'] ?? 15.0;
-    _costePlacaExtra = settings['coste_placa_extra'] ?? 2.50;
 
-    // 2. Cargar materiales
-    final materials = await _materialRepo.getAllMaterials();
-    _resins = materials.where((m) => m['type'] == 'resin').toList();
-    _filaments = materials.where((m) => m['type'] == 'filament').toList();
-
-    // 3. Cargar clientes
+    // Cargar materiales (Todos juntos)
+    _materials = await _materialRepo.getAllMaterials();
     _clients = await _clientRepo.getAllClients();
 
-    // 4. Si es edición, cargar datos del pedido existente
     final order = widget.initialOrder;
     if (order != null) {
       _nameController.text = order['name'] ?? '';
-      _platesController.text = (order['plates'] ?? '1').toString();
       _selectedStatus = order['status'] ?? 'Draft';
       _isPainted = order['is_painted'] == 1;
       _selectedClientId = order['client_id'];
@@ -108,29 +92,11 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       _paidController.text = ((order['paid_amount'] ?? 0) as num)
           .toStringAsFixed(2);
 
-      // Cargar materiales asociados
-      final items = await _orderRepo.getOrderItems(order['id']);
-      if (items.isNotEmpty) {
-        int firstMatId = items.first['material_id'];
-        bool isResin = _resins.any((r) => r['id'] == firstMatId);
-
-        if (isResin) {
-          _materialMode = 'resin';
-          _selectedResinId = firstMatId;
-          _resinGramsController.text = items.first['grams_used'].toString();
-        } else {
-          _materialMode = 'filament';
-          _filamentEntries.clear();
-          for (var item in items) {
-            final entry = FilamentEntry();
-            entry.materialId = item['material_id'];
-            entry.gramsController.text = item['grams_used'].toString();
-            _filamentEntries.add(entry);
-          }
-        }
-      }
+      // Cargar placas desde la v6 de la base de datos
+      final loadedPlates = await _orderRepo.getOrderPlates(order['id']);
+      _plates = loadedPlates.map((p) => Map<String, dynamic>.from(p)).toList();
+      _platesController.text = _plates.length.toString();
     } else {
-      // Nueva orden
       _selectedStatus = 'Draft';
       _isPainted = false;
       _selectedClientId = null;
@@ -140,34 +106,35 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     _calculateEstimate();
   }
 
-  // ==================== CÁLCULOS ====================
+  // ==================== CÁLCULOS (MOTOR ACTUALIZADO) ====================
   void _calculateEstimate() {
     double costMaterial = 0.0;
 
-    if (_materialMode == 'resin' && _selectedResinId != null) {
-      final res = _resins.firstWhere((r) => r['id'] == _selectedResinId);
-      double g = double.tryParse(_resinGramsController.text) ?? 0;
-      costMaterial = (g / 1000) * (res['cost_per_kg'] as num);
-    } else if (_materialMode == 'filament') {
-      for (var entry in _filamentEntries) {
-        if (entry.materialId != null) {
-          final fil = _filaments.firstWhere((f) => f['id'] == entry.materialId);
-          double g = double.tryParse(entry.gramsController.text) ?? 0;
-          costMaterial += (g / 1000) * (fil['cost_per_kg'] as num);
+    // 1. Calcular el coste de cada placa sumada
+    for (var plate in _plates) {
+      if (plate['material_id'] != null) {
+        final mat = _materials.firstWhere(
+          (m) => m['id'] == plate['material_id'],
+          orElse: () => {},
+        );
+        if (mat.isNotEmpty) {
+          double g = (plate['grams'] as num).toDouble();
+          double costPerKg = (mat['cost_per_kg'] as num).toDouble();
+          costMaterial += (g / 1000) * costPerKg;
+          // Si tienes coste eléctrico/hora, lo podrías sumar aquí usando plate['minutes']
         }
       }
     }
 
-    double plates = double.tryParse(_platesController.text) ?? 1;
-    double costPlates = (plates > 1) ? (plates - 1) * _costePlacaExtra : 0;
-
+    // 2. Calcular otros costes (Pintura)
     double paintHours = double.tryParse(_paintHoursController.text) ?? 0;
     double costPaint = _isPainted ? (paintHours * _costeHoraPintado) : 0.0;
 
     setState(() {
       _suggestedPrice =
-          (costMaterial + costPlates) * (1 + (_margenBeneficio / 100)) +
-          costPaint;
+          (costMaterial) * (1 + (_margenBeneficio / 100)) + costPaint;
+      _platesController.text = _plates.length
+          .toString(); // Actualizamos el contador visual
     });
   }
 
@@ -177,95 +144,26 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     });
   }
 
-  // ==================== MANEJO DE ESTADO DEL FORMULARIO ====================
+  // ==================== MANEJO DE ESTADO ====================
   bool get _isLocked =>
       _selectedStatus == 'Completed' || _selectedStatus == 'Shipped';
 
-  // --- Material Section Callbacks ---
-  void _onMaterialModeChanged(String newMode) {
-    setState(() {
-      _materialMode = newMode;
-      _calculateEstimate();
-    });
-  }
-
-  void _onResinSelected(int? resinId) {
-    setState(() {
-      _selectedResinId = resinId;
-      _calculateEstimate();
-    });
-  }
-
-  void _onFilamentSelected(int index) {
-    setState(() {
-      _calculateEstimate();
-    });
-  }
-
-  void _onGramsChanged(String value) {
-    _calculateEstimate();
-  }
-
-  void _onAddFilament() {
-    setState(() {
-      _filamentEntries.add(FilamentEntry());
-      _calculateEstimate();
-    });
-  }
-
-  void _onRemoveFilament(int index) {
-    setState(() {
-      _filamentEntries.removeAt(index);
-      _calculateEstimate();
-    });
-  }
-
-  void _onAddNewMaterial(String type, Function(int) onSelected) {
+  void _onAddNewMaterial(Function(int) onSelected) {
     showDialog(
       context: context,
       builder: (context) => MaterialDialog(
-        initialMaterial: {'type': type},
         onSave: (newMaterial) async {
           int newId = await _materialRepo.insertMaterial(newMaterial);
-          final materials = await _materialRepo.getAllMaterials();
+          _materials = await _materialRepo.getAllMaterials();
           setState(() {
-            _resins = materials.where((m) => m['type'] == 'resin').toList();
-            _filaments = materials
-                .where((m) => m['type'] == 'filament')
-                .toList();
+            onSelected(newId);
+            _calculateEstimate();
           });
-          onSelected(newId);
-          _calculateEstimate();
         },
       ),
     );
   }
 
-  // --- Finance Section Callbacks ---
-  void _onPaintedChanged(bool value) {
-    setState(() {
-      _isPainted = value;
-      _calculateEstimate();
-    });
-  }
-
-  void _onPlatesChanged(String value) {
-    _calculateEstimate();
-  }
-
-  void _onPaintHoursChanged(String value) {
-    _calculateEstimate();
-  }
-
-  void _onPriceChanged(String value) {
-    setState(() {});
-  }
-
-  void _onPaidChanged(String value) {
-    setState(() {});
-  }
-
-  // --- Dialogs para crear clientes al vuelo ---
   void _showClientDialog() {
     showDialog(
       context: context,
@@ -285,6 +183,8 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   // ==================== GUARDAR PEDIDO ====================
   void _saveOrder() {
     Map<String, dynamic> orderData = {
+      if (widget.initialOrder != null)
+        'id': widget.initialOrder!['id'], // Mantener ID si editamos
       'client_id': _selectedClientId,
       'name': _nameController.text,
       'price': double.tryParse(_priceController.text) ?? 0.0,
@@ -293,29 +193,11 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
           widget.initialOrder?['date'] ??
           DateTime.now().toString().split(' ')[0],
       'status': _selectedStatus,
-      'grams': 0.0,
-      'plates': int.tryParse(_platesController.text) ?? 1,
       'is_painted': _isPainted ? 1 : 0,
+      'notes': widget.initialOrder?['notes'] ?? '',
+      'plates': _plates, // Pasamos la lista de placas al repositorio
     };
 
-    List<Map<String, dynamic>> items = [];
-    if (_materialMode == 'resin' && _selectedResinId != null) {
-      items.add({
-        'material_id': _selectedResinId,
-        'grams_used': double.tryParse(_resinGramsController.text) ?? 0.0,
-      });
-    } else if (_materialMode == 'filament') {
-      for (var f in _filamentEntries) {
-        if (f.materialId != null) {
-          items.add({
-            'material_id': f.materialId,
-            'grams_used': double.tryParse(f.gramsController.text) ?? 0.0,
-          });
-        }
-      }
-    }
-
-    orderData['items'] = items;
     widget.onSave(orderData);
 
     if (mounted) {
@@ -380,9 +262,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                       ],
                       onChanged: _isLocked
                           ? null
-                          : (v) => setState(() {
-                              _selectedClientId = v;
-                            }),
+                          : (v) => setState(() => _selectedClientId = v),
                     ),
                   ),
                   if (!_isLocked)
@@ -428,9 +308,8 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                           'Shipped',
                           'Canceled',
                         ];
-                        if (_selectedStatus == 'Completed') {
+                        if (_selectedStatus == 'Completed')
                           options.add('Completed');
-                        }
                         return options
                             .map(
                               (s) => DropdownMenuItem(value: s, child: Text(s)),
@@ -439,48 +318,47 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                       }(),
                       onChanged: _isLocked
                           ? null
-                          : (v) => setState(() {
-                              _selectedStatus = v!;
-                            }),
+                          : (v) => setState(() => _selectedStatus = v!),
                     ),
                   ),
                 ],
               ),
               const Divider(height: 32),
 
-              // --- ZONA 3: MATERIAL (COMPONENTE SEPARADO) ---
+              // --- ZONA 3: PLACAS Y MATERIALES ---
               MaterialFormSection(
-                materialMode: _materialMode,
-                selectedResinId: _selectedResinId,
-                resins: _resins,
-                filaments: _filaments,
-                resinGramsController: _resinGramsController,
-                filamentEntries: _filamentEntries,
+                plates: _plates,
+                availableMaterials: _materials,
                 isLocked: _isLocked,
-                onMaterialModeChanged: _onMaterialModeChanged,
-                onResinSelected: _onResinSelected,
-                onFilamentSelected: _onFilamentSelected,
-                onGramsChanged: _onGramsChanged,
-                onAddFilament: _onAddFilament,
-                onRemoveFilament: _onRemoveFilament,
+                onPlatesChanged: (updatedPlates) {
+                  setState(() {
+                    _plates = updatedPlates;
+                    _calculateEstimate();
+                  });
+                },
                 onAddNewMaterial: _onAddNewMaterial,
               ),
               const Divider(height: 32),
 
-              // --- ZONA 4: FINANZAS (COMPONENTE SEPARADO) ---
+              // --- ZONA 4: FINANZAS ---
               FinanceFormSection(
-                platesController: _platesController,
+                platesController:
+                    _platesController, // Solo lectura ahora, lo actualiza el código
                 paintHoursController: _paintHoursController,
                 priceController: _priceController,
                 paidController: _paidController,
                 isPainted: _isPainted,
                 suggestedPrice: _suggestedPrice,
                 isLocked: _isLocked,
-                onPaintedChanged: _onPaintedChanged,
-                onPlatesChanged: _onPlatesChanged,
-                onPaintHoursChanged: _onPaintHoursChanged,
-                onPriceChanged: _onPriceChanged,
-                onPaidChanged: _onPaidChanged,
+                onPaintedChanged: (val) => setState(() {
+                  _isPainted = val;
+                  _calculateEstimate();
+                }),
+                onPlatesChanged:
+                    (val) {}, // Desactivado porque las placas se manejan arriba
+                onPaintHoursChanged: (val) => _calculateEstimate(),
+                onPriceChanged: (val) => setState(() {}),
+                onPaidChanged: (val) => setState(() {}),
                 onApplySuggestedPrice: _applySuggestedPrice,
               ),
             ],

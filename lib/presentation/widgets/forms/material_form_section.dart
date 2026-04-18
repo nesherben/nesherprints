@@ -1,220 +1,244 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
-import 'filament_entry.dart';
 
-class MaterialFormSection extends StatelessWidget {
-  // Datos
-  final String materialMode; // 'filament' o 'resin'
-  final int? selectedResinId;
-  final List<Map<String, dynamic>> resins;
-  final List<Map<String, dynamic>> filaments;
-  final TextEditingController resinGramsController;
-  final List<FilamentEntry> filamentEntries;
-
-  // Estados
+class MaterialFormSection extends StatefulWidget {
+  final List<Map<String, dynamic>> plates;
+  final List<Map<String, dynamic>> availableMaterials;
+  final Function(List<Map<String, dynamic>>) onPlatesChanged;
+  final Function(Function(int) onSelected)
+  onAddNewMaterial; // Mantenemos tu función estrella
   final bool isLocked;
-
-  // Callbacks
-  final Function(String) onMaterialModeChanged;
-  final Function(int?) onResinSelected;
-  final Function(int) onFilamentSelected;
-  final Function(String) onGramsChanged;
-  final Function() onAddFilament;
-  final Function(int) onRemoveFilament;
-  final Function(String, Function(int) onSelected) onAddNewMaterial;
 
   const MaterialFormSection({
     super.key,
-    required this.materialMode,
-    required this.selectedResinId,
-    required this.resins,
-    required this.filaments,
-    required this.resinGramsController,
-    required this.filamentEntries,
-    required this.isLocked,
-    required this.onMaterialModeChanged,
-    required this.onResinSelected,
-    required this.onFilamentSelected,
-    required this.onGramsChanged,
-    required this.onAddFilament,
-    required this.onRemoveFilament,
+    required this.plates,
+    required this.availableMaterials,
+    required this.onPlatesChanged,
     required this.onAddNewMaterial,
+    this.isLocked = false,
   });
+
+  @override
+  State<MaterialFormSection> createState() => _MaterialFormSectionState();
+}
+
+class _MaterialFormSectionState extends State<MaterialFormSection> {
+  void _addPlate() {
+    if (widget.isLocked) return;
+    setState(() {
+      widget.plates.add({
+        'name': 'Placa ${widget.plates.length + 1}',
+        'grams': 0.0,
+        'minutes': 0.0,
+        'material_id': widget.availableMaterials.isNotEmpty
+            ? widget.availableMaterials.first['id']
+            : null,
+        'status': 'Pending',
+      });
+    });
+    widget.onPlatesChanged(widget.plates);
+  }
+
+  void _removePlate(int index) {
+    if (widget.isLocked) return;
+    setState(() {
+      widget.plates.removeAt(index);
+    });
+    widget.onPlatesChanged(widget.plates);
+  }
+
+  void _updatePlate(int index, String key, dynamic value) {
+    widget.plates[index][key] = value;
+    widget.onPlatesChanged(widget.plates);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- SELECTOR DE TIPO (Filamento vs Resina) ---
-        SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(
-              value: 'filament',
-              label: Text('Filamento'),
-              icon: Icon(Icons.blur_on),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Configuración por Placas',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textMain,
+              ),
             ),
-            ButtonSegment(
-              value: 'resin',
-              label: Text('Resina'),
-              icon: Icon(Icons.water_drop),
-            ),
+            if (!widget.isLocked)
+              TextButton.icon(
+                onPressed: _addPlate,
+                icon: const Icon(Icons.add_box, color: AppColors.primary),
+                label: const Text(
+                  'Añadir Placa',
+                  style: TextStyle(color: AppColors.primary),
+                ),
+              ),
           ],
-          selected: {materialMode},
-          onSelectionChanged: isLocked
-              ? null
-              : (Set<String> newSelection) {
-                  onMaterialModeChanged(newSelection.first);
-                },
         ),
         const SizedBox(height: 16),
 
-        // --- CONTENIDO DINÁMICO ---
-        if (materialMode == 'resin')
-          _buildResinZone(context)
-        else
-          _buildFilamentZone(context),
-      ],
-    );
-  }
+        if (widget.plates.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Text(
+              'No hay placas. Añade una para empezar a calcular.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textMuted),
+            ),
+          ),
 
-  /// Zona de Resina
-  Widget _buildResinZone(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 2,
-          child: Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: selectedResinId,
-                  decoration: const InputDecoration(
-                    labelText: 'Selecciona Resina',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: resins
-                      .map(
-                        (r) => DropdownMenuItem<int>(
-                          value: r['id'],
-                          child: Text("${r['name']} (${r['color']})"),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: widget.plates.length,
+          itemBuilder: (context, index) {
+            final plate = widget.plates[index];
+            return Card(
+              elevation: 0,
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: const BorderSide(color: AppColors.border),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: plate['name'],
+                            decoration: const InputDecoration(
+                              labelText: 'Nombre de la Placa (ej. Base)',
+                              isDense: true,
+                            ),
+                            readOnly: widget.isLocked,
+                            onChanged: (val) =>
+                                _updatePlate(index, 'name', val),
+                          ),
                         ),
-                      )
-                      .toList(),
-                  onChanged: isLocked ? null : onResinSelected,
+                        if (!widget.isLocked)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: AppColors.statusCancelado,
+                            ),
+                            onPressed: () => _removePlate(index),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            initialValue: plate['material_id'],
+                            decoration: const InputDecoration(
+                              labelText: 'Material',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            items: widget.availableMaterials.map((m) {
+                              return DropdownMenuItem<int>(
+                                value: m['id'],
+                                child: Text(
+                                  '${m['name']} (${m['color']}) - €${m['cost_per_kg']}/kg',
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: widget.isLocked
+                                ? null
+                                : (val) {
+                                    if (val != null)
+                                      _updatePlate(index, 'material_id', val);
+                                  },
+                          ),
+                        ),
+                        if (!widget.isLocked)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.add_circle,
+                              color: AppColors.primary,
+                            ),
+                            tooltip: 'Nuevo material',
+                            onPressed: () => widget.onAddNewMaterial((newId) {
+                              _updatePlate(index, 'material_id', newId);
+                            }),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: plate['grams'] > 0
+                                ? plate['grams'].toString()
+                                : '',
+                            decoration: const InputDecoration(
+                              labelText: 'Gramos (g)',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                              suffixText: 'g',
+                            ),
+                            keyboardType: TextInputType.number,
+                            readOnly: widget.isLocked,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ],
+                            onChanged: (val) => _updatePlate(
+                              index,
+                              'grams',
+                              double.tryParse(val) ?? 0.0,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: plate['minutes'] > 0
+                                ? plate['minutes'].toString()
+                                : '',
+                            decoration: const InputDecoration(
+                              labelText: 'Tiempo',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                              suffixText: 'min',
+                            ),
+                            keyboardType: TextInputType.number,
+                            readOnly: widget.isLocked,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            onChanged: (val) => _updatePlate(
+                              index,
+                              'minutes',
+                              double.tryParse(val) ?? 0.0,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              if (!isLocked)
-                IconButton(
-                  icon: const Icon(Icons.add_circle, color: AppColors.primary),
-                  tooltip: 'Añadir nueva resina',
-                  onPressed: () => onAddNewMaterial('resin', (newId) {
-                    onResinSelected(newId);
-                  }),
-                ),
-            ],
-          ),
+            );
+          },
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: TextField(
-            controller: resinGramsController,
-            decoration: const InputDecoration(
-              labelText: 'Gramos (ml)',
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.number,
-            enabled: !isLocked,
-            onChanged: onGramsChanged,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Zona de Filamentos (múltiples)
-  Widget _buildFilamentZone(BuildContext context) {
-    return Column(
-      children: [
-        ...filamentEntries.asMap().entries.map((entry) {
-          int index = entry.key;
-          FilamentEntry fEntry = entry.value;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          initialValue: fEntry.materialId,
-                          decoration: InputDecoration(
-                            labelText: 'Filamento ${index + 1}',
-                            border: const OutlineInputBorder(),
-                          ),
-                          items: filaments
-                              .map(
-                                (f) => DropdownMenuItem<int>(
-                                  value: f['id'],
-                                  child: Text("${f['name']} (${f['color']})"),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: isLocked
-                              ? null
-                              : (v) => onFilamentSelected(index),
-                        ),
-                      ),
-                      if (!isLocked)
-                        IconButton(
-                          icon: const Icon(
-                            Icons.add_circle,
-                            color: AppColors.primary,
-                          ),
-                          tooltip: 'Añadir nuevo filamento',
-                          onPressed: () =>
-                              onAddNewMaterial('filament', (newId) {
-                                fEntry.materialId = newId;
-                                onFilamentSelected(index);
-                              }),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextField(
-                    controller: fEntry.gramsController,
-                    decoration: const InputDecoration(
-                      labelText: 'Gramos',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                    enabled: !isLocked,
-                    onChanged: (_) => onGramsChanged(''),
-                  ),
-                ),
-                if (!isLocked)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.remove_circle_outline,
-                      color: AppColors.alertBajoStock,
-                    ),
-                    onPressed: filamentEntries.length == 1
-                        ? null
-                        : () => onRemoveFilament(index),
-                  ),
-              ],
-            ),
-          );
-        }),
-        if (filamentEntries.length < 4 && !isLocked)
-          TextButton.icon(
-            onPressed: onAddFilament,
-            icon: const Icon(Icons.add),
-            label: const Text('Añadir otro color'),
-          ),
       ],
     );
   }

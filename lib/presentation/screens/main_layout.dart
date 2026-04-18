@@ -37,28 +37,55 @@ class _MainLayoutState extends State<MainLayout> {
 
   /// Carga todos los pedidos desde SQLite
   Future<void> _refreshOrders() async {
-    final data = await _orderRepo.getAllOrders();
+    final data = await _orderRepo.getAllOrdersWithDetails();
     setState(() {
       _allOrders = data;
       _isLoading = false;
     });
   }
 
-  /// Crea un nuevo pedido en SQLite
+  // --- FUNCIÓN PARA CREAR NUEVO PEDIDO ---
   Future<void> _addNewOrder(Map<String, dynamic> newOrder) async {
-    List<Map<String, dynamic>> items = newOrder.remove('items');
-    await _orderRepo.insertOrder(newOrder, items: items);
-    _refreshOrders();
+    // 1. Extraemos y borramos la lista del mapa principal
+    // Buscamos 'plates' o 'items' por compatibilidad
+    final List<dynamic> rawPlates =
+        newOrder.remove('plates') ?? newOrder.remove('items') ?? [];
+
+    // 2. Aseguramos el tipo de dato
+    final List<Map<String, dynamic>> plates = rawPlates
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    // 3. Ahora newOrder está "limpio" de listas y a SQLite le encantará
+    await _orderRepo.insertOrder(newOrder, plates);
+
+    // 4. Refrescar la pantalla
+    _refreshOrders(); // O la función que uses para recargar tu estado
   }
 
-  /// Actualiza un pedido existente en SQLite
+  // --- FUNCIÓN PARA ACTUALIZAR PEDIDO ---
   Future<void> _updateOrder(
     Map<String, dynamic> oldOrder,
     Map<String, dynamic> updatedOrder,
   ) async {
-    updatedOrder['id'] = oldOrder['id'];
-    List<Map<String, dynamic>> items = updatedOrder.remove('items');
-    await _orderRepo.updateOrder(updatedOrder, items: items);
+    // 1. Extraemos y borramos la lista igual que arriba
+    final List<dynamic> rawPlates =
+        updatedOrder.remove('plates') ?? updatedOrder.remove('items') ?? [];
+
+    // 2. Aseguramos el tipo
+    final List<Map<String, dynamic>> plates = rawPlates
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    // 3. Guardamos los cambios limpios
+    if (plates.isNotEmpty) {
+      await _orderRepo.updateOrder(updatedOrder, plates);
+    } else {
+      await _orderRepo.updateOrder(
+        updatedOrder,
+      ); // Por si solo se cambia el estado desde la tabla
+    }
+
     _refreshOrders();
   }
 

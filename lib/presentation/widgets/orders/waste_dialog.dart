@@ -1,72 +1,83 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../data/repositories/material_repository.dart';
 import '../../../data/repositories/order_repository.dart';
 
 class WasteDialog extends StatefulWidget {
-  final Map<String, dynamic> order;
-  final VoidCallback onWasteRegistered;
+  final int orderId;
+  final VoidCallback onSaved;
 
-  const WasteDialog({
-    super.key,
-    required this.order,
-    required this.onWasteRegistered,
-  });
+  const WasteDialog({super.key, required this.orderId, required this.onSaved});
 
   @override
   State<WasteDialog> createState() => _WasteDialogState();
 }
 
 class _WasteDialogState extends State<WasteDialog> {
-  final TextEditingController gramsController = TextEditingController();
-  final TextEditingController reasonController = TextEditingController();
-  List<Map<String, dynamic>> _materials = [];
-  int? selectedMaterialId;
+  final _orderRepo = OrderRepository();
   bool _isLoading = true;
+
+  List<Map<String, dynamic>> _plates = [];
+  int? _selectedPlateId;
+  double _wastePercentage = 100.0; // Por defecto asumimos que se perdió entera
+  final _reasonController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadMaterials();
+    _loadPlates();
   }
 
-  @override
-  void dispose() {
-    gramsController.dispose();
-    reasonController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadMaterials() async {
-    final materials = await MaterialRepository().getAllMaterials();
+  Future<void> _loadPlates() async {
+    // Descargamos las placas específicas de este pedido
+    final plates = await _orderRepo.getOrderPlates(widget.orderId);
     setState(() {
-      _materials = materials;
+      _plates = plates;
+      if (_plates.isNotEmpty) {
+        _selectedPlateId = _plates.first['id'];
+      }
       _isLoading = false;
     });
   }
 
-  void _registerWaste() async {
-    if (selectedMaterialId != null && gramsController.text.isNotEmpty) {
-      double grams = double.tryParse(gramsController.text) ?? 0.0;
+  // Calculadora mágica en tiempo real
+  double get _calculatedWastedGrams {
+    if (_selectedPlateId == null) return 0.0;
+    final plate = _plates.firstWhere(
+      (p) => p['id'] == _selectedPlateId,
+      orElse: () => {},
+    );
+    if (plate.isEmpty) return 0.0;
 
-      // Guardamos la pérdida en la base de datos
-      await OrderRepository().addWaste(
-        widget.order['id'],
-        selectedMaterialId!,
-        grams,
-        reasonController.text,
-      );
+    double totalGrams = (plate['grams'] as num).toDouble();
+    return totalGrams * (_wastePercentage / 100);
+  }
 
-      if (mounted) {
-        Navigator.pop(context);
-        widget.onWasteRegistered();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pérdida registrada. Stock actualizado.'),
-          ),
-        );
-      }
-    }
+  Future<void> _saveWaste() async {
+    if (_selectedPlateId == null) return;
+
+    final plate = _plates.firstWhere((p) => p['id'] == _selectedPlateId);
+    int materialId = plate['material_id'];
+    double gramsWasted = _calculatedWastedGrams;
+    String reason = _reasonController.text.trim().isEmpty
+        ? 'Fallo al ${_wastePercentage.toInt()}% en ${plate['name']}'
+        : _reasonController.text;
+
+    // Llamamos a tu repositorio para guardar la merma y restar stock
+    await _orderRepo.addWaste(
+      orderId: widget.orderId,
+      materialId: materialId,
+      grams: gramsWasted,
+      reason: reason,
+    );
+
+    widget.onSaved();
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
   }
 
   @override
@@ -81,62 +92,124 @@ class _WasteDialogState extends State<WasteDialog> {
     }
 
     return AlertDialog(
-      title: Text('Registrar Merma - ${widget.order['name']}'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
+      title: const Row(
         children: [
-          const Text(
-            'Añade los gramos de material perdido (espaguetis, fallos de soporte...). Se restarán de tu inventario físico y afectarán a tu beneficio neto real.',
-            style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<int>(
-            decoration: const InputDecoration(
-              labelText: 'Bobina / Resina Fallida',
-              border: OutlineInputBorder(),
-            ),
-            items: _materials
-                .map(
-                  (m) => DropdownMenuItem<int>(
-                    value: m['id'],
-                    child: Text("${m['name']} (${m['color']})"),
-                  ),
-                )
-                .toList(),
-            onChanged: (val) => setState(() => selectedMaterialId = val),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: gramsController,
-            decoration: const InputDecoration(
-              labelText: 'Gramos perdidos',
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: reasonController,
-            decoration: const InputDecoration(
-              labelText: 'Motivo (Opcional)',
-              border: OutlineInputBorder(),
-            ),
-          ),
+          Icon(Icons.warning_amber_rounded, color: Colors.orange),
+          SizedBox(width: 8),
+          Text('Registrar Merma'),
         ],
+      ),
+      content: SizedBox(
+        width: 400,
+        child: _plates.isEmpty
+            ? const Text(
+                'Este pedido no tiene placas configuradas.',
+                style: TextStyle(color: AppColors.textMuted),
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. SELECTOR DE PLACA
+                  const Text(
+                    '¿Qué placa ha fallado?',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<int>(
+                    initialValue: _selectedPlateId,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: _plates.map((p) {
+                      return DropdownMenuItem<int>(
+                        value: p['id'],
+                        child: Text('${p['name']} (${p['grams']}g)'),
+                      );
+                    }).toList(),
+                    onChanged: (val) => setState(() => _selectedPlateId = val),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 2. SLIDER DE PORCENTAJE
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        '¿Cuánto se llegó a imprimir?',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${_wastePercentage.toInt()}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _wastePercentage,
+                    min: 0,
+                    max: 100,
+                    divisions: 20, // Saltos de 5% en 5%
+                    activeColor: Colors.orange,
+                    label: '${_wastePercentage.toInt()}%',
+                    onChanged: (val) => setState(() => _wastePercentage = val),
+                  ),
+
+                  // 3. TEXTO DINÁMICO DEL CÁLCULO
+                  Center(
+                    child: Text(
+                      'Se descontarán ${_calculatedWastedGrams.toStringAsFixed(1)}g del inventario',
+                      style: const TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 4. MOTIVO (Opcional)
+                  TextField(
+                    controller: _reasonController,
+                    decoration: const InputDecoration(
+                      labelText: 'Motivo del fallo (Opcional)',
+                      hintText:
+                          'Ej: Se soltó de la cama, atasco de boquilla...',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancelar'),
         ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.alertBajoStock,
-            foregroundColor: Colors.white,
+        if (_plates.isNotEmpty)
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: _saveWaste,
+            child: const Text('Registrar Pérdida'),
           ),
-          onPressed: _registerWaste,
-          child: const Text('Registrar Pérdida'),
-        ),
       ],
     );
   }

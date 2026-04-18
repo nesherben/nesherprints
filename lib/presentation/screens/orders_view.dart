@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/client_repository.dart';
 import '../widgets/orders/order_data_table.dart';
+import '../widgets/orders/waste_dialog.dart';
 
 class OrdersView extends StatefulWidget {
   final List<Map<String, dynamic>> orders;
@@ -63,6 +64,29 @@ class _OrdersViewState extends State<OrdersView> {
         }
       });
     }
+  }
+
+  // ==================== MANEJO DE MERMAS ====================
+  void _onWaste(Map<String, dynamic> order) {
+    showDialog(
+      context: context,
+      builder: (context) => WasteDialog(
+        orderId: order['id'],
+        onSaved: () {
+          // Como los pedidos vienen por el widget.orders (desde main.dart),
+          // necesitamos avisar al main que algo cambió.
+          // Por ahora, refrescamos lo que tenemos.
+          _applyFiltersAndSort();
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Merma registrada y stock actualizado'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -268,6 +292,7 @@ class _OrdersViewState extends State<OrdersView> {
                 onDelete: widget.onDelete,
                 onSort: _onSort,
                 showConfirmationDialog: _showConfirmationDialog,
+                onWaste: _onWaste, // <--- AÑADE ESTA LÍNEA AQUÍ
               ),
             ),
           ),

@@ -11,8 +11,7 @@ class DatabaseHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    // Pasamos a la v3 para crear las tablas desde cero
-    _database = await _initDB('nesher_erp_v5.db');
+    _database = await _initDB('nesher_erp_v6.db');
     return _database!;
   }
 
@@ -60,23 +59,21 @@ class DatabaseHelper {
       )
     ''');
 
-    // 4. ORDERS (Añadimos client_id)
+    // Tabla orders (mantenemos client_id de la v5)
     await db.execute('''
-      CREATE TABLE orders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        client_id INTEGER, -- NUEVO: Relación con el cliente
-        name TEXT NOT NULL,
-        price REAL NOT NULL,
-        paid_amount REAL DEFAULT 0.0,
-        date TEXT NOT NULL,
-        status TEXT NOT NULL,
-        grams REAL NOT NULL,
-        plates INTEGER NOT NULL,
-        is_painted INTEGER NOT NULL,
-        FOREIGN KEY (client_id) REFERENCES clients (id)
-      )
-    ''');
-
+    CREATE TABLE orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id INTEGER,
+      name TEXT NOT NULL,
+      price REAL NOT NULL,
+      paid_amount REAL DEFAULT 0.0,
+      date TEXT NOT NULL,
+      status TEXT NOT NULL,
+      is_painted INTEGER NOT NULL,
+      notes TEXT,
+      FOREIGN KEY (client_id) REFERENCES clients (id)
+    )
+  ''');
     // 5. ORDER_ITEMS (Igual)
     await db.execute('''
       CREATE TABLE order_items (
@@ -91,16 +88,30 @@ class DatabaseHelper {
 
     // 6. ORDER_WASTE (Igual)
     await db.execute('''
-      CREATE TABLE order_waste (
+      CREATE TABLE IF NOT EXISTS order_waste (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         order_id INTEGER NOT NULL,
         material_id INTEGER NOT NULL,
         grams_wasted REAL NOT NULL,
         reason TEXT,
-        FOREIGN KEY (order_id) REFERENCES orders (id),
+        date TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE,
         FOREIGN KEY (material_id) REFERENCES materials (id)
       )
     ''');
+    // NUEVA TABLA: order_plates
+    await db.execute('''
+    CREATE TABLE order_plates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      grams REAL NOT NULL,
+      minutes REAL NOT NULL,
+      material_id INTEGER NOT NULL,
+      status TEXT DEFAULT 'Pending', -- 'Pending', 'Success', 'Failed'
+      FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+    )
+  ''');
 
     // Inserts por defecto (Settings)
     await db.insert('settings', {'key': 'margen_beneficio', 'value': 45.0});
