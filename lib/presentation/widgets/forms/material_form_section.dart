@@ -161,8 +161,9 @@ class _MaterialFormSectionState extends State<MaterialFormSection> {
                             onChanged: widget.isLocked
                                 ? null
                                 : (val) {
-                                    if (val != null)
+                                    if (val != null) {
                                       _updatePlate(index, 'material_id', val);
+                                    }
                                   },
                           ),
                         ),

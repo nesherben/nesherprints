@@ -308,8 +308,9 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                           OrderStatus.shipped,
                           OrderStatus.canceled,
                         ];
-                        if (_selectedStatus == OrderStatus.completed)
+                        if (_selectedStatus == OrderStatus.completed) {
                           options.add(OrderStatus.completed);
+                        }
                         return options
                             .map(
                               (s) => DropdownMenuItem(value: s, child: Text(s)),

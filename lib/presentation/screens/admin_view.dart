@@ -67,10 +67,11 @@ class _AdminViewState extends State<AdminView> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading)
+    if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primary),
       );
+    }
 
     return Padding(
       padding: const EdgeInsets.all(32.0),
