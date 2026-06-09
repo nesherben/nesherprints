@@ -3,6 +3,7 @@ import '../../core/constants.dart';
 import '../../core/number_utils.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/service_locator.dart';
+import '../widgets/extra_dialog.dart';
 
 class AdminView extends StatefulWidget {
   const AdminView({super.key});
@@ -17,6 +18,7 @@ class _AdminViewState extends State<AdminView> {
   final _marginController = TextEditingController();
   final _paintHourController = TextEditingController();
   final _plateExtraController = TextEditingController();
+  List<Map<String, dynamic>> _extras = [];
 
   @override
   void initState() {
@@ -27,6 +29,7 @@ class _AdminViewState extends State<AdminView> {
   // Cargamos los valores de la base de datos a los cuadros de texto
   Future<void> _loadSettings() async {
     final data = await ServiceLocator.settingsRepo.getAllSettings();
+    final extras = await ServiceLocator.extrasRepo.getAllExtras();
     setState(() {
       _marginController.text =
           data[SettingKeys.margenBeneficio]?.toStringAsFixed(2) ?? '45.00';
@@ -35,7 +38,32 @@ class _AdminViewState extends State<AdminView> {
       _plateExtraController.text =
           data[SettingKeys.costePlacaExtra]?.toStringAsFixed(2) ?? '2.50';
       _isLoading = false;
+      _extras = extras;
     });
+  }
+
+  void _showExtraDialog([Map<String, dynamic>? initial]) {
+    showDialog(
+      context: context,
+      builder: (context) => ExtraDialog(
+        initial: initial,
+        onSave: (payload) async {
+          if (payload['id'] != null) {
+            await ServiceLocator.extrasRepo.updateExtra(payload['id'], payload);
+          } else {
+            await ServiceLocator.extrasRepo.insertExtra(payload);
+          }
+          final updated = await ServiceLocator.extrasRepo.getAllExtras();
+          setState(() => _extras = updated);
+        },
+      ),
+    );
+  }
+
+  Future<void> _deleteExtra(int id) async {
+    await ServiceLocator.extrasRepo.deleteExtra(id);
+    final updated = await ServiceLocator.extrasRepo.getAllExtras();
+    setState(() => _extras = updated);
   }
 
   // Guardamos los cambios en SQLite
@@ -130,6 +158,56 @@ class _AdminViewState extends State<AdminView> {
                       'Extra por Placa Base (€)',
                       _plateExtraController,
                       Icons.layers,
+                    ),
+
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Extras (Inventario)',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => _showExtraDialog(),
+                          icon: const Icon(Icons.add, color: AppColors.primary),
+                          label: const Text(
+                            'Añadir Extra',
+                            style: TextStyle(color: AppColors.primary),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ..._extras.map(
+                      (ex) => ListTile(
+                        title: Text(ex['name']),
+                        subtitle: Text(
+                          '€${(ex['price'] as num).toStringAsFixed(2)} · ${ex['stock']} ${ex['unit'] ?? ''}',
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              onPressed: () => _showExtraDialog(ex),
+                              icon: const Icon(
+                                Icons.edit,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => _deleteExtra(ex['id'] as int),
+                              icon: const Icon(
+                                Icons.delete,
+                                color: AppColors.statusCancelado,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 32),

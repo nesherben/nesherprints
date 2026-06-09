@@ -31,6 +31,10 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   // ==================== DATOS DE BASE DE DATOS ====================
   List<Map<String, dynamic>> _materials = []; // ¡Lista unificada!
   List<Map<String, dynamic>> _clients = [];
+  List<Map<String, dynamic>> _extras = [];
+
+  // extras seleccionados: extraId -> cantidad
+  final Map<int, int> _selectedExtras = {};
 
   // ==================== ESTADO DEL FORMULARIO ====================
   late String _selectedStatus;
@@ -79,6 +83,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     // Cargar materiales (Todos juntos)
     _materials = await ServiceLocator.materialRepo.getAllMaterials();
     _clients = await ServiceLocator.clientRepo.getAllClients();
+    _extras = await ServiceLocator.extrasRepo.getAllExtras();
 
     final order = widget.initialOrder;
     if (order != null) {
@@ -96,6 +101,14 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       );
       _plates = loadedPlates.map((p) => Map<String, dynamic>.from(p)).toList();
       _platesController.text = _plates.length.toString();
+      // Si el pedido guardado incluye extras, cargarlos
+      if (order['extras'] != null && order['extras'] is List) {
+        for (var e in order['extras']) {
+          final id = e['id'] as int?;
+          final qty = e['quantity'] as int? ?? 0;
+          if (id != null && qty > 0) _selectedExtras[id] = qty;
+        }
+      }
     } else {
       _selectedStatus = OrderStatus.draft;
       _isPainted = false;
@@ -110,6 +123,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   void _calculateEstimate() {
     double costMaterial = 0.0;
     double costePlacaExtraAcumulado = 0.0;
+    double extrasCost = 0.0;
 
     // 1. Calcular el coste de cada placa sumada
     for (var plate in _plates) {
@@ -134,10 +148,23 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     double paintHours = parseDecimal(_paintHoursController.text);
     double costPaint = _isPainted ? (paintHours * _costeHoraPintado) : 0.0;
 
+    // 3. Calcular extras seleccionados
+    for (var entry in _selectedExtras.entries) {
+      final ex = _extras.firstWhere(
+        (x) => x['id'] == entry.key,
+        orElse: () => {},
+      );
+      if (ex.isNotEmpty) {
+        double price = (ex['price'] as num).toDouble();
+        extrasCost += price * (entry.value);
+      }
+    }
+
     setState(() {
-      _totalCost = costMaterial + costPaint;
+      _totalCost = costMaterial + costPaint + extrasCost;
       _suggestedPrice =
-          (costMaterial) * (1 + (_margenBeneficio / 100)) + costPaint;
+          (costMaterial + extrasCost) * (1 + (_margenBeneficio / 100)) +
+          costPaint;
       _platesController.text = _plates.length
           .toString(); // Actualizamos el contador visual
     });
@@ -205,6 +232,9 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       'is_painted': _isPainted ? 1 : 0,
       'notes': widget.initialOrder?['notes'] ?? '',
       'plates': _plates, // Pasamos la lista de placas al repositorio
+      'extras': _selectedExtras.entries
+          .map((e) => {'id': e.key, 'quantity': e.value})
+          .toList(),
     };
 
     widget.onSave(orderData);
@@ -347,6 +377,69 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                   });
                 },
                 onAddNewMaterial: _onAddNewMaterial,
+              ),
+              const SizedBox(height: 16),
+
+              // --- ZONA 3.1: EXTRAS ---
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Extras (llaveros, clickers, etc.)',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (_extras.isEmpty)
+                        const Text('No hay extras definidos.'),
+                      ..._extras.map((ex) {
+                        final id = ex['id'] as int;
+                        final qty = _selectedExtras[id] ?? 0;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6.0),
+                          child: Row(
+                            children: [
+                              Expanded(child: Text('${ex['name']}')),
+                              Text(
+                                '€${(ex['price'] as num).toStringAsFixed(2)}',
+                              ),
+                              const SizedBox(width: 12),
+                              IconButton(
+                                onPressed: _isLocked || qty <= 0
+                                    ? null
+                                    : () => setState(() {
+                                        _selectedExtras[id] = qty - 1;
+                                        if (_selectedExtras[id] == 0) {
+                                          _selectedExtras.remove(id);
+                                        }
+                                        _calculateEstimate();
+                                      }),
+                                icon: const Icon(Icons.remove_circle_outline),
+                              ),
+                              Text(qty.toString()),
+                              IconButton(
+                                onPressed: _isLocked
+                                    ? null
+                                    : () => setState(() {
+                                        final newQty = (qty) + 1;
+                                        _selectedExtras[id] = newQty;
+                                        _calculateEstimate();
+                                      }),
+                                icon: const Icon(Icons.add_circle_outline),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
               ),
               const Divider(height: 32),
 

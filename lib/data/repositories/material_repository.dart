@@ -6,12 +6,32 @@ class MaterialRepository {
 
   // CREAR
   Future<int> insertMaterial(Map<String, dynamic> material) async {
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.materials} (
+        ${DbColumns.materialId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.materialName} TEXT NOT NULL,
+        color TEXT NOT NULL,
+        ${DbColumns.materialType} TEXT NOT NULL,
+        ${DbColumns.materialCostPerKg} REAL NOT NULL,
+        stock_g REAL NOT NULL
+      )
+    ''');
     final db = await dbHelper.database;
     return await db.insert(DbTables.materials, material);
   }
 
   // LEER TODOS
   Future<List<Map<String, dynamic>>> getAllMaterials() async {
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.materials} (
+        ${DbColumns.materialId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.materialName} TEXT NOT NULL,
+        color TEXT NOT NULL,
+        ${DbColumns.materialType} TEXT NOT NULL,
+        ${DbColumns.materialCostPerKg} REAL NOT NULL,
+        stock_g REAL NOT NULL
+      )
+    ''');
     final db = await dbHelper.database;
     return await db.query(
       DbTables.materials,
@@ -21,6 +41,16 @@ class MaterialRepository {
 
   // ACTUALIZAR
   Future<int> updateMaterial(Map<String, dynamic> material) async {
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.materials} (
+        ${DbColumns.materialId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.materialName} TEXT NOT NULL,
+        color TEXT NOT NULL,
+        ${DbColumns.materialType} TEXT NOT NULL,
+        ${DbColumns.materialCostPerKg} REAL NOT NULL,
+        stock_g REAL NOT NULL
+      )
+    ''');
     final db = await dbHelper.database;
     return await db.update(
       DbTables.materials,
@@ -32,6 +62,16 @@ class MaterialRepository {
 
   // BORRAR
   Future<int> deleteMaterial(int id) async {
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.materials} (
+        ${DbColumns.materialId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.materialName} TEXT NOT NULL,
+        color TEXT NOT NULL,
+        ${DbColumns.materialType} TEXT NOT NULL,
+        ${DbColumns.materialCostPerKg} REAL NOT NULL,
+        stock_g REAL NOT NULL
+      )
+    ''');
     final db = await dbHelper.database;
     return await db.delete(
       DbTables.materials,
@@ -41,6 +81,16 @@ class MaterialRepository {
   }
 
   Future<void> reduceStock(int id, double amountUsed) async {
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.materials} (
+        ${DbColumns.materialId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.materialName} TEXT NOT NULL,
+        color TEXT NOT NULL,
+        ${DbColumns.materialType} TEXT NOT NULL,
+        ${DbColumns.materialCostPerKg} REAL NOT NULL,
+        stock_g REAL NOT NULL
+      )
+    ''');
     final db = await dbHelper.database;
     // Con rawUpdate le decimos a SQLite: "Coge el stock actual y réstale esta cantidad"
     await db.rawUpdate(

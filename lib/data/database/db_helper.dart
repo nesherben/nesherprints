@@ -23,7 +23,97 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // v2 adds clients, orderPlates, extras and orderExtras, plus a new default setting
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS ${DbTables.clients} (
+              ${DbColumns.clientId} INTEGER PRIMARY KEY AUTOINCREMENT,
+              ${DbColumns.clientName} TEXT NOT NULL,
+              ${DbColumns.clientPhone} TEXT,
+              ${DbColumns.clientEmail} TEXT,
+              notes TEXT
+            )
+          ''');
+
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS ${DbTables.orderPlates} (
+              ${DbColumns.plateId} INTEGER PRIMARY KEY AUTOINCREMENT,
+              ${DbColumns.plateOrderId} INTEGER NOT NULL,
+              ${DbColumns.plateName} TEXT NOT NULL,
+              ${DbColumns.plateGrams} REAL NOT NULL,
+              ${DbColumns.plateMinutes} REAL NOT NULL,
+              ${DbColumns.plateMaterialId} INTEGER NOT NULL,
+              ${DbColumns.plateStatus} TEXT DEFAULT '${OrderStatus.pending}',
+              FOREIGN KEY (${DbColumns.plateOrderId}) REFERENCES ${DbTables.orders} (${DbColumns.orderId}) ON DELETE CASCADE
+            )
+          ''');
+
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS ${DbTables.extras} (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              name TEXT NOT NULL,
+              price REAL NOT NULL,
+              stock INTEGER DEFAULT 0,
+              unit TEXT DEFAULT ''
+            )
+          ''');
+
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS ${DbTables.orderExtras} (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              order_id INTEGER NOT NULL,
+              extra_id INTEGER NOT NULL,
+              quantity INTEGER NOT NULL,
+              unit_price REAL NOT NULL,
+              FOREIGN KEY (order_id) REFERENCES ${DbTables.orders} (${DbColumns.orderId}) ON DELETE CASCADE,
+              FOREIGN KEY (extra_id) REFERENCES ${DbTables.extras} (id)
+            )
+          ''');
+
+          // Ensure costePlacaExtra setting exists
+          final existing = await db.query(
+            DbTables.settings,
+            where: '${DbColumns.settingKey} = ?',
+            whereArgs: [SettingKeys.costePlacaExtra],
+          );
+          if (existing.isEmpty) {
+            await db.insert(DbTables.settings, {
+              DbColumns.settingKey: SettingKeys.costePlacaExtra,
+              DbColumns.settingValue: 2.50,
+            });
+          }
+        }
+      },
+      onOpen: (db) async {
+        // Ensure extras-related tables exist for older DBs
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS ${DbTables.extras} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            price REAL NOT NULL,
+            stock INTEGER DEFAULT 0,
+            unit TEXT DEFAULT ''
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS ${DbTables.orderExtras} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            extra_id INTEGER NOT NULL,
+            quantity INTEGER NOT NULL,
+            unit_price REAL NOT NULL,
+            FOREIGN KEY (order_id) REFERENCES ${DbTables.orders} (${DbColumns.orderId}) ON DELETE CASCADE,
+            FOREIGN KEY (extra_id) REFERENCES ${DbTables.extras} (id)
+          )
+        ''');
+      },
+    );
   }
 
   Future _createDB(Database db, int version) async {
@@ -113,6 +203,30 @@ class DatabaseHelper {
     )
   ''');
 
+    // 7. EXTRAS: inventario de elementos pequeños (llaveros, clickers, ...)
+    await db.execute('''
+      CREATE TABLE ${DbTables.extras} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        price REAL NOT NULL,
+        stock INTEGER DEFAULT 0,
+        unit TEXT DEFAULT ''
+      )
+    ''');
+
+    // 8. ORDER_EXTRAS: elementos extra añadidos a un pedido (order_id, extra_id, qty, unit_price)
+    await db.execute('''
+      CREATE TABLE ${DbTables.orderExtras} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        extra_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL,
+        unit_price REAL NOT NULL,
+        FOREIGN KEY (order_id) REFERENCES ${DbTables.orders} (${DbColumns.orderId}) ON DELETE CASCADE,
+        FOREIGN KEY (extra_id) REFERENCES ${DbTables.extras} (id)
+      )
+    ''');
+
     // Inserts por defecto (Settings)
     await db.insert(DbTables.settings, {
       DbColumns.settingKey: SettingKeys.margenBeneficio,
@@ -131,5 +245,11 @@ class DatabaseHelper {
   Future close() async {
     final db = await instance.database;
     db.close();
+  }
+
+  // Ejecuta un CREATE TABLE IF NOT EXISTS dado. Útil para crear tablas "on demand"
+  Future<void> ensureTableExists(String createTableSql) async {
+    final db = await database;
+    await db.execute(createTableSql);
   }
 }

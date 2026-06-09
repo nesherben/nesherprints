@@ -48,6 +48,8 @@ class DbTables {
   static const String materials = 'materials';
   static const String clients = 'clients';
   static const String settings = 'settings';
+  static const String extras = 'extras';
+  static const String orderExtras = 'order_extras';
 }
 
 // ==================== DATABASE COLUMNS ====================
@@ -108,6 +110,7 @@ class UiStrings {
   static const String orders = 'Orders';
   static const String clients = 'Clients';
   static const String inventory = 'Inventory';
+  static const String pieces = 'Piezas';
   static const String admin = 'Admin';
   static const String dashboard = 'Dashboard';
 

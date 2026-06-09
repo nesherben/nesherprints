@@ -6,12 +6,30 @@ class ClientRepository {
 
   // Crear cliente
   Future<int> insertClient(Map<String, dynamic> client) async {
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.clients} (
+        ${DbColumns.clientId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.clientName} TEXT NOT NULL,
+        ${DbColumns.clientPhone} TEXT,
+        ${DbColumns.clientEmail} TEXT,
+        notes TEXT
+      )
+    ''');
     final db = await dbHelper.database;
     return await db.insert(DbTables.clients, client);
   }
 
   // Obtener todos
   Future<List<Map<String, dynamic>>> getAllClients() async {
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.clients} (
+        ${DbColumns.clientId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.clientName} TEXT NOT NULL,
+        ${DbColumns.clientPhone} TEXT,
+        ${DbColumns.clientEmail} TEXT,
+        notes TEXT
+      )
+    ''');
     final db = await dbHelper.database;
     return await db.query(
       DbTables.clients,
@@ -21,6 +39,15 @@ class ClientRepository {
 
   // Actualizar
   Future<int> updateClient(Map<String, dynamic> client) async {
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.clients} (
+        ${DbColumns.clientId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.clientName} TEXT NOT NULL,
+        ${DbColumns.clientPhone} TEXT,
+        ${DbColumns.clientEmail} TEXT,
+        notes TEXT
+      )
+    ''');
     final db = await dbHelper.database;
     return await db.update(
       DbTables.clients,

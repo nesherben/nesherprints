@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/service_locator.dart';
 import 'dashboard_view.dart';
 import 'inventory_view.dart';
+import 'extras_view.dart';
 import 'orders_view.dart';
 import 'clients_view.dart';
 import 'admin_view.dart';
@@ -52,8 +53,18 @@ class _MainLayoutState extends State<MainLayout> {
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
 
-    // 3. Ahora newOrder está "limpio" de listas y a SQLite le encantará
-    await ServiceLocator.orderRepo.insertOrder(newOrder, plates);
+    // 3. Extraemos extras y limpiamos el mapa
+    final List<dynamic> rawExtras = newOrder.remove('extras') ?? [];
+    final List<Map<String, dynamic>> extras = rawExtras
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    // 4. Guardar pedido con placas y extras
+    await ServiceLocator.orderRepo.insertOrder(
+      newOrder,
+      plates,
+      extras: extras,
+    );
 
     // 4. Refrescar la pantalla
     _refreshOrders(); // O la función que uses para recargar tu estado
@@ -72,6 +83,10 @@ class _MainLayoutState extends State<MainLayout> {
     final List<Map<String, dynamic>> plates = rawPlates
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
+    final List<dynamic> rawExtras = updatedOrder.remove('extras') ?? [];
+    final List<Map<String, dynamic>> extras = rawExtras
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
 
     // 3. Guardamos los cambios limpios
     if (plates.isNotEmpty) {
@@ -80,6 +95,11 @@ class _MainLayoutState extends State<MainLayout> {
       await ServiceLocator.orderRepo.updateOrder(
         updatedOrder,
       ); // Por si solo se cambia el estado desde la tabla
+    }
+    // Si hay extras en la actualización, pasarlos en el mismo mapa para que se guarden
+    if (extras.isNotEmpty) {
+      updatedOrder['extras'] = extras;
+      await ServiceLocator.orderRepo.updateOrder(updatedOrder);
     }
 
     _refreshOrders();
@@ -141,6 +161,7 @@ class _MainLayoutState extends State<MainLayout> {
     final List<Widget> screens = [
       DashboardView(orders: _allOrders),
       const InventoryView(),
+      const ExtrasView(),
       OrdersView(
         orders: _allOrders,
         onDelete: _deleteOrder,
@@ -177,6 +198,10 @@ class _MainLayoutState extends State<MainLayout> {
               NavigationRailDestination(
                 icon: Icon(Icons.inventory_2_outlined),
                 label: Text(UiStrings.inventory),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.category_outlined),
+                label: Text(UiStrings.pieces),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.receipt_long_outlined),

@@ -27,8 +27,70 @@ class OrderRepository {
   // --- GUARDAR PEDIDO CON SUS PLACAS ---
   Future<int> insertOrder(
     Map<String, dynamic> orderData,
-    List<Map<String, dynamic>> plates,
-  ) async {
+    List<Map<String, dynamic>> plates, {
+    List<Map<String, dynamic>>? extras,
+  }) async {
+    // Ensure required tables exist
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.orders} (
+        ${DbColumns.orderId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.orderClientId} INTEGER,
+        ${DbColumns.orderName} TEXT NOT NULL,
+        ${DbColumns.orderPrice} REAL NOT NULL,
+        ${DbColumns.orderPaidAmount} REAL DEFAULT 0.0,
+        date TEXT NOT NULL,
+        ${DbColumns.orderStatus} TEXT NOT NULL,
+        ${DbColumns.orderIsPainted} INTEGER NOT NULL,
+        notes TEXT
+      )
+    ''');
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.orderPlates} (
+        ${DbColumns.plateId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.plateOrderId} INTEGER NOT NULL,
+        ${DbColumns.plateName} TEXT NOT NULL,
+        ${DbColumns.plateGrams} REAL NOT NULL,
+        ${DbColumns.plateMinutes} REAL NOT NULL,
+        ${DbColumns.plateMaterialId} INTEGER NOT NULL,
+        ${DbColumns.plateStatus} TEXT DEFAULT '${OrderStatus.pending}'
+      )
+    ''');
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.orderItems} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.orderForeignId} INTEGER NOT NULL,
+        ${DbColumns.materialForeignId} INTEGER NOT NULL,
+        grams_used REAL NOT NULL
+      )
+    ''');
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.orderWaste} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.orderForeignId} INTEGER NOT NULL,
+        ${DbColumns.materialForeignId} INTEGER NOT NULL,
+        grams_wasted REAL NOT NULL,
+        reason TEXT,
+        date TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.extras} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        price REAL NOT NULL,
+        stock INTEGER DEFAULT 0,
+        unit TEXT DEFAULT ''
+      )
+    ''');
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.orderExtras} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        extra_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL,
+        unit_price REAL NOT NULL
+      )
+    ''');
     final db = await dbHelper.database;
     final sanitizedOrder = _sanitizeOrderFields(orderData);
     return await db.transaction((txn) async {
@@ -40,11 +102,49 @@ class OrderRepository {
         plate[DbColumns.plateOrderId] = orderId;
         await txn.insert(DbTables.orderPlates, plate);
       }
+      // 3. Insertar extras (si los hay) y restar stock
+      if (extras != null && extras.isNotEmpty) {
+        for (var ex in extras) {
+          final extraId = ex['id'] as int;
+          final qty = ex['quantity'] as int;
+          // obtener precio unitario actual desde extras table
+          final rows = await txn.query(
+            DbTables.extras,
+            where: 'id = ?',
+            whereArgs: [extraId],
+          );
+          if (rows.isNotEmpty) {
+            final unitPrice = (rows.first['price'] as num).toDouble();
+            await txn.insert(DbTables.orderExtras, {
+              'order_id': orderId,
+              'extra_id': extraId,
+              'quantity': qty,
+              'unit_price': unitPrice,
+            });
+            // restar stock
+            await txn.rawUpdate(
+              'UPDATE ${DbTables.extras} SET stock = stock - ? WHERE id = ?',
+              [qty, extraId],
+            );
+          }
+        }
+      }
       return orderId;
     });
   }
 
   Future<List<Map<String, dynamic>>> getOrderPlates(int orderId) async {
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.orderPlates} (
+        ${DbColumns.plateId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DbColumns.plateOrderId} INTEGER NOT NULL,
+        ${DbColumns.plateName} TEXT NOT NULL,
+        ${DbColumns.plateGrams} REAL NOT NULL,
+        ${DbColumns.plateMinutes} REAL NOT NULL,
+        ${DbColumns.plateMaterialId} INTEGER NOT NULL,
+        ${DbColumns.plateStatus} TEXT DEFAULT '${OrderStatus.pending}'
+      )
+    ''');
     final db = await dbHelper.database;
     return await db.query(
       DbTables.orderPlates,
@@ -123,6 +223,26 @@ class OrderRepository {
     Map<String, dynamic> order, [
     List<Map<String, dynamic>>? plates,
   ]) async {
+    // Ensure extras tables exist to avoid runtime 'no such table' errors
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.extras} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        price REAL NOT NULL,
+        stock INTEGER DEFAULT 0,
+        unit TEXT DEFAULT ''
+      )
+    ''');
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.orderExtras} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        extra_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL,
+        unit_price REAL NOT NULL
+      )
+    ''');
+
     final db = await dbHelper.database;
     int orderId = order['id'];
     final sanitizedOrder = _sanitizeOrderFields(order)..remove('id');
@@ -153,24 +273,129 @@ class OrderRepository {
           await txn.insert(DbTables.orderPlates, plate);
         }
       }
+      // Si se incluyen extras, reconciliamos stock: revertimos los extras
+      // previos (reponiendo su stock) y aplicamos los nuevos decrementos.
+      if (order.containsKey('extras')) {
+        // 1. Obtener los extras previos ligados a este pedido
+        final prevExtras = await txn.query(
+          DbTables.orderExtras,
+          columns: ['extra_id', 'quantity'],
+          where: 'order_id = ?',
+          whereArgs: [orderId],
+        );
+
+        // 2. Borrar las entradas antiguas
+        await txn.delete(
+          DbTables.orderExtras,
+          where: 'order_id = ?',
+          whereArgs: [orderId],
+        );
+
+        // 3. Restaurar el stock de los extras previos
+        for (var prev in prevExtras) {
+          final prevExtraId = prev['extra_id'] as int;
+          final prevQty = prev['quantity'] as int;
+          if (prevQty != 0) {
+            await txn.rawUpdate(
+              'UPDATE ${DbTables.extras} SET stock = stock + ? WHERE id = ?',
+              [prevQty, prevExtraId],
+            );
+          }
+        }
+
+        // 4. Insertar los nuevos extras y restar stock correspondiente
+        final List<dynamic> extras = order['extras'] ?? [];
+        for (var ex in extras) {
+          final extraId = ex['id'] as int;
+          final qty = ex['quantity'] as int;
+          final rows = await txn.query(
+            DbTables.extras,
+            where: 'id = ?',
+            whereArgs: [extraId],
+          );
+          if (rows.isNotEmpty) {
+            final unitPrice = (rows.first['price'] as num).toDouble();
+            await txn.insert(DbTables.orderExtras, {
+              'order_id': orderId,
+              'extra_id': extraId,
+              'quantity': qty,
+              'unit_price': unitPrice,
+            });
+            // Restar stock por la nueva cantidad
+            if (qty != 0) {
+              await txn.rawUpdate(
+                'UPDATE ${DbTables.extras} SET stock = stock - ? WHERE id = ?',
+                [qty, extraId],
+              );
+            }
+          }
+        }
+      }
       return orderId;
     });
   }
 
   // BORRAR: Elimina el pedido y limpia la tabla puente
   Future<void> deleteOrder(int id) async {
+    // Ensure extras tables exist
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.extras} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        price REAL NOT NULL,
+        stock INTEGER DEFAULT 0,
+        unit TEXT DEFAULT ''
+      )
+    ''');
+    await dbHelper.ensureTableExists('''
+      CREATE TABLE IF NOT EXISTS ${DbTables.orderExtras} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        extra_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL,
+        unit_price REAL NOT NULL
+      )
+    ''');
+
     final db = await dbHelper.database;
     await db.transaction((txn) async {
+      // 1. Restaurar stock de extras ligados al pedido (si existen)
+      final prevExtras = await txn.query(
+        DbTables.orderExtras,
+        columns: ['extra_id', 'quantity'],
+        where: 'order_id = ?',
+        whereArgs: [id],
+      );
+
+      for (var prev in prevExtras) {
+        final extraId = prev['extra_id'] as int;
+        final qty = prev['quantity'] as int;
+        if (qty != 0) {
+          await txn.rawUpdate(
+            'UPDATE ${DbTables.extras} SET stock = stock + ? WHERE id = ?',
+            [qty, extraId],
+          );
+        }
+      }
+
+      // 2. Borrar asociaciones de extras del pedido
+      await txn.delete(
+        DbTables.orderExtras,
+        where: 'order_id = ?',
+        whereArgs: [id],
+      );
+
+      // 3. Borrar otros hijos y el pedido en sí
       await txn.delete(
         DbTables.orderItems,
         where: '${DbColumns.orderForeignId} = ?',
         whereArgs: [id],
-      ); // Borrar hijos
+      );
       await txn.delete(
         DbTables.orders,
         where: '${DbColumns.orderId} = ?',
         whereArgs: [id],
-      ); // Borrar padre
+      );
     });
   }
 
