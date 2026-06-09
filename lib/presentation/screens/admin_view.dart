@@ -40,8 +40,6 @@ class _AdminViewState extends State<AdminView> {
     });
   }
 
-
-
   // Guardamos los cambios en SQLite
   Future<void> _saveSettings() async {
     await ServiceLocator.settingsRepo.updateSetting(

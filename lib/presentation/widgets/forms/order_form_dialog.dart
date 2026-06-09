@@ -262,7 +262,11 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(widget.initialOrder == null ? AppStrings.newOrder : AppStrings.editOrder),
+          Text(
+            widget.initialOrder == null
+                ? AppStrings.newOrder
+                : AppStrings.editOrder,
+          ),
           if (_isLocked)
             const Chip(
               label: Text(AppStrings.blocked, style: TextStyle(fontSize: 10)),

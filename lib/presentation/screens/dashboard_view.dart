@@ -233,7 +233,10 @@ class _DashboardViewState extends State<DashboardView> {
                                     size: 12,
                                   ),
                                   SizedBox(width: 4),
-                                  Text(AppStrings.grossLabel, style: TextStyle(fontSize: 12)),
+                                  Text(
+                                    AppStrings.grossLabel,
+                                    style: TextStyle(fontSize: 12),
+                                  ),
                                   SizedBox(width: 12),
                                   Icon(
                                     Icons.square,
@@ -241,7 +244,10 @@ class _DashboardViewState extends State<DashboardView> {
                                     size: 12,
                                   ),
                                   SizedBox(width: 4),
-                                  Text(AppStrings.netLabel, style: TextStyle(fontSize: 12)),
+                                  Text(
+                                    AppStrings.netLabel,
+                                    style: TextStyle(fontSize: 12),
+                                  ),
                                 ],
                               ),
                             ],

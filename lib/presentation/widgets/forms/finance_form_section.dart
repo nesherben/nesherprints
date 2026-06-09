@@ -155,7 +155,7 @@ class FinanceFormSection extends StatelessWidget {
                   children: [
                     // 1. Coste Real (NUEVO)
                     const Text(
-                                  AppStrings.costManufacture,
+                      AppStrings.costManufacture,
                       style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 12,
@@ -210,7 +210,7 @@ class FinanceFormSection extends StatelessWidget {
               Expanded(
                 child: TextField(
                   controller: priceController,
-                    decoration: const InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: AppStrings.finalPriceLabel,
                     border: OutlineInputBorder(),
                   ),
@@ -230,7 +230,7 @@ class FinanceFormSection extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: paidController,
-                    decoration: const InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: AppStrings.paidAdvanceLabel,
                     border: OutlineInputBorder(),
                     prefixText: '€ ',

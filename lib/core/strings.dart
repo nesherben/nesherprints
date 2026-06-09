@@ -73,21 +73,22 @@ class AppStrings {
   static const String materialColorLabel = 'Color';
   static const String materialCostPerKg = 'Coste por Kg (€)';
   static const String materialStockLabel = 'Stock (gramos/ml)';
-    // Finanzas / Dashboard
-    static const String financesTitle = 'Finanzas y Tiempos Extra';
-    static const String totalPlatesAuto = 'Total Placas (Automático)';
-    static const String paintServiceTitle = 'Servicio de Pintura';
-    static const String paintHoursLabel = 'Horas Pintura';
-    static const String costManufacture = 'Coste Fabricación';
-    static const String suggestedPrice = 'Precio Sugerido';
-    static const String finalPriceLabel = 'Precio Final (€)';
-    static const String paidAdvanceLabel = 'Pagado / Adelanto';
-    static const String grossLabel = 'Bruto';
-    static const String netLabel = 'Neto';
-    static const String noData = 'Sin datos';
-    static const String billingHistoryTitle = 'Histórico de Facturación';
-    static const String distributionTitle = 'Distribución de Pedidos';
-    static const String completeFirstOrderHint = 'Completa tu primer pedido para ver el gráfico.';
+  // Finanzas / Dashboard
+  static const String financesTitle = 'Finanzas y Tiempos Extra';
+  static const String totalPlatesAuto = 'Total Placas (Automático)';
+  static const String paintServiceTitle = 'Servicio de Pintura';
+  static const String paintHoursLabel = 'Horas Pintura';
+  static const String costManufacture = 'Coste Fabricación';
+  static const String suggestedPrice = 'Precio Sugerido';
+  static const String finalPriceLabel = 'Precio Final (€)';
+  static const String paidAdvanceLabel = 'Pagado / Adelanto';
+  static const String grossLabel = 'Bruto';
+  static const String netLabel = 'Neto';
+  static const String noData = 'Sin datos';
+  static const String billingHistoryTitle = 'Histórico de Facturación';
+  static const String distributionTitle = 'Distribución de Pedidos';
+  static const String completeFirstOrderHint =
+      'Completa tu primer pedido para ver el gráfico.';
 
   // Misc
   static const String createNewClient = 'Crear nuevo cliente';

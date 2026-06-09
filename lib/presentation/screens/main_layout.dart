@@ -193,7 +193,10 @@ class _MainLayoutState extends State<MainLayout> {
                   const SizedBox(height: 4),
                   Text(
                     UiStrings.newOrder,
-                    style: const TextStyle(fontSize: 12, color: AppColors.textMain),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMain,
+                    ),
                   ),
                 ],
               ),
