@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/strings.dart';
 import '../../data/service_locator.dart';
 import '../widgets/clients/client_form_dialog.dart';
 import '../widgets/clients/client_card.dart';
@@ -90,7 +91,7 @@ class _ClientsViewState extends State<ClientsView> {
                 onPressed: () =>
                     _showClientDialog(), // Llama a la ventana sin cliente (Modo Crear)
                 icon: const Icon(Icons.person_add),
-                label: const Text('Nuevo Cliente'),
+                label: const Text(AppStrings.newClient),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,

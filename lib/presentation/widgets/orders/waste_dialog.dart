@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/strings.dart';
 import '../../../data/service_locator.dart';
 
 class WasteDialog extends StatefulWidget {
@@ -200,7 +201,7 @@ class _WasteDialogState extends State<WasteDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+          child: const Text(AppStrings.cancel),
         ),
         if (_plates.isNotEmpty)
           ElevatedButton(
@@ -209,7 +210,7 @@ class _WasteDialogState extends State<WasteDialog> {
               foregroundColor: Colors.white,
             ),
             onPressed: _saveWaste,
-            child: const Text('Registrar Pérdida'),
+            child: const Text(AppStrings.registerWaste),
           ),
       ],
     );

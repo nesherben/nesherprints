@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nesherprints/core/number_utils.dart';
+import '../../../core/strings.dart';
 import '../../../core/theme/app_colors.dart';
 
 class FinanceFormSection extends StatelessWidget {
@@ -70,7 +71,7 @@ class FinanceFormSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Finanzas y Tiempos Extra',
+          AppStrings.financesTitle,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -86,7 +87,7 @@ class FinanceFormSection extends StatelessWidget {
               child: TextFormField(
                 controller: platesController,
                 decoration: const InputDecoration(
-                  labelText: 'Total Placas (Automático)',
+                  labelText: AppStrings.totalPlatesAuto,
                   border: OutlineInputBorder(),
                   filled: true,
                   // Color de fondo para indicar visualmente que no se puede editar
@@ -103,7 +104,7 @@ class FinanceFormSection extends StatelessWidget {
             const SizedBox(width: 16),
             Expanded(
               child: CheckboxListTile(
-                title: const Text('Servicio de Pintura'),
+                title: const Text(AppStrings.paintServiceTitle),
                 value: isPainted,
                 onChanged: isLocked
                     ? null
@@ -118,7 +119,7 @@ class FinanceFormSection extends StatelessWidget {
                 child: TextFormField(
                   controller: paintHoursController,
                   decoration: const InputDecoration(
-                    labelText: 'Horas Pintura',
+                    labelText: AppStrings.paintHoursLabel,
                     border: OutlineInputBorder(),
                     suffixText: 'h',
                   ),
@@ -154,7 +155,7 @@ class FinanceFormSection extends StatelessWidget {
                   children: [
                     // 1. Coste Real (NUEVO)
                     const Text(
-                      'Coste Fabricación',
+                                  AppStrings.costManufacture,
                       style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 12,
@@ -172,7 +173,7 @@ class FinanceFormSection extends StatelessWidget {
                     const SizedBox(height: 12), // Separador
                     // 2. Precio Sugerido (LO QUE YA TENÍAS)
                     const Text(
-                      'Precio Sugerido',
+                      AppStrings.suggestedPrice,
                       style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 12,
@@ -194,7 +195,7 @@ class FinanceFormSection extends StatelessWidget {
                           Icons.arrow_forward,
                           size: 16,
                         ), // Cambiado a flecha lateral (opcional)
-                        label: const Text('Aplicar'),
+                        label: const Text(AppStrings.apply),
                         style: TextButton.styleFrom(
                           padding: EdgeInsets.zero,
                           minimumSize: const Size(0, 0),
@@ -209,8 +210,8 @@ class FinanceFormSection extends StatelessWidget {
               Expanded(
                 child: TextField(
                   controller: priceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Precio Final (€)',
+                    decoration: const InputDecoration(
+                    labelText: AppStrings.finalPriceLabel,
                     border: OutlineInputBorder(),
                   ),
                   style: TextStyle(
@@ -229,8 +230,8 @@ class FinanceFormSection extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: paidController,
-                  decoration: const InputDecoration(
-                    labelText: 'Pagado / Adelanto',
+                    decoration: const InputDecoration(
+                    labelText: AppStrings.paidAdvanceLabel,
                     border: OutlineInputBorder(),
                     prefixText: '€ ',
                   ),

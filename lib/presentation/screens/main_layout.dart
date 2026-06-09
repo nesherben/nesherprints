@@ -174,18 +174,30 @@ class _MainLayoutState extends State<MainLayout> {
     ];
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showNewOrderDialog,
-        label: Text(UiStrings.newOrder),
-        icon: const Icon(Icons.add),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.background,
-      ),
       body: Row(
         children: [
           // --- NAVEGACIÓN LATERAL ---
           NavigationRail(
             backgroundColor: AppColors.secondary,
+            trailing: Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    onPressed: _showNewOrderDialog,
+                    icon: const Icon(Icons.add),
+                    color: AppColors.primary,
+                    tooltip: UiStrings.newOrder,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    UiStrings.newOrder,
+                    style: const TextStyle(fontSize: 12, color: AppColors.textMain),
+                  ),
+                ],
+              ),
+            ),
             selectedIndex: _selectedIndex,
             onDestinationSelected: (int index) =>
                 setState(() => _selectedIndex = index),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/constants.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/strings.dart';
 import '../../data/service_locator.dart';
 
 class DashboardView extends StatefulWidget {
@@ -153,7 +154,7 @@ class _DashboardViewState extends State<DashboardView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Dashboard Financiero',
+            AppStrings.billingHistoryTitle,
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -218,7 +219,7 @@ class _DashboardViewState extends State<DashboardView> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Histórico de Facturación',
+                                AppStrings.billingHistoryTitle,
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -232,7 +233,7 @@ class _DashboardViewState extends State<DashboardView> {
                                     size: 12,
                                   ),
                                   SizedBox(width: 4),
-                                  Text('Bruto', style: TextStyle(fontSize: 12)),
+                                  Text(AppStrings.grossLabel, style: TextStyle(fontSize: 12)),
                                   SizedBox(width: 12),
                                   Icon(
                                     Icons.square,
@@ -240,7 +241,7 @@ class _DashboardViewState extends State<DashboardView> {
                                     size: 12,
                                   ),
                                   SizedBox(width: 4),
-                                  Text('Neto', style: TextStyle(fontSize: 12)),
+                                  Text(AppStrings.netLabel, style: TextStyle(fontSize: 12)),
                                 ],
                               ),
                             ],
@@ -250,7 +251,7 @@ class _DashboardViewState extends State<DashboardView> {
                             child: sortedMonths.isEmpty
                                 ? const Center(
                                     child: Text(
-                                      "Completa tu primer pedido para ver el gráfico.",
+                                      AppStrings.completeFirstOrderHint,
                                     ),
                                   )
                                 : BarChart(
@@ -362,7 +363,7 @@ class _DashboardViewState extends State<DashboardView> {
                       child: Column(
                         children: [
                           const Text(
-                            'Distribución de Pedidos',
+                            AppStrings.distributionTitle,
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -371,7 +372,7 @@ class _DashboardViewState extends State<DashboardView> {
                           const SizedBox(height: 24),
                           Expanded(
                             child: totalOrders == 0
-                                ? const Center(child: Text("Sin datos"))
+                                ? const Center(child: Text(AppStrings.noData))
                                 : PieChart(
                                     PieChartData(
                                       sectionsSpace: 2,

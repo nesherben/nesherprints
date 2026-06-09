@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../core/number_utils.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/strings.dart';
 import '../../data/service_locator.dart';
-import '../widgets/extra_dialog.dart';
+// Extras management removed from admin panel - kept as separate screen
 
 class AdminView extends StatefulWidget {
   const AdminView({super.key});
@@ -18,7 +19,6 @@ class _AdminViewState extends State<AdminView> {
   final _marginController = TextEditingController();
   final _paintHourController = TextEditingController();
   final _plateExtraController = TextEditingController();
-  List<Map<String, dynamic>> _extras = [];
 
   @override
   void initState() {
@@ -29,7 +29,6 @@ class _AdminViewState extends State<AdminView> {
   // Cargamos los valores de la base de datos a los cuadros de texto
   Future<void> _loadSettings() async {
     final data = await ServiceLocator.settingsRepo.getAllSettings();
-    final extras = await ServiceLocator.extrasRepo.getAllExtras();
     setState(() {
       _marginController.text =
           data[SettingKeys.margenBeneficio]?.toStringAsFixed(2) ?? '45.00';
@@ -38,33 +37,10 @@ class _AdminViewState extends State<AdminView> {
       _plateExtraController.text =
           data[SettingKeys.costePlacaExtra]?.toStringAsFixed(2) ?? '2.50';
       _isLoading = false;
-      _extras = extras;
     });
   }
 
-  void _showExtraDialog([Map<String, dynamic>? initial]) {
-    showDialog(
-      context: context,
-      builder: (context) => ExtraDialog(
-        initial: initial,
-        onSave: (payload) async {
-          if (payload['id'] != null) {
-            await ServiceLocator.extrasRepo.updateExtra(payload['id'], payload);
-          } else {
-            await ServiceLocator.extrasRepo.insertExtra(payload);
-          }
-          final updated = await ServiceLocator.extrasRepo.getAllExtras();
-          setState(() => _extras = updated);
-        },
-      ),
-    );
-  }
 
-  Future<void> _deleteExtra(int id) async {
-    await ServiceLocator.extrasRepo.deleteExtra(id);
-    final updated = await ServiceLocator.extrasRepo.getAllExtras();
-    setState(() => _extras = updated);
-  }
 
   // Guardamos los cambios en SQLite
   Future<void> _saveSettings() async {
@@ -85,7 +61,7 @@ class _AdminViewState extends State<AdminView> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Variables actualizadas correctamente',
+            AppStrings.settingsUpdated,
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           backgroundColor: AppColors.statusCompletado,
@@ -108,7 +84,7 @@ class _AdminViewState extends State<AdminView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Admin Panel',
+            UiStrings.admin,
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -161,62 +137,12 @@ class _AdminViewState extends State<AdminView> {
                     ),
 
                     const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Extras (Inventario)',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () => _showExtraDialog(),
-                          icon: const Icon(Icons.add, color: AppColors.primary),
-                          label: const Text(
-                            'Añadir Extra',
-                            style: TextStyle(color: AppColors.primary),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    ..._extras.map(
-                      (ex) => ListTile(
-                        title: Text(ex['name']),
-                        subtitle: Text(
-                          '€${(ex['price'] as num).toStringAsFixed(2)} · ${ex['stock']} ${ex['unit'] ?? ''}',
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              onPressed: () => _showExtraDialog(ex),
-                              icon: const Icon(
-                                Icons.edit,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () => _deleteExtra(ex['id'] as int),
-                              icon: const Icon(
-                                Icons.delete,
-                                color: AppColors.statusCancelado,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
                     Align(
                       alignment: Alignment.centerRight,
                       child: ElevatedButton.icon(
                         onPressed: _saveSettings,
                         icon: const Icon(Icons.save),
-                        label: const Text('Guardar Configuración'),
+                        label: const Text(AppStrings.saveSettings),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: AppColors.background,

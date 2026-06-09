@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/number_utils.dart';
+import '../../core/strings.dart';
 
 class MaterialDialog extends StatefulWidget {
   final Function(Map<String, dynamic>) onSave;
@@ -35,7 +36,9 @@ class _MaterialDialogState extends State<MaterialDialog> {
     return AlertDialog(
       backgroundColor: AppColors.surface,
       title: Text(
-        widget.initialMaterial == null ? 'Añadir Material' : 'Editar Material',
+        widget.initialMaterial == null
+            ? AppStrings.addMaterial
+            : AppStrings.editMaterial,
       ),
       content: SizedBox(
         width: 400,
@@ -46,17 +49,17 @@ class _MaterialDialogState extends State<MaterialDialog> {
               DropdownButtonFormField<String>(
                 initialValue: _selectedType,
                 decoration: const InputDecoration(
-                  labelText: 'Tipo de Material',
+                  labelText: AppStrings.materialTypeLabel,
                   border: OutlineInputBorder(),
                 ),
                 items: const [
                   DropdownMenuItem(
                     value: 'filament',
-                    child: Text('Filamento (Bobina)'),
+                    child: Text(AppStrings.materialTypeFilament),
                   ),
                   DropdownMenuItem(
                     value: 'resin',
-                    child: Text('Resina (Tanque/Bote)'),
+                    child: Text(AppStrings.materialTypeResin),
                   ),
                 ],
                 onChanged: (v) => setState(() => _selectedType = v!),
@@ -65,7 +68,7 @@ class _MaterialDialogState extends State<MaterialDialog> {
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Nombre/Marca',
+                  labelText: AppStrings.materialNameLabel,
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -73,7 +76,7 @@ class _MaterialDialogState extends State<MaterialDialog> {
               TextField(
                 controller: _colorController,
                 decoration: const InputDecoration(
-                  labelText: 'Color',
+                  labelText: AppStrings.materialColorLabel,
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -84,7 +87,7 @@ class _MaterialDialogState extends State<MaterialDialog> {
                     child: TextField(
                       controller: _costController,
                       decoration: const InputDecoration(
-                        labelText: 'Coste por Kg (€)',
+                        labelText: AppStrings.materialCostPerKg,
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
@@ -95,7 +98,7 @@ class _MaterialDialogState extends State<MaterialDialog> {
                     child: TextField(
                       controller: _stockController,
                       decoration: const InputDecoration(
-                        labelText: 'Stock (gramos/ml)',
+                        labelText: AppStrings.materialStockLabel,
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
@@ -110,7 +113,7 @@ class _MaterialDialogState extends State<MaterialDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+          child: const Text(AppStrings.cancel),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -128,7 +131,7 @@ class _MaterialDialogState extends State<MaterialDialog> {
             });
             Navigator.pop(context);
           },
-          child: const Text('Guardar'),
+          child: const Text(AppStrings.save),
         ),
       ],
     );

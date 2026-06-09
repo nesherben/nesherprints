@@ -107,27 +107,27 @@ class UiStrings {
   static const String all = 'Todos';
 
   // Navigation
-  static const String orders = 'Orders';
-  static const String clients = 'Clients';
-  static const String inventory = 'Inventory';
+  static const String orders = 'Pedidos';
+  static const String clients = 'Clientes';
+  static const String inventory = 'Inventario';
   static const String pieces = 'Piezas';
-  static const String admin = 'Admin';
-  static const String dashboard = 'Dashboard';
+  static const String admin = 'Administración';
+  static const String dashboard = 'Panel';
 
   // Actions
-  static const String add = 'Add';
-  static const String edit = 'Edit';
-  static const String delete = 'Delete';
-  static const String save = 'Save';
-  static const String cancel = 'Cancel';
-  static const String confirm = 'Confirm';
-  static const String close = 'Close';
+  static const String add = 'Añadir';
+  static const String edit = 'Editar';
+  static const String delete = 'Eliminar';
+  static const String save = 'Guardar';
+  static const String cancel = 'Cancelar';
+  static const String confirm = 'Confirmar';
+  static const String close = 'Cerrar';
 
   // Order actions
-  static const String newOrder = 'New Order';
-  static const String completeOrder = 'Complete Order';
-  static const String recordWaste = 'Record Waste';
-  static const String deleteOrder = 'Delete Order';
+  static const String newOrder = 'Nuevo Pedido';
+  static const String completeOrder = 'Completar Pedido';
+  static const String recordWaste = 'Registrar Pérdida';
+  static const String deleteOrder = 'Eliminar Pedido';
 }
 
 // ==================== VALIDATION ====================

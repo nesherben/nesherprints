@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/number_utils.dart';
+import '../../core/strings.dart';
 
 class ExtraDialog extends StatefulWidget {
   final Function(Map<String, dynamic>) onSave;
@@ -35,7 +36,9 @@ class _ExtraDialogState extends State<ExtraDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.surface,
-      title: Text(widget.initial == null ? 'Añadir Extra' : 'Editar Extra'),
+      title: Text(
+        widget.initial == null ? AppStrings.addExtra : AppStrings.editExtra,
+      ),
       content: SizedBox(
         width: 400,
         child: Column(
@@ -43,13 +46,15 @@ class _ExtraDialogState extends State<ExtraDialog> {
           children: [
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Nombre'),
+              decoration: const InputDecoration(
+                labelText: AppStrings.nameLabel,
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _unitsController,
               decoration: const InputDecoration(
-                labelText: 'Unidades por paquete',
+                labelText: AppStrings.unitsPerPackage,
               ),
               keyboardType: TextInputType.number,
             ),
@@ -57,7 +62,7 @@ class _ExtraDialogState extends State<ExtraDialog> {
             TextField(
               controller: _totalPriceController,
               decoration: const InputDecoration(
-                labelText: 'Precio total del paquete (€)',
+                labelText: AppStrings.totalPricePackage,
               ),
               keyboardType: TextInputType.number,
             ),
@@ -68,7 +73,7 @@ class _ExtraDialogState extends State<ExtraDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+          child: const Text(AppStrings.cancel),
         ),
         ElevatedButton(
           onPressed: () {
@@ -88,7 +93,7 @@ class _ExtraDialogState extends State<ExtraDialog> {
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.background,
           ),
-          child: const Text('Guardar'),
+          child: const Text(AppStrings.save),
         ),
       ],
     );

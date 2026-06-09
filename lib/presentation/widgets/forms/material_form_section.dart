@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/number_utils.dart';
+import '../../../core/strings.dart';
 
 class MaterialFormSection extends StatefulWidget {
   final List<Map<String, dynamic>> plates;
@@ -63,7 +64,7 @@ class _MaterialFormSectionState extends State<MaterialFormSection> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Configuración por Placas',
+              AppStrings.platesConfigTitle,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -75,7 +76,7 @@ class _MaterialFormSectionState extends State<MaterialFormSection> {
                 onPressed: _addPlate,
                 icon: const Icon(Icons.add_box, color: AppColors.primary),
                 label: const Text(
-                  'Añadir Placa',
+                  AppStrings.addPlate,
                   style: TextStyle(color: AppColors.primary),
                 ),
               ),
@@ -93,7 +94,7 @@ class _MaterialFormSectionState extends State<MaterialFormSection> {
               border: Border.all(color: AppColors.border),
             ),
             child: const Text(
-              'No hay placas. Añade una para empezar a calcular.',
+              AppStrings.noPlates,
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textMuted),
             ),
@@ -190,7 +191,7 @@ class _MaterialFormSectionState extends State<MaterialFormSection> {
                                 ? plate['grams'].toString()
                                 : '',
                             decoration: const InputDecoration(
-                              labelText: 'Gramos (g)',
+                              labelText: AppStrings.gramsLabel,
                               border: OutlineInputBorder(),
                               isDense: true,
                               suffixText: 'g',
@@ -213,7 +214,7 @@ class _MaterialFormSectionState extends State<MaterialFormSection> {
                                 ? plate['minutes'].toString()
                                 : '',
                             decoration: const InputDecoration(
-                              labelText: 'Tiempo',
+                              labelText: AppStrings.timeLabel,
                               border: OutlineInputBorder(),
                               isDense: true,
                               suffixText: 'min',

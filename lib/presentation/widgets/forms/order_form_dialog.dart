@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants.dart';
 import '../../../core/number_utils.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/strings.dart';
 import '../../../data/service_locator.dart';
 import '../client_dialog.dart';
 import '../material_dialog.dart';
@@ -261,10 +262,10 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(widget.initialOrder == null ? 'Nuevo Pedido' : 'Editar Pedido'),
+          Text(widget.initialOrder == null ? AppStrings.newOrder : AppStrings.editOrder),
           if (_isLocked)
             const Chip(
-              label: Text('BLOQUEADO', style: TextStyle(fontSize: 10)),
+              label: Text(AppStrings.blocked, style: TextStyle(fontSize: 10)),
               backgroundColor: AppColors.statusCompletado,
             ),
         ],
@@ -283,14 +284,14 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                     child: DropdownButtonFormField<int>(
                       initialValue: _selectedClientId,
                       decoration: const InputDecoration(
-                        labelText: 'Cliente (Opcional)',
+                        labelText: AppStrings.clientOptional,
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.person_outline),
                       ),
                       items: [
                         const DropdownMenuItem<int>(
                           value: null,
-                          child: Text('Sin asignar'),
+                          child: Text(AppStrings.unassigned),
                         ),
                         ..._clients.map(
                           (c) => DropdownMenuItem<int>(
@@ -310,7 +311,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                         Icons.person_add,
                         color: AppColors.primary,
                       ),
-                      tooltip: 'Crear nuevo cliente',
+                      tooltip: AppStrings.createNewClient,
                       onPressed: _showClientDialog,
                     ),
                 ],
@@ -325,7 +326,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                     child: TextField(
                       controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: 'Nombre del Proyecto',
+                        labelText: AppStrings.projectName,
                         border: OutlineInputBorder(),
                       ),
                       enabled: !_isLocked,
@@ -336,7 +337,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                     child: DropdownButtonFormField<String>(
                       initialValue: _selectedStatus,
                       decoration: const InputDecoration(
-                        labelText: 'Estado',
+                        labelText: AppStrings.status,
                         border: OutlineInputBorder(),
                       ),
                       items: () {
@@ -385,10 +386,9 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                 child: Padding(
                   padding: const EdgeInsets.all(12.0),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Extras (llaveros, clickers, etc.)',
+                        AppStrings.extrasTitle,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -397,7 +397,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                       ),
                       const SizedBox(height: 8),
                       if (_extras.isEmpty)
-                        const Text('No hay extras definidos.'),
+                        const Text(AppStrings.noExtrasDefined),
                       ..._extras.map((ex) {
                         final id = ex['id'] as int;
                         final qty = _selectedExtras[id] ?? 0;
@@ -473,7 +473,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+          child: const Text(AppStrings.cancel),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -481,7 +481,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
             foregroundColor: AppColors.background,
           ),
           onPressed: _isLocked ? null : _saveOrder,
-          child: const Text('Guardar Pedido'),
+          child: const Text(AppStrings.saveOrder),
         ),
       ],
     );

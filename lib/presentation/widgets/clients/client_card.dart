@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/strings.dart';
 
 class ClientCard extends StatelessWidget {
   final Map<String, dynamic> client;
@@ -68,7 +69,7 @@ class ClientCard extends StatelessWidget {
             // --- BOTÓN DE EDITAR ---
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: AppColors.textMuted),
-              tooltip: 'Editar Cliente',
+              tooltip: AppStrings.editClient,
               onPressed: onEdit,
             ),
           ],

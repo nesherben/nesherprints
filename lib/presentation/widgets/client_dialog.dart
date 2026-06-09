@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/strings.dart';
 
 class ClientDialog extends StatefulWidget {
   final Function(Map<String, dynamic>) onSave;
@@ -31,7 +32,9 @@ class _ClientDialogState extends State<ClientDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(
-        widget.initialClient == null ? 'Nuevo Cliente' : 'Editar Cliente',
+        widget.initialClient == null
+            ? AppStrings.newClient
+            : AppStrings.editClient,
       ),
       content: SizedBox(
         width: 400,
@@ -39,14 +42,14 @@ class _ClientDialogState extends State<ClientDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Todos los campos son opcionales. Rellena solo lo que sepas.',
+              AppStrings.optionalFields,
               style: TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
-                labelText: 'Nombre / Alias',
+                labelText: AppStrings.clientNameLabel,
                 prefixIcon: Icon(Icons.person),
                 border: OutlineInputBorder(),
               ),
@@ -55,7 +58,7 @@ class _ClientDialogState extends State<ClientDialog> {
             TextField(
               controller: _phoneController,
               decoration: const InputDecoration(
-                labelText: 'Teléfono (WhatsApp)',
+                labelText: AppStrings.clientPhoneLabel,
                 prefixIcon: Icon(Icons.phone),
                 border: OutlineInputBorder(),
               ),
@@ -64,7 +67,7 @@ class _ClientDialogState extends State<ClientDialog> {
             TextField(
               controller: _emailController,
               decoration: const InputDecoration(
-                labelText: 'Email / Instagram',
+                labelText: AppStrings.clientContactLabel,
                 prefixIcon: Icon(Icons.alternate_email),
                 border: OutlineInputBorder(),
               ),
@@ -75,7 +78,7 @@ class _ClientDialogState extends State<ClientDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+          child: const Text(AppStrings.cancel),
         ),
         ElevatedButton(
           onPressed: () {
@@ -105,7 +108,7 @@ class _ClientDialogState extends State<ClientDialog> {
 
             Navigator.pop(context);
           },
-          child: const Text('Guardar'),
+          child: const Text(AppStrings.save),
         ),
       ],
     );

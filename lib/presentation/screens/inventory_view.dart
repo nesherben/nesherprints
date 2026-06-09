@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/service_locator.dart';
 import '../widgets/material_dialog.dart';
+import '../../core/strings.dart';
 
 class InventoryView extends StatefulWidget {
   const InventoryView({super.key});
@@ -95,7 +96,7 @@ class _InventoryViewState extends State<InventoryView> {
                           ),
                           columns: const [
                             DataColumn(label: Text('Tipo')),
-                            DataColumn(label: Text('Nombre')),
+                            DataColumn(label: Text(AppStrings.nameColumn)),
                             DataColumn(label: Text('Color')),
                             DataColumn(label: Text('Coste/Kg')),
                             DataColumn(label: Text('Stock Restante')),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/strings.dart';
 import '../../data/service_locator.dart';
 import '../widgets/extra_dialog.dart';
 import '../widgets/add_stock_dialog.dart';
@@ -64,7 +65,7 @@ class _ExtrasViewState extends State<ExtrasView> {
             children: [
               const Expanded(
                 child: Text(
-                  'Piezas',
+                  AppStrings.pieces,
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -75,7 +76,7 @@ class _ExtrasViewState extends State<ExtrasView> {
               ElevatedButton.icon(
                 onPressed: () => _showExtraDialog(),
                 icon: const Icon(Icons.add),
-                label: const Text('Añadir Piezas'),
+                label: const Text(AppStrings.addPieces),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.background,
@@ -150,7 +151,7 @@ class _ExtrasViewState extends State<ExtrasView> {
                                 onPressed: () => _showExtraDialog(ex),
                                 icon: const Icon(Icons.edit),
                                 color: AppColors.primary,
-                                tooltip: 'Editar',
+                                tooltip: AppStrings.edit,
                               ),
                               IconButton(
                                 onPressed: () async {
@@ -183,7 +184,7 @@ class _ExtrasViewState extends State<ExtrasView> {
                                 },
                                 icon: const Icon(Icons.add_box),
                                 color: AppColors.statusCompletado,
-                                tooltip: 'Sumar unidades',
+                                tooltip: AppStrings.addStock,
                               ),
                               IconButton(
                                 onPressed: () async {
@@ -191,31 +192,32 @@ class _ExtrasViewState extends State<ExtrasView> {
                                     context: context,
                                     builder: (ctx) => AlertDialog(
                                       title: const Text(
-                                        'Confirmar eliminación',
+                                        AppStrings.confirmDeletionTitle,
                                       ),
                                       content: Text(
-                                        '¿Eliminar "$name"? Esta acción no se puede deshacer.',
+                                        AppStrings.confirmDeletionMessage(name),
                                       ),
                                       actions: [
                                         TextButton(
                                           onPressed: () =>
                                               Navigator.pop(ctx, false),
-                                          child: const Text('Cancelar'),
+                                          child: const Text(AppStrings.cancel),
                                         ),
                                         ElevatedButton(
                                           onPressed: () =>
                                               Navigator.pop(ctx, true),
-                                          child: const Text('Eliminar'),
+                                          child: const Text(AppStrings.delete),
                                         ),
                                       ],
                                     ),
                                   );
-                                  if (confirmed == true)
+                                  if (confirmed == true) {
                                     await _deleteExtra(ex['id'] as int);
+                                  }
                                 },
                                 icon: const Icon(Icons.delete),
                                 color: AppColors.statusCancelado,
-                                tooltip: 'Eliminar',
+                                tooltip: AppStrings.delete,
                               ),
                             ],
                           ),

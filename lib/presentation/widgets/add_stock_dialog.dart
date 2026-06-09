@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/number_utils.dart';
+import '../../core/strings.dart';
 
 class AddStockDialog extends StatefulWidget {
   final Map<String, dynamic> extra;
@@ -45,7 +46,7 @@ class _AddStockDialogState extends State<AddStockDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.surface,
-      title: Text('Añadir unidades a "${widget.extra['name'] ?? ''}"'),
+      title: Text('${AppStrings.addUnits} a "${widget.extra['name'] ?? ''}"'),
       content: SizedBox(
         width: 400,
         child: Column(
@@ -57,7 +58,7 @@ class _AddStockDialogState extends State<AddStockDialog> {
             const SizedBox(height: 12),
             TextField(
               controller: _unitsController,
-              decoration: const InputDecoration(labelText: 'Unidades a añadir'),
+              decoration: const InputDecoration(labelText: AppStrings.addUnits),
               keyboardType: TextInputType.number,
               onChanged: (_) => setState(() {}),
             ),
@@ -65,7 +66,7 @@ class _AddStockDialogState extends State<AddStockDialog> {
             TextField(
               controller: _totalPriceController,
               decoration: const InputDecoration(
-                labelText: 'Precio total de estas unidades (€)',
+                labelText: AppStrings.totalPriceOfUnits,
               ),
               keyboardType: TextInputType.number,
               onChanged: (_) => setState(() {}),
@@ -80,7 +81,7 @@ class _AddStockDialogState extends State<AddStockDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+          child: const Text(AppStrings.cancel),
         ),
         ElevatedButton(
           onPressed: _addedUnits > 0 && _addedTotal >= 0
@@ -93,7 +94,7 @@ class _AddStockDialogState extends State<AddStockDialog> {
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.background,
           ),
-          child: const Text('Aplicar'),
+          child: const Text(AppStrings.apply),
         ),
       ],
     );
