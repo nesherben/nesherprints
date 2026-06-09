@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/number_utils.dart';
 
 class MaterialFormSection extends StatefulWidget {
   final List<Map<String, dynamic>> plates;
@@ -198,14 +199,11 @@ class _MaterialFormSectionState extends State<MaterialFormSection> {
                             readOnly: widget.isLocked,
                             inputFormatters: [
                               FilteringTextInputFormatter.allow(
-                                RegExp(r'^\d*\.?\d*'),
+                                RegExp(r'^\d*[\.,]?\d*'),
                               ),
                             ],
-                            onChanged: (val) => _updatePlate(
-                              index,
-                              'grams',
-                              double.tryParse(val) ?? 0.0,
-                            ),
+                            onChanged: (val) =>
+                                _updatePlate(index, 'grams', parseDecimal(val)),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -223,12 +221,14 @@ class _MaterialFormSectionState extends State<MaterialFormSection> {
                             keyboardType: TextInputType.number,
                             readOnly: widget.isLocked,
                             inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*[\.,]?\d*'),
+                              ),
                             ],
                             onChanged: (val) => _updatePlate(
                               index,
                               'minutes',
-                              double.tryParse(val) ?? 0.0,
+                              parseDecimal(val),
                             ),
                           ),
                         ),

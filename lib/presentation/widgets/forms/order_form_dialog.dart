@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants.dart';
+import '../../../core/number_utils.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/service_locator.dart';
 import '../client_dialog.dart';
@@ -22,10 +23,10 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   bool _isLoading = true;
 
   // ==================== CONFIGURACIÓN GLOBAL ====================
-  double _margenBeneficio = 45.0;
-  double _costeHoraPintado = 15.0;
-  final double _costePlacaExtra =
-      2.50; // Ya no aplica tanto, pero lo mantenemos por si acaso
+  //default values, se cargarán desde la base de datos al iniciar el formulario
+  double _margenBeneficio = 200.0;
+  double _costeHoraPintado = 8.0;
+  double _costePlacaExtra = 0.20;
 
   // ==================== DATOS DE BASE DE DATOS ====================
   List<Map<String, dynamic>> _materials = []; // ¡Lista unificada!
@@ -68,8 +69,12 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   // ==================== CARGA DE DATOS INICIALES ====================
   Future<void> _loadInitialData() async {
     final settings = await ServiceLocator.settingsRepo.getAllSettings();
-    _margenBeneficio = settings[SettingKeys.margenBeneficio] ?? 45.0;
-    _costeHoraPintado = settings[SettingKeys.costeHoraPintado] ?? 15.0;
+    _margenBeneficio =
+        settings[SettingKeys.margenBeneficio] ?? _margenBeneficio;
+    _costeHoraPintado =
+        settings[SettingKeys.costeHoraPintado] ?? _costeHoraPintado;
+    _costePlacaExtra =
+        settings[SettingKeys.costePlacaExtra] ?? _costePlacaExtra;
 
     // Cargar materiales (Todos juntos)
     _materials = await ServiceLocator.materialRepo.getAllMaterials();
@@ -104,6 +109,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   // ==================== CÁLCULOS (MOTOR ACTUALIZADO) ====================
   void _calculateEstimate() {
     double costMaterial = 0.0;
+    double costePlacaExtraAcumulado = 0.0;
 
     // 1. Calcular el coste de cada placa sumada
     for (var plate in _plates) {
@@ -115,14 +121,17 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
         if (mat.isNotEmpty) {
           double g = (plate['grams'] as num).toDouble();
           double costPerKg = (mat['cost_per_kg'] as num).toDouble();
-          costMaterial += (g / 1000) * costPerKg;
+          //explonencial por placas extras
+          costePlacaExtraAcumulado +=
+              _costePlacaExtra * (1 + (_plates.length - 1) * 0.1);
+          costMaterial += (g / 1000) * costPerKg + costePlacaExtraAcumulado;
           // Si tienes coste eléctrico/hora, lo podrías sumar aquí usando plate['minutes']
         }
       }
     }
 
     // 2. Calcular otros costes (Pintura)
-    double paintHours = double.tryParse(_paintHoursController.text) ?? 0;
+    double paintHours = parseDecimal(_paintHoursController.text);
     double costPaint = _isPainted ? (paintHours * _costeHoraPintado) : 0.0;
 
     setState(() {
@@ -187,8 +196,8 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
         'id': widget.initialOrder!['id'], // Mantener ID si editamos
       'client_id': _selectedClientId,
       'name': _nameController.text,
-      'price': double.tryParse(_priceController.text) ?? 0.0,
-      'paid_amount': double.tryParse(_paidController.text) ?? 0.0,
+      'price': parseDecimal(_priceController.text),
+      'paid_amount': parseDecimal(_paidController.text),
       'date':
           widget.initialOrder?['date'] ??
           DateTime.now().toString().split(' ')[0],

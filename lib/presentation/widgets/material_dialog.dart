@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/number_utils.dart';
 
 class MaterialDialog extends StatefulWidget {
   final Function(Map<String, dynamic>) onSave;
@@ -122,8 +123,8 @@ class _MaterialDialogState extends State<MaterialDialog> {
               'type': _selectedType,
               'name': _nameController.text,
               'color': _colorController.text,
-              'cost_per_kg': double.tryParse(_costController.text) ?? 0.0,
-              'stock_g': double.tryParse(_stockController.text) ?? 0.0,
+              'cost_per_kg': parseDecimal(_costController.text),
+              'stock_g': parseDecimal(_stockController.text),
             });
             Navigator.pop(context);
           },

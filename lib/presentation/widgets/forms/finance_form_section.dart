@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nesherprints/core/number_utils.dart';
 import '../../../core/theme/app_colors.dart';
 
 class FinanceFormSection extends StatelessWidget {
@@ -44,7 +45,7 @@ class FinanceFormSection extends StatelessWidget {
     Color getPriceColor(String currentPriceText) {
       // 1. Limpiamos por si escribes con coma
       String cleanText = currentPriceText.replaceAll(',', '.');
-      double price = double.tryParse(cleanText) ?? 0.0;
+      double price = parseDecimal(cleanText);
 
       // Si no hay precio o coste, lo dejamos del color estándar
       if (price <= 0 || totalCost <= 0) return AppColors.primary;

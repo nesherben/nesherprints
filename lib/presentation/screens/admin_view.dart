@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../core/number_utils.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/service_locator.dart';
 
@@ -41,15 +42,15 @@ class _AdminViewState extends State<AdminView> {
   Future<void> _saveSettings() async {
     await ServiceLocator.settingsRepo.updateSetting(
       SettingKeys.margenBeneficio,
-      double.tryParse(_marginController.text) ?? 45.0,
+      parseDecimal(_marginController.text, fallback: 45.0),
     );
     await ServiceLocator.settingsRepo.updateSetting(
       SettingKeys.costeHoraPintado,
-      double.tryParse(_paintHourController.text) ?? 15.0,
+      parseDecimal(_paintHourController.text, fallback: 15.0),
     );
     await ServiceLocator.settingsRepo.updateSetting(
       SettingKeys.costePlacaExtra,
-      double.tryParse(_plateExtraController.text) ?? 2.50,
+      parseDecimal(_plateExtraController.text, fallback: 2.50),
     );
 
     if (mounted) {
