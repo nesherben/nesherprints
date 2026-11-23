@@ -15,6 +15,7 @@ import 'package:nesherprints/features/inventory/presentation/widgets/material_di
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_parts.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
+import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_form/extras_section.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_form/finance_section.dart';
@@ -60,6 +61,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   // Estado del formulario
   OrderStatus _status = OrderStatus.draft;
   bool _isPainted = false;
+  PaintDetail _paintDetail = PaintDetail.normal;
   int? _clientId;
   List<PlateDraft> _plates = [];
 
@@ -70,7 +72,6 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   final _priceController = TextEditingController();
   final _paidController = TextEditingController(text: '0.00');
   final _paintHoursController = TextEditingController(text: '1');
-  final _paintColorsController = TextEditingController(text: '0');
   final _attemptsController = TextEditingController(text: '1');
 
   PriceEstimate _estimate = PriceEstimate.zero;
@@ -89,7 +90,6 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     _priceController.dispose();
     _paidController.dispose();
     _paintHoursController.dispose();
-    _paintColorsController.dispose();
     _attemptsController.dispose();
     super.dispose();
   }
@@ -122,7 +122,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
         _priceController.text = order.price.toStringAsFixed(2);
         _paidController.text = order.paidAmount.toStringAsFixed(2);
         _paintHoursController.text = '${order.paintHours}';
-        _paintColorsController.text = '${order.paintColors}';
+        _paintDetail = order.paintDetail;
         _attemptsController.text = '${order.attempts}';
       }
       _isLoading = false;
@@ -143,7 +143,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
         attempts: parseDecimal(_attemptsController.text, fallback: 1),
         isPainted: _isPainted,
         paintHours: parseDecimal(_paintHoursController.text),
-        paintColors: parseDecimal(_paintColorsController.text),
+        paintDetail: _paintDetail,
         settings: _settings,
       );
     });
@@ -224,7 +224,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
           notes: initial?.notes ?? '',
           attempts: parseDecimal(_attemptsController.text, fallback: 1),
           paintHours: parseDecimal(_paintHoursController.text),
-          paintColors: parseDecimal(_paintColorsController.text),
+          paintDetail: _paintDetail,
           costOverride: initial?.costOverride,
         ),
         plates: [for (final p in _plates) p.toPlate()],
@@ -295,7 +295,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                 priceController: _priceController,
                 paidController: _paidController,
                 attemptsController: _attemptsController,
-                paintColorsController: _paintColorsController,
+                paintDetail: _paintDetail,
                 estimate: _estimate,
                 isLocked: _isLocked,
                 onPaintedChanged: (value) {
@@ -303,6 +303,10 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                   _recalculate();
                 },
                 onInputsChanged: _recalculate,
+                onPaintDetailChanged: (detail) {
+                  _paintDetail = detail;
+                  _recalculate();
+                },
                 onPaintHoursChanged: _recalculate,
                 onPriceChanged: () => setState(() {}),
                 onApplySuggestedPrice: () => setState(() {

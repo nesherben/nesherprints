@@ -6,6 +6,7 @@ import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/input_formatters.dart';
 import 'package:nesherprints/core/utils/number_utils.dart';
+import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
 
 /// Sección "Finanzas y Tiempos Extra" del formulario de pedido.
@@ -18,11 +19,12 @@ class FinanceSection extends StatelessWidget {
     required this.priceController,
     required this.paidController,
     required this.attemptsController,
-    required this.paintColorsController,
+    required this.paintDetail,
     required this.estimate,
     required this.isLocked,
     required this.onPaintedChanged,
     required this.onInputsChanged,
+    required this.onPaintDetailChanged,
     required this.onPaintHoursChanged,
     required this.onPriceChanged,
     required this.onApplySuggestedPrice,
@@ -34,11 +36,12 @@ class FinanceSection extends StatelessWidget {
   final TextEditingController priceController;
   final TextEditingController paidController;
   final TextEditingController attemptsController;
-  final TextEditingController paintColorsController;
+  final PaintDetail paintDetail;
   final PriceEstimate estimate;
   final bool isLocked;
   final ValueChanged<bool> onPaintedChanged;
   final VoidCallback onInputsChanged;
+  final ValueChanged<PaintDetail> onPaintDetailChanged;
   final VoidCallback onPaintHoursChanged;
   final VoidCallback onPriceChanged;
   final VoidCallback onApplySuggestedPrice;
@@ -112,23 +115,38 @@ class FinanceSection extends StatelessWidget {
                   onChanged: (_) => onPaintHoursChanged(),
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: TextFormField(
-                  controller: paintColorsController,
-                  decoration: const InputDecoration(
-                    labelText: AppStrings.paintColorsLabel,
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: decimalKeyboard,
-                  readOnly: isLocked,
-                  inputFormatters: decimalInputFormatters,
-                  onChanged: (_) => onInputsChanged(),
-                ),
-              ),
             ],
           ],
         ),
+        if (isPainted) ...[
+          const SizedBox(height: 12),
+          const Text(
+            AppStrings.paintDetailLabel,
+            style: AppTextStyles.mutedSmall,
+          ),
+          const SizedBox(height: 6),
+          SegmentedButton<PaintDetail>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                value: PaintDetail.few,
+                label: Text(AppStrings.paintDetailFew),
+              ),
+              ButtonSegment(
+                value: PaintDetail.normal,
+                label: Text(AppStrings.paintDetailNormal),
+              ),
+              ButtonSegment(
+                value: PaintDetail.many,
+                label: Text(AppStrings.paintDetailMany),
+              ),
+            ],
+            selected: {paintDetail},
+            onSelectionChanged: isLocked
+                ? null
+                : (selection) => onPaintDetailChanged(selection.first),
+          ),
+        ],
         const SizedBox(height: 16),
         SizedBox(
           width: 260,

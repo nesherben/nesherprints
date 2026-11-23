@@ -51,7 +51,11 @@ class _SettingsViewState extends State<SettingsView> {
       _controllers[_Field.profitMargin]!.text = _fmt(s.profitMarginPercent);
       _controllers[_Field.safetyMargin]!.text = _fmt(s.safetyMarginPercent);
       _controllers[_Field.paintingCost]!.text = _fmt(s.paintingCostPerHour);
-      _controllers[_Field.paintColorCost]!.text = _fmt(s.paintColorUnitCost);
+      _controllers[_Field.paintDetailFew]!.text = _fmt(s.paintDetailFewCost);
+      _controllers[_Field.paintDetailNormal]!.text = _fmt(
+        s.paintDetailNormalCost,
+      );
+      _controllers[_Field.paintDetailMany]!.text = _fmt(s.paintDetailManyCost);
       _controllers[_Field.kwhCost]!.text = _fmt(s.kwhCost);
       _controllers[_Field.filamentFee]!.text = _fmt(s.filamentPlateFee);
       _controllers[_Field.resinFee]!.text = _fmt(s.resinPlateFee);
@@ -78,9 +82,17 @@ class _SettingsViewState extends State<SettingsView> {
           _Field.paintingCost,
           FinanceDefaults.paintingCostPerHour,
         ),
-        paintColorUnitCost: _value(
-          _Field.paintColorCost,
-          FinanceDefaults.paintColorUnitCost,
+        paintDetailFewCost: _value(
+          _Field.paintDetailFew,
+          FinanceDefaults.paintDetailFewCost,
+        ),
+        paintDetailNormalCost: _value(
+          _Field.paintDetailNormal,
+          FinanceDefaults.paintDetailNormalCost,
+        ),
+        paintDetailManyCost: _value(
+          _Field.paintDetailMany,
+          FinanceDefaults.paintDetailManyCost,
         ),
         kwhCost: _value(_Field.kwhCost, FinanceDefaults.kwhCost),
         filamentPlateFee: _value(
@@ -188,7 +200,12 @@ enum _Field {
   filamentFee(AppStrings.filamentPlateFeeLabel, Icons.layers),
   resinFee(AppStrings.resinPlateFeeLabel, Icons.layers),
   paintingCost(AppStrings.paintingCostLabel, Icons.brush),
-  paintColorCost(AppStrings.paintColorCostLabel, Icons.palette_outlined),
+  paintDetailFew(AppStrings.paintDetailFewCostLabel, Icons.palette_outlined),
+  paintDetailNormal(
+    AppStrings.paintDetailNormalCostLabel,
+    Icons.palette_outlined,
+  ),
+  paintDetailMany(AppStrings.paintDetailManyCostLabel, Icons.palette_outlined),
   profitGoal(AppStrings.profitGoalLabel, Icons.flag_outlined);
 
   const _Field(this.label, this.icon, {this.hint});

@@ -25,7 +25,7 @@
 | O | COSTE (€/kg) | Coste del material (uno por pedido) | €/kg de cada placa |
 | P | Pintado? | 0/1 | `Order.isPainted` |
 | Q | horas pintado | Horas de pintura | se pide pero **no se guarda** |
-| R | colores | Pinturas usadas (cada una cuesta 1/90 €; nota: "18 ml × 50") | **no existe** |
+| R | colores | Pinturas usadas (cada una cuesta 1/90 €; nota: "18 ml × 50") | **detalle de pintura**: pocos / normal / muchos (ver §4) |
 | S | margenes | % (15 % en los pedidos recientes, 12,5 % antes) | margen de beneficio (45 % por defecto) |
 | T | Trabajo €/h pintado | 8 € | coste pintado/hora (15 € por defecto) |
 | U | Coste pintado | fórmula §4 | coste de pintura |
@@ -75,6 +75,16 @@ Versiones anteriores (filas 6–135): sin luz y con recargo de 1 € por placa e
 U = P · (Q·T + R/90) · (1 + S)
 ```
 
+**En la app** los colores (`R`) se sustituyen por tres modos de *detalle* — más detalle, más material de pintura; el trabajo ya se mide en las horas `Q`:
+
+| Modo | Colores | Material (€) por defecto | Colores típicos en la hoja |
+|---|---|---|---|
+| Pocos | ≤ 4 | 3/90 = 0,033 | 1, 3, 4, 4 |
+| Normal | 5–10 | 9/90 = 0,10 | 8, 8, 10, 10 |
+| Muchos | > 10 | 13/90 = 0,144 | 12, 14, 14 |
+
+Los tres importes son ajustes editables. Son céntimos (con 1/90 € por color, 14 colores cuestan 0,16 €): el peso de la pintura está en las horas × 8 €/h, así que el modo apenas cambia el precio salvo que se suba su importe. Al importar un pedido, sus colores se convierten al modo que les corresponde (4 → pocos, 5–10 → normal, > 10 → muchos).
+
 ## 5. Resúmenes
 
 | Celda | Qué es | Fórmula |
@@ -97,6 +107,7 @@ La hoja tiene además un presupuesto personal mensual (ingresos, gastos fijos y 
 | Q1 multiplicador | `2 + margen/100` (= ×2,15). La hoja lo calcula mal (×2,0015) porque `S` está guardado como 0,15 y la fórmula espera 15. |
 | Q3 material | Por placa. El recargo usa la media de tarifas de las placas. |
 | Q2 estados | Se mantienen los 6 de la app. Al importar: 0 → Draft, 1 → In Progress, 2 → Completed. |
+| Pintura (colores) | 3 modos de detalle (pocos ≤ 4 / normal 5–10 / muchos > 10) con importe editable, en lugar del nº de colores. |
 | Q5 beneficio | Panel con beneficio real y teórico, objetivo (5.000 € configurable) y ratio mensual. |
 
 Preguntas todavía abiertas: **Q6** (piezas: hoy suman al coste y al precio con margen, provisional), **Q7** (lotes con cantidad) y **Q8** (importar los ~140 pedidos históricos: ver plan).

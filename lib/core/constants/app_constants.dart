@@ -11,8 +11,11 @@ class FinanceDefaults {
 
   static const double paintingCostPerHour = 8.0;
 
-  /// Coste de cada unidad de color de pintura (1/90 €).
-  static const double paintColorUnitCost = 1 / 90;
+  /// Material de pintura según el detalle: antes se calculaba como
+  /// colores/90 €; se usan los colores típicos de cada modo (3, 9 y 13).
+  static const double paintDetailFewCost = 3 / 90;
+  static const double paintDetailNormalCost = 9 / 90;
+  static const double paintDetailManyCost = 13 / 90;
 
   /// Coste de la luz por hora de impresión: 0,25 kW × 0,15 €/kWh.
   static const double kwhCost = 0.0375;
@@ -40,7 +43,12 @@ class SettingKeys {
   static const String legacyPlateExtraCost = 'coste_placa_extra';
 
   static const String safetyMargin = 'margen_seguridad';
-  static const String paintColorUnitCost = 'coste_unidad_color';
+
+  /// Obsoleta desde v4 (sustituida por el coste por detalle de pintura).
+  static const String legacyPaintColorUnitCost = 'coste_unidad_color';
+  static const String paintDetailFewCost = 'coste_pintura_pocos';
+  static const String paintDetailNormalCost = 'coste_pintura_normal';
+  static const String paintDetailManyCost = 'coste_pintura_muchos';
   static const String kwhCost = 'coste_kwh';
   static const String filamentPlateFee = 'tarifa_placa_filamento';
   static const String resinPlateFee = 'tarifa_placa_resina';

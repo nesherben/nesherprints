@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nesherprints/features/inventory/domain/print_material.dart';
+import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
@@ -18,7 +19,7 @@ void main() {
     double attempts = 1,
     bool isPainted = false,
     double paintHours = 0,
-    double paintColors = 0,
+    PaintDetail paintDetail = PaintDetail.normal,
     Map<int, int> extras = const {},
     PricingSettings s = settings,
   }) {
@@ -38,7 +39,7 @@ void main() {
       attempts: attempts,
       isPainted: isPainted,
       paintHours: paintHours,
-      paintColors: paintColors,
+      paintDetail: paintDetail,
       settings: s,
     );
   }
@@ -104,7 +105,7 @@ void main() {
           attempts: 1,
           isPainted: false,
           paintHours: 0,
-          paintColors: 0,
+          paintDetail: PaintDetail.normal,
           settings: settings,
         ).cost,
         0,
@@ -134,33 +135,45 @@ void main() {
       );
     });
 
-    test(
-      'pintura: (horas × €/h + colores × coste) con margen de seguridad',
-      () {
-        final e = estimate(
+    test('pintura: (horas × €/h + material según detalle) con margen', () {
+      PriceEstimate painted(PaintDetail detail) => estimate(
+        grams: 100,
+        plateCount: 1,
+        hours: 1,
+        costPerKg: 10,
+        isPainted: true,
+        paintHours: 2,
+        paintDetail: detail,
+      );
+      // Material por defecto: 3/90, 9/90 y 13/90 €.
+      expect(
+        painted(PaintDetail.few).paintCost,
+        closeTo((16 + 3 / 90) * 1.15, 1e-9),
+      );
+      expect(
+        painted(PaintDetail.normal).paintCost,
+        closeTo((16 + 9 / 90) * 1.15, 1e-9),
+      );
+      expect(
+        painted(PaintDetail.many).paintCost,
+        closeTo((16 + 13 / 90) * 1.15, 1e-9),
+      );
+      expect(
+        painted(PaintDetail.many).cost,
+        greaterThan(painted(PaintDetail.few).cost),
+      );
+      expect(
+        estimate(
           grams: 100,
           plateCount: 1,
           hours: 1,
           costPerKg: 10,
-          isPainted: true,
-          paintHours: 2,
-          paintColors: 9,
-        );
-        // (2 × 8 + 9/90) × 1,15
-        expect(e.paintCost, closeTo((16 + 0.1) * 1.15, 1e-9));
-        expect(
-          estimate(
-            grams: 100,
-            plateCount: 1,
-            hours: 1,
-            costPerKg: 10,
-            paintHours: 5,
-          ).paintCost,
-          0,
-          reason: 'sin marcar pintado no cuenta',
-        );
-      },
-    );
+          paintHours: 5,
+        ).paintCost,
+        0,
+        reason: 'sin marcar pintado no cuenta',
+      );
+    });
 
     test('piezas: suman al coste y al precio con el margen', () {
       final base = estimate(grams: 100, plateCount: 1, hours: 1, costPerKg: 10);
@@ -195,7 +208,7 @@ void main() {
           attempts: 1,
           isPainted: false,
           paintHours: 0,
-          paintColors: 0,
+          paintDetail: PaintDetail.normal,
           settings: settings,
         );
         expect(e.materialCost, closeTo(2, 1e-9));

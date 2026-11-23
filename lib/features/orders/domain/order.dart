@@ -2,6 +2,7 @@ import 'package:nesherprints/core/constants/app_constants.dart';
 import 'package:nesherprints/core/database/db_schema.dart';
 import 'package:nesherprints/core/utils/number_utils.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
+import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 
 /// Pedido de impresión (fila de `orders`).
 class Order {
@@ -17,7 +18,7 @@ class Order {
     this.notes = '',
     this.attempts = 1,
     this.paintHours = 0,
-    this.paintColors = 0,
+    this.paintDetail = PaintDetail.normal,
     this.costOverride,
   });
 
@@ -41,9 +42,9 @@ class Order {
   /// primera, 1,3 = un 30 % más).
   final double attempts;
 
-  /// Horas de trabajo de pintura y unidades de color usadas.
+  /// Horas de trabajo de pintura y nivel de detalle (material de pintura).
   final double paintHours;
-  final double paintColors;
+  final PaintDetail paintDetail;
 
   /// Coste real fijo. Solo lo tienen los pedidos importados del Excel con
   /// otra fórmula; si existe, sustituye al coste calculado.
@@ -67,7 +68,7 @@ class Order {
     notes: notes,
     attempts: attempts,
     paintHours: paintHours,
-    paintColors: paintColors,
+    paintDetail: paintDetail,
     costOverride: costOverride,
   );
 
@@ -83,7 +84,7 @@ class Order {
     notes: map[OrdersTable.notes] as String? ?? '',
     attempts: asDouble(map[OrdersTable.attempts], fallback: 1),
     paintHours: asDouble(map[OrdersTable.paintHours]),
-    paintColors: asDouble(map[OrdersTable.paintColors]),
+    paintDetail: PaintDetail.fromDb(map[OrdersTable.paintDetail] as String?),
     costOverride: (map[OrdersTable.costOverride] as num?)?.toDouble(),
   );
 
@@ -99,7 +100,7 @@ class Order {
     OrdersTable.notes: notes,
     OrdersTable.attempts: attempts,
     OrdersTable.paintHours: paintHours,
-    OrdersTable.paintColors: paintColors,
+    OrdersTable.paintDetail: paintDetail.dbValue,
     OrdersTable.costOverride: costOverride,
   };
 }

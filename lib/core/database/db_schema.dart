@@ -7,6 +7,7 @@ library;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:nesherprints/core/constants/app_constants.dart';
+import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
 /// Nombre del archivo de base de datos (histórico: el "v6" no es la versión
@@ -54,7 +55,12 @@ class OrdersTable {
   /// Multiplicador de material y luz por fallos (1 = a la primera). Desde v3.
   static const attempts = 'attempts';
   static const paintHours = 'paint_hours';
-  static const paintColors = 'paint_colors';
+
+  /// Nivel de detalle de la pintura: `few` / `normal` / `many`. Desde v4.
+  static const paintDetail = 'paint_detail';
+
+  /// Obsoleta desde v4 (sustituida por [paintDetail]); la columna se conserva.
+  static const legacyPaintColors = 'paint_colors';
 
   /// Coste real fijo (pedidos importados del Excel con otra fórmula). Desde v3.
   static const costOverride = 'cost_override';
@@ -112,7 +118,7 @@ class DbSchema {
   DbSchema._();
 
   /// Versión del esquema (PRAGMA user_version).
-  static const int version = 3;
+  static const int version = 4;
 
   static const String _createSettings =
       '''
@@ -157,8 +163,9 @@ class DbSchema {
       ${OrdersTable.notes} TEXT,
       ${OrdersTable.attempts} REAL NOT NULL DEFAULT 1,
       ${OrdersTable.paintHours} REAL NOT NULL DEFAULT 0,
-      ${OrdersTable.paintColors} REAL NOT NULL DEFAULT 0,
+      ${OrdersTable.legacyPaintColors} REAL NOT NULL DEFAULT 0,
       ${OrdersTable.costOverride} REAL,
+      ${OrdersTable.paintDetail} TEXT NOT NULL DEFAULT 'normal',
       FOREIGN KEY (${OrdersTable.clientId}) REFERENCES ${ClientsTable.name} (${ClientsTable.id})
     )''';
 
@@ -272,7 +279,7 @@ class DbSchema {
       for (final column in [
         '${OrdersTable.attempts} REAL NOT NULL DEFAULT 1',
         '${OrdersTable.paintHours} REAL NOT NULL DEFAULT 0',
-        '${OrdersTable.paintColors} REAL NOT NULL DEFAULT 0',
+        '${OrdersTable.legacyPaintColors} REAL NOT NULL DEFAULT 0',
         '${OrdersTable.costOverride} REAL',
       ]) {
         await _addColumnIfMissing(db, OrdersTable.name, column);
@@ -293,17 +300,46 @@ class DbSchema {
         to: FinanceDefaults.paintingCostPerHour,
       );
     }
+
+    if (oldVersion < 4) {
+      // v4: la pintura pasa de "nº de colores" a 3 niveles de detalle.
+      // Los colores ya guardados se convierten al nivel que les corresponde;
+      // la columna antigua se conserva sin usar.
+      final added = await _addColumnIfMissing(
+        db,
+        OrdersTable.name,
+        "${OrdersTable.paintDetail} TEXT NOT NULL DEFAULT 'normal'",
+      );
+      if (added) {
+        const colors = OrdersTable.legacyPaintColors;
+        for (final entry in {
+          PaintDetail.few: '$colors > 0 AND $colors <= 4',
+          PaintDetail.normal: '$colors > 4 AND $colors <= 10',
+          PaintDetail.many: '$colors > 10',
+        }.entries) {
+          await db.rawUpdate(
+            'UPDATE ${OrdersTable.name} SET ${OrdersTable.paintDetail} = ? '
+            'WHERE ${entry.value}',
+            [entry.key.dbValue],
+          );
+        }
+      }
+      for (final entry in const PricingSettings().toMap().entries) {
+        await _insertSettingIfMissing(db, entry.key, entry.value);
+      }
+    }
   }
 
-  static Future<void> _addColumnIfMissing(
+  static Future<bool> _addColumnIfMissing(
     Database db,
     String table,
     String columnDefinition,
   ) async {
     final name = columnDefinition.split(' ').first;
     final columns = await db.rawQuery('PRAGMA table_info($table)');
-    if (columns.any((c) => c['name'] == name)) return;
+    if (columns.any((c) => c['name'] == name)) return false;
     await db.execute('ALTER TABLE $table ADD COLUMN $columnDefinition');
+    return true;
   }
 
   static Future<void> _insertSettingIfMissing(

@@ -140,7 +140,10 @@ class AppStrings {
   static const totalPlatesAuto = 'Total Placas (Automático)';
   static const paintServiceTitle = 'Servicio de Pintura';
   static const paintHoursLabel = 'Horas Pintura';
-  static const paintColorsLabel = 'Colores';
+  static const paintDetailLabel = 'Detalle de la pintura';
+  static const paintDetailFew = 'Pocos (≤ 4 colores)';
+  static const paintDetailNormal = 'Normal (5–10)';
+  static const paintDetailMany = 'Muchos (> 10)';
   static const attemptsLabel = 'Intentos (1 = a la primera)';
   static const costManufacture = 'Coste Fabricación';
   static const suggestedPrice = 'Precio Recomendado';
@@ -188,7 +191,12 @@ class AppStrings {
       'El precio recomendado se multiplica por 2 + margen';
   static const safetyMarginLabel = 'Margen de Seguridad del coste (%)';
   static const paintingCostLabel = 'Coste de Pintado (€/hora)';
-  static const paintColorCostLabel = 'Coste por unidad de color (€)';
+  static const paintDetailFewCostLabel =
+      'Material de pintura · pocos detalles (€)';
+  static const paintDetailNormalCostLabel =
+      'Material de pintura · detalle normal (€)';
+  static const paintDetailManyCostLabel =
+      'Material de pintura · muchos detalles (€)';
   static const kwhCostLabel = 'Coste de luz (€/hora de impresión)';
   static const filamentPlateFeeLabel =
       'Recargo por placa extra · filamento (€)';

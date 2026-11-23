@@ -38,7 +38,7 @@ Al cambiar de sección, la pantalla se reconstruye y recarga sus datos. La lista
 | Material (`PrintMaterial`) | `materials` | tipo (`filament`/`resin`), nombre/marca, color, coste €/kg, stock en g (ml) |
 | Pieza extra (`Extra`) | `extras` | nombre, precio unitario €, stock (uds, puede ser negativo), unidad (no editable) |
 | Cliente (`Client`) | `clients` | nombre, teléfono, email/Instagram, notas (no editables desde la UI) |
-| Pedido (`Order`) | `orders` | cliente (opcional), nombre del proyecto, precio final, cobrado, fecha `YYYY-MM-DD`, estado, pintado (0/1), notas, **intentos** (1 = a la primera), **horas de pintura**, **colores**, **coste fijo** (solo pedidos importados del Excel) |
+| Pedido (`Order`) | `orders` | cliente (opcional), nombre del proyecto, precio final, cobrado, fecha `YYYY-MM-DD`, estado, pintado (0/1), notas, **intentos** (1 = a la primera), **horas de pintura**, **detalle de pintura** (pocos / normal / muchos), **coste fijo** (solo pedidos importados del Excel) |
 | Placa (`OrderPlate`) | `order_plates` | pedido, nombre, gramos, minutos, material, estado (`Pending`/`Success`/`Failed`) |
 | Pieza en pedido | `order_extras` | pedido, pieza, cantidad, precio unitario en el momento de añadirla |
 | Merma (`WasteRecord`) | `order_waste` | pedido, material, gramos perdidos, motivo, fecha (automática) |
@@ -92,7 +92,7 @@ Se guardan y se muestran en inglés: `Draft`, `Reserved`, `In Progress`, `Comple
 5. **Finanzas**:
    - nº de placas (automático);
    - intentos (por defecto 1);
-   - casilla de pintura, sus horas (por defecto 1) y los colores (por defecto 0);
+   - casilla de pintura, sus horas (por defecto 1) y el detalle de la pintura (pocos ≤ 4 colores / normal 5–10 / muchos > 10; por defecto normal);
    - coste de fabricación y precio recomendado, con "Aplicar" para copiarlo al precio;
    - precio final, con color de semáforo;
    - pagado/adelanto (por defecto 0.00).
@@ -113,7 +113,7 @@ Se guardan y se muestran en inglés: `Draft`, `Reserved`, `In Progress`, `Comple
 
 Transcrita del Excel `Finanza.ods` (detalle y casos reales en [`EXCEL_FORMULAS.md`](EXCEL_FORMULAS.md)); los tests usan pedidos reales de la hoja.
 
-Entradas: placas (gramos, minutos y material con su €/kg y tipo), intentos, pintura (sí/no, horas y colores), piezas elegidas y los ajustes.
+Entradas: placas (gramos, minutos y material con su €/kg y tipo), intentos, pintura (sí/no, horas y detalle), piezas elegidas y los ajustes.
 
 ```
 mat    = Σ gramos/1000 × €/kg de su material
@@ -121,7 +121,7 @@ horas  = Σ minutos / 60            n = nº de placas      hPlaca = horas / n
 tarifa = media de (resina ? tarifaResina : tarifaFilamento) de las placas
 recargo = max(0, (n−1) × tarifa × (1 + 0,1·(n−1)))        # la 1.ª placa no paga
 seg    = 1 + margenSeguridad/100
-pintura = pintado ? (horasPintura × €/h + colores × costeColor) × seg : 0
+pintura = pintado ? (horasPintura × €/h + materialSegúnDetalle) × seg : 0
 
 COSTE = max(0, (mat × intentos + horas × kWh × intentos + recargo) × seg + pintura) + piezas
 
@@ -189,12 +189,14 @@ RECOMENDADO = (mat×2 + luz + recargo) × largo × (2 + margenBeneficio/100)
 | Recargo por placa extra, filamento (€) | `tarifa_placa_filamento` | 0,5 |
 | Recargo por placa extra, resina (€) | `tarifa_placa_resina` | 1,5 |
 | Coste de pintado (€/hora) | `coste_hora_pintado` | 8 |
-| Coste por unidad de color (€) | `coste_unidad_color` | 1/90 |
+| Material de pintura, pocos detalles (€) | `coste_pintura_pocos` | 3/90 |
+| Material de pintura, detalle normal (€) | `coste_pintura_normal` | 9/90 |
+| Material de pintura, muchos detalles (€) | `coste_pintura_muchos` | 13/90 |
 | Objetivo de beneficio (€) | `objetivo_beneficio` | 5000 |
 
 - Un valor no numérico guarda el valor por defecto. Si falta una clave, guardar la crea.
 - Afectan a los cálculos desde ese momento: el precio guardado en un pedido no cambia.
-- `coste_placa_extra` (v1-v2) está obsoleta: la fila se conserva pero no se usa.
+- `coste_placa_extra` (v1-v2) y `coste_unidad_color` (v3) están obsoletas: las filas se conservan pero no se usan.
 
 ## 5. Movimientos de stock (resumen)
 
@@ -211,10 +213,10 @@ Todas estas operaciones se hacen en una única transacción.
 
 ## 6. Base de datos
 
-- Archivo `nesher_erp_v6.db` en la carpeta de bases de datos del sistema. El "v6" del nombre es histórico; la versión del esquema es `PRAGMA user_version = 3`.
+- Archivo `nesher_erp_v6.db` en la carpeta de bases de datos del sistema. El "v6" del nombre es histórico; la versión del esquema es `PRAGMA user_version = 4`.
 - El esquema está definido en un solo sitio: `lib/core/database/db_schema.dart`.
   - `onCreate`: crea todas las tablas e inserta los 3 ajustes.
-  - `onUpgrade`: asegura todas las tablas y aplica migraciones incrementales con `if (oldVersion < N)`. La v2 añadió clientes, placas y piezas. La v3 añadió a `orders` intentos, horas de pintura, colores y coste fijo, e insertó los ajustes de las fórmulas del Excel; los ajustes `margen_beneficio` (45) y `coste_hora_pintado` (15) se pasan a 15 y 8 solo si conservan su valor por defecto antiguo.
+  - `onUpgrade`: asegura todas las tablas y aplica migraciones incrementales con `if (oldVersion < N)`. La v2 añadió clientes, placas y piezas. La v3 añadió a `orders` intentos, horas de pintura, colores y coste fijo, e insertó los ajustes de las fórmulas del Excel; los ajustes `margen_beneficio` (45) y `coste_hora_pintado` (15) se pasan a 15 y 8 solo si conservan su valor por defecto antiguo. La v4 sustituye los colores por el detalle de pintura (`paint_detail`): los colores ya guardados se convierten (≤ 4 → pocos, 5–10 → normal, > 10 → muchos; 0 → normal) y la columna `paint_colors` se conserva sin usar.
   - `onOpen`: `CREATE TABLE IF NOT EXISTS` de todas las tablas como red de seguridad. No modifica datos.
 - `PRAGMA foreign_keys` **no** está activado, así que los `ON DELETE CASCADE` no actúan.
 - Los valores de estado se guardan como texto en inglés. No se pueden renombrar sin migrar los datos.
@@ -238,7 +240,7 @@ Comportamiento actual que probablemente no es el deseado. **No se ha cambiado** 
 | P1 | Panel, beneficio neto | El coste de material sale de `order_items`, que ya no se escribe, así que hoy es 0. El neto solo descuenta mermas. | El neto se sobreestima. El coste real de las placas ya existe (`OrderSummary.materialCost`). |
 | P2 | ~~Recargo acumulativo por placa~~ | **Resuelto en v3**: la calculadora sigue el Excel (recargo no acumulativo). | — |
 | P3 | Editar pedido | El formulario no carga las piezas extra que ya tiene el pedido (aparecen a 0). Si no se toca nada se conservan; si se añade alguna, **sustituyen** a las anteriores. Tampoco se pueden quitar todas. | Fácil perder o duplicar piezas sin darse cuenta. |
-| P4 | ~~Horas de pintura no guardadas~~ | **Resuelto en v3**: se guardan con el pedido, junto con los colores y los intentos. | — |
+| P4 | ~~Horas de pintura no guardadas~~ | **Resuelto en v3**: se guardan con el pedido, junto con el detalle de pintura y los intentos. | — |
 | P5 | Borrar pedido | No se borran sus placas ni sus mermas (no hay `foreign_keys`). Las mermas huérfanas **siguen restando** en el neto. | Datos huérfanos y neto alterado. |
 | P6 | Completar | Resta los gramos de todas las placas aunque alguna haya fallado y ya tenga merma registrada. | El material de una placa fallida se descuenta dos veces. |
 | P7 | Estados | El cambio rápido permite pasar un pedido `Completed` a otro estado, y pasar a `Shipped` sin completar, así que no se resta material. | Stock y cobros incoherentes. |

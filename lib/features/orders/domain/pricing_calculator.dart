@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:nesherprints/features/inventory/domain/print_material.dart';
+import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
 /// Datos de una placa necesarios para el cálculo.
@@ -125,7 +126,7 @@ class PricingCalculator {
     required double attempts,
     required bool isPainted,
     required double paintHours,
-    required double paintColors,
+    required PaintDetail paintDetail,
     required PricingSettings settings,
   }) {
     if (plates.isEmpty && selectedExtras.isEmpty && !isPainted) {
@@ -158,7 +159,7 @@ class PricingCalculator {
     final safety = 1 + settings.safetyMarginPercent / 100;
     final paintCost = isPainted
         ? (paintHours * settings.paintingCostPerHour +
-                  paintColors * settings.paintColorUnitCost) *
+                  settings.paintDetailCost(paintDetail)) *
               safety
         : 0.0;
     final extrasCost = [

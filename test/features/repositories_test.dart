@@ -14,6 +14,7 @@ import 'package:nesherprints/features/orders/data/order_repository.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_parts.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
+import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/settings/data/settings_repository.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
@@ -186,7 +187,7 @@ void main() {
       expect(await materialStock(matId), 850);
     });
 
-    test('intentos, horas y colores de pintura se guardan y se leen', () async {
+    test('intentos, horas y detalle de pintura se guardan y se leen', () async {
       final id = await orders.create(
         const Order(
           name: 'Pintado',
@@ -196,7 +197,7 @@ void main() {
           isPainted: true,
           attempts: 1.3,
           paintHours: 2.5,
-          paintColors: 9,
+          paintDetail: PaintDetail.many,
           costOverride: 12.34,
         ),
         plates: const [],
@@ -205,7 +206,7 @@ void main() {
       expect(o.id, id);
       expect(o.attempts, 1.3);
       expect(o.paintHours, 2.5);
-      expect(o.paintColors, 9);
+      expect(o.paintDetail, PaintDetail.many);
       expect(o.costOverride, 12.34);
     });
 
@@ -214,6 +215,7 @@ void main() {
       final o = (await orders.getAllWithDetails()).single.order;
       expect(o.attempts, 1);
       expect(o.paintHours, 0);
+      expect(o.paintDetail, PaintDetail.normal);
       expect(o.costOverride, isNull);
     });
 
@@ -328,6 +330,7 @@ void main() {
         reason: 'valor editado, se respeta',
       );
       expect(values['coste_kwh'], 0.0375);
+      expect(values['coste_pintura_muchos'], 13 / 90);
       expect(values['tarifa_placa_resina'], 1.5);
       await raw.close();
     });
@@ -388,14 +391,107 @@ void main() {
         expect(order['name'], 'Antiguo');
         expect(order['attempts'], 1);
         expect(order['paint_hours'], 0);
+        expect(order['paint_detail'], 'normal');
         expect(order['cost_override'], isNull);
 
         // Reaplicar la migración no falla ni duplica nada.
         await DbSchema.onUpgrade(raw, 2, DbSchema.version);
-        // 8 ajustes de la calculadora + la clave obsoleta.
-        expect((await settingsOf(raw)).length, 9);
+        // 10 ajustes de la calculadora + la clave obsoleta de placa extra.
+        expect((await settingsOf(raw)).length, 11);
         await raw.close();
       },
     );
+
+    test('v3 → v4 convierte los colores al modo de detalle', () async {
+      final raw = await openOld(3, (db) async {
+        await db.execute(
+          'CREATE TABLE settings (key TEXT UNIQUE, value REAL, '
+          'id INTEGER PRIMARY KEY AUTOINCREMENT)',
+        );
+        await db.insert('settings', {
+          'key': 'coste_unidad_color',
+          'value': 1 / 90,
+        });
+        await db.execute(
+          'CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'client_id INTEGER, name TEXT NOT NULL, price REAL NOT NULL, '
+          'paid_amount REAL DEFAULT 0.0, date TEXT NOT NULL, '
+          'status TEXT NOT NULL, is_painted INTEGER NOT NULL, notes TEXT, '
+          'attempts REAL NOT NULL DEFAULT 1, '
+          'paint_hours REAL NOT NULL DEFAULT 0, '
+          'paint_colors REAL NOT NULL DEFAULT 0, cost_override REAL)',
+        );
+        for (final (name, colors) in [
+          ('sin colores', 0),
+          ('cuatro', 4),
+          ('cinco', 5),
+          ('diez', 10),
+          ('once', 11),
+          ('catorce', 14),
+        ]) {
+          await db.insert('orders', {
+            'name': name,
+            'price': 1,
+            'date': '2026-01-01',
+            'status': 'Draft',
+            'is_painted': 1,
+            'paint_colors': colors,
+          });
+        }
+      });
+      await DbSchema.onUpgrade(raw, 3, DbSchema.version);
+      await DbSchema.onOpen(raw);
+
+      final details = {
+        for (final r in await raw.query('orders'))
+          r['name'] as String: r['paint_detail'] as String,
+      };
+      expect(details, {
+        'sin colores': 'normal',
+        'cuatro': 'few',
+        'cinco': 'normal',
+        'diez': 'normal',
+        'once': 'many',
+        'catorce': 'many',
+      });
+      final values = await settingsOf(raw);
+      expect(values['coste_pintura_pocos'], 3 / 90);
+      expect(
+        values['coste_unidad_color'],
+        1 / 90,
+        reason: 'obsoleta, se conserva',
+      );
+
+      // Reaplicar no pisa lo que el usuario haya cambiado después.
+      await raw.update('orders', {
+        'paint_detail': 'few',
+      }, where: "name = 'catorce'");
+      await DbSchema.onUpgrade(raw, 3, DbSchema.version);
+      expect(
+        (await raw.query(
+          'orders',
+          where: "name = 'catorce'",
+        )).single['paint_detail'],
+        'few',
+      );
+      await raw.close();
+    });
+  });
+
+  group('PaintDetail', () {
+    test('modo según nº de colores del Excel', () {
+      expect(PaintDetail.fromColorCount(1), PaintDetail.few);
+      expect(PaintDetail.fromColorCount(4), PaintDetail.few);
+      expect(PaintDetail.fromColorCount(5), PaintDetail.normal);
+      expect(PaintDetail.fromColorCount(10), PaintDetail.normal);
+      expect(PaintDetail.fromColorCount(11), PaintDetail.many);
+      expect(PaintDetail.fromColorCount(14), PaintDetail.many);
+    });
+
+    test('valores desconocidos se leen como normal', () {
+      expect(PaintDetail.fromDb('few'), PaintDetail.few);
+      expect(PaintDetail.fromDb(null), PaintDetail.normal);
+      expect(PaintDetail.fromDb('???'), PaintDetail.normal);
+    });
   });
 }
