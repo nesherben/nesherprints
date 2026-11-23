@@ -2,11 +2,36 @@
 
 Resumen de la revisión hecha con tres agentes (analista técnico, diseñador UI/UX y experto en negocio) sobre el estado tras el refactor, la calculadora del Excel (v3) y el detalle de pintura (v4). Objetivo: dejar el Excel para el **1/1/2027**.
 
-Estado: 50 tests y análisis estático en verde; la app compila y arranca en Windows. Los agentes revisaron el código; **nadie ha recorrido la interfaz a mano todavía**.
+Estado: 52 tests en verde (+9 de fallos confirmados, omitidos) y análisis estático limpio; la app compila y arranca en Windows. Los agentes revisaron el código; el recorrido por las pantallas se ha hecho con pruebas automáticas (sección 1b), **nadie ha usado la interfaz a mano ni se ha visto con capturas**.
 
 ## 1. Hallazgo al arrancar
 
 La base de datos de desarrollo (`.dart_tool/sqflite_common_ffi/databases/`) tiene `margen_beneficio = 220`, el valor de la fórmula antigua. La migración solo cambia el valor por defecto antiguo (45), así que ese 220 se respetó. Con la fórmula nueva el multiplicador del precio es `2 + margen/100` = **×4,2** en vez de ×2,15. **Hay que poner 15 en Administración.** La app no hizo copia de la base de datos antes de migrarla a la v4.
+
+## 1b. Verificación con pruebas (23-nov-2026)
+
+Se escribieron pruebas que describen el comportamiento correcto y se ejecutaron: `test/features/orders/stock_invariants_test.dart` (repositorios, base de datos en memoria) y `test/app/order_flow_test.dart` (**pantallas reales** con toques y escritura simulados). Las pruebas de fallos están marcadas `bugTest`/`bugTestWidgets` (omitidas) y se activan al arreglar cada fallo.
+
+**Funciona:** crear un pedido por el formulario muestra el coste (2,39 €) y el recomendado (8,76 €) esperados, se guarda, aparece en Pedidos y completarlo descuenta 100 g (1000 → 900).
+
+**Confirmados (los 9 fallan):**
+
+| Fallo | Resultado esperado → real |
+|---|---|
+| Completar tras salir de Completed (también por la interfaz) | stock 900 → **800** |
+| Merma + completar | stock 800 → **750** |
+| Borrar pedido: placas huérfanas | vacío → **quedan** |
+| Borrar pedido: mermas huérfanas | vacío → **quedan** |
+| Sumar stock a una pieza con datos viejos de pantalla | 12 → **15** |
+| Editar pedido: precio unitario de una pieza | 0,5 € → **1,0 €** |
+| Precio medio con stock negativo | 0,80 € → **0,93 €** |
+
+**Desbordes de maquetación** (el contenido no cabe y se corta), no vistos al leer el código:
+- `dashboard/.../kpi_card.dart:26` — 5,6 px en las tres tarjetas del panel (ventana de 1600 px).
+- `orders/.../order_form_dialog.dart:389` — 39 px en el desplegable de estado del formulario (600 px de ancho).
+- `orders/.../plates_section.dart:42` — 13 px en la cabecera de placas.
+- `orders/.../status_badge.dart:40` — 17 px en la etiqueta de estado de la tabla.
+- `orders/.../order_data_table.dart:58 y 192` — 0,7 px en la cabecera y las finanzas de la tabla.
 
 ## 2. Bugs que pueden corromper datos (antes de importar el Excel)
 
