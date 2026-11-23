@@ -23,7 +23,7 @@ Then use AskUserQuestion:
 Do not write code until the user answers.
 
 ## Fase 3 — Implementación (agente principal)
-Implement it yourself (you hold the context; do NOT delegate coding). Put user-visible texts in `lib/core/strings.dart` (Spanish), `code-map` to navigate, add/update tests for pure logic and DB migrations. Run `bash .claude/skills/verify/verify.sh` until clean.
+Implement it yourself (you hold the context; do NOT delegate coding). Put user-visible texts in `lib/core/strings/app_strings.dart` (Spanish), `code-map` to navigate, add/update tests for pure logic and DB migrations. Run `bash .claude/skills/verify/verify.sh` until clean.
 
 ## Fase 4 — Revisión independiente
 Launch `code-reviewer` with: the feature goal, the approved plan (incl. chosen improvements) and the list of changed files. Then:

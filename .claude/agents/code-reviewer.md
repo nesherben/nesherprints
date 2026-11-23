@@ -13,7 +13,7 @@ How to work:
 - Check, in this order:
   1. Correctness: logic bugs, null/edge cases, money rounding, margin/cost calculations, state not reset, async + `mounted`.
   2. Data safety: DB version bumped, migration idempotent and safe for existing data, schema creator matches migration, nothing that could lose user data on update.
-  3. Completeness vs the plan: every layer done, wide and narrow layouts, texts in `lib/core/strings.dart`.
+  3. Completeness vs the plan: every layer done, wide and narrow layouts, texts in `lib/core/strings/app_strings.dart`.
   4. UX consistency with the rest of the app.
   5. Tests: the pure logic is covered; missing cases.
   6. Simplification: duplicated code, dead code.

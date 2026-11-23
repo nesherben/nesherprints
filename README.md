@@ -26,14 +26,19 @@ Al completar un pedido se descuenta el stock de material; las pérdidas se regis
 
 ```
 lib/
-├── core/            # constantes, textos (AppStrings), rutas, tema, utilidades
-├── data/            # DatabaseHelper, repositorios y service locator
-└── presentation/
-    ├── screens/     # una pantalla por sección
-    └── widgets/     # diálogos y componentes, agrupados por pantalla
+├── app/             # MaterialApp, navegación lateral y service locator
+├── core/            # base de datos (esquema único), constantes, textos, tema, utilidades, widgets comunes
+└── features/        # orders · dashboard · inventory · extras · clients · settings
+    └── <feature>/
+        ├── domain/        # modelos y lógica pura (precios, finanzas…)
+        ├── data/          # repositorio SQLite
+        └── presentation/  # pantalla y widgets
 ```
 
-Cada capa expone un *barrel* (`lib/core.dart`, `lib/data.dart`, `lib/presentation.dart`). Los datos se guardan en un archivo SQLite que se crea en el primer arranque.
+Los datos se guardan en un archivo SQLite local que se crea en el primer arranque.
+
+- **Especificación funcional** (reglas, fórmulas, movimientos de stock): [`docs/SPEC.md`](docs/SPEC.md)
+- **Mapa del código y convenciones**: [`CLAUDE.md`](CLAUDE.md)
 
 ## Ejecutar
 
