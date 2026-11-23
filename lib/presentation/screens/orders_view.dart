@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:nesherprints/core/constants.dart';
+import 'package:nesherprints/core/strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/data/service_locator.dart';
 import 'package:nesherprints/presentation/widgets/orders/order_data_table.dart';
@@ -29,14 +30,14 @@ class OrdersView extends StatefulWidget {
 class _OrdersViewState extends State<OrdersView> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
-  String _statusFilter = UiStrings.all;
+  String _statusFilter = AppStrings.all;
   int? _sortColumnIndex;
   bool _isAscending = false;
   List<Map<String, dynamic>> _displayOrders = [];
   final Map<int, String> _clientNames = {};
 
   final List<String> _statusOptions = [
-    UiStrings.all,
+    AppStrings.all,
     OrderStatus.draft,
     OrderStatus.reserved,
     OrderStatus.inProgress,
@@ -95,21 +96,21 @@ class _OrdersViewState extends State<OrdersView> {
   void didUpdateWidget(covariant OrdersView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.orders != oldWidget.orders) {
-      _loadClients(); // <--- ¡LA LÍNEA MÁGICA! Recargamos la agenda
+      _loadClients(); // Recarga la lista de clientes
       _applyFiltersAndSort();
     }
   }
 
   bool get _hasActiveFilters =>
       _searchQuery.isNotEmpty ||
-      _statusFilter != UiStrings.all ||
+      _statusFilter != AppStrings.all ||
       _sortColumnIndex != null;
 
   void _resetFilters() {
     setState(() {
       _searchController.clear();
       _searchQuery = '';
-      _statusFilter = UiStrings.all;
+      _statusFilter = AppStrings.all;
       _sortColumnIndex = null;
       _isAscending = false;
       _applyFiltersAndSort();
@@ -130,7 +131,7 @@ class _OrdersViewState extends State<OrdersView> {
         _searchQuery.toLowerCase(),
       );
       final matchesStatus =
-          _statusFilter == UiStrings.all || o['status'] == _statusFilter;
+          _statusFilter == AppStrings.all || o['status'] == _statusFilter;
       return matchesSearch && matchesStatus;
     }).toList();
 

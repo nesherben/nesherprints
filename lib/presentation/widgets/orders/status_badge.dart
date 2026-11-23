@@ -23,19 +23,19 @@ class StatusBadge extends StatelessWidget {
     switch (status) {
       case OrderStatus.completed:
       case OrderStatus.shipped:
-        bgColor = AppColors.statusCompletado.withOpacity(0.2);
+        bgColor = AppColors.statusCompletado.withValues(alpha: 0.2);
         textColor = AppColors.statusCompletado;
         break;
       case OrderStatus.inProgress:
-        bgColor = AppColors.primary.withOpacity(0.2);
+        bgColor = AppColors.primary.withValues(alpha: 0.2);
         textColor = AppColors.primary;
         break;
       case OrderStatus.canceled:
-        bgColor = AppColors.statusCancelado.withOpacity(0.2);
+        bgColor = AppColors.statusCancelado.withValues(alpha: 0.2);
         textColor = AppColors.statusCancelado;
         break;
       default:
-        bgColor = Colors.grey.withOpacity(0.2);
+        bgColor = Colors.grey.withValues(alpha: 0.2);
         textColor = Colors.grey;
     }
 

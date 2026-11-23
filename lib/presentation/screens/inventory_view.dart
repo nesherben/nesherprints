@@ -24,6 +24,7 @@ class _InventoryViewState extends State<InventoryView> {
 
   Future<void> _loadMaterials() async {
     final data = await ServiceLocator.materialRepo.getAllMaterials();
+    if (!mounted) return;
     setState(() {
       _materials = data;
       _isLoading = false;
@@ -117,8 +118,12 @@ class _InventoryViewState extends State<InventoryView> {
                                     ),
                                     decoration: BoxDecoration(
                                       color: m['type'] == 'resin'
-                                          ? Colors.deepPurple.withOpacity(0.2)
-                                          : Colors.orange.withOpacity(0.2),
+                                          ? Colors.deepPurple.withValues(
+                                              alpha: 0.2,
+                                            )
+                                          : Colors.orange.withValues(
+                                              alpha: 0.2,
+                                            ),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(

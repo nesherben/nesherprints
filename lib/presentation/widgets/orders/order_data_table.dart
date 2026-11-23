@@ -137,7 +137,7 @@ class OrderDataTable extends StatelessWidget {
                       // Se ilumina de verde si está completado O si la deuda es 0
                       color:
                           (o['status'] == OrderStatus.completed || pending <= 0)
-                          ? Colors.green.withOpacity(0.1)
+                          ? Colors.green.withValues(alpha: 0.1)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -262,10 +262,14 @@ class OrderDataTable extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     // Lógica de colores según gravedad de la pérdida
                                     color: wasteRate > 30
-                                        ? Colors.red.withOpacity(0.1)
+                                        ? Colors.red.withValues(alpha: 0.1)
                                         : (wasteRate > 10
-                                              ? Colors.orange.withOpacity(0.1)
-                                              : Colors.green.withOpacity(0.1)),
+                                              ? Colors.orange.withValues(
+                                                  alpha: 0.1,
+                                                )
+                                              : Colors.green.withValues(
+                                                  alpha: 0.1,
+                                                )),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(

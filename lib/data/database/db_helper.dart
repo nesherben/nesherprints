@@ -80,7 +80,7 @@ class DatabaseHelper {
           if (existing.isEmpty) {
             await db.insert(DbTables.settings, {
               DbColumns.settingKey: SettingKeys.costePlacaExtra,
-              DbColumns.settingValue: 2.50,
+              DbColumns.settingValue: FinanceDefaults.defaultPlateExtraCost,
             });
           }
         }
@@ -234,7 +234,7 @@ class DatabaseHelper {
     });
     await db.insert(DbTables.settings, {
       DbColumns.settingKey: SettingKeys.costePlacaExtra,
-      DbColumns.settingValue: 2.50,
+      DbColumns.settingValue: FinanceDefaults.defaultPlateExtraCost,
     });
   }
 

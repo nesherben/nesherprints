@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:nesherprints/core/constants.dart';
+import 'package:nesherprints/core/strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/data/service_locator.dart';
 import 'package:nesherprints/presentation/screens/admin_view.dart';
@@ -36,6 +37,7 @@ class _MainLayoutState extends State<MainLayout> {
   /// Carga todos los pedidos desde SQLite
   Future<void> _refreshOrders() async {
     final data = await ServiceLocator.orderRepo.getAllOrdersWithDetails();
+    if (!mounted) return;
     setState(() {
       _allOrders = data;
       _isLoading = false;
@@ -119,7 +121,6 @@ class _MainLayoutState extends State<MainLayout> {
     // 1. Cambiamos el estado a Completado
     updatedOrder['status'] = OrderStatus.completed;
 
-    // 2. ---> ¡LA CLAVE QUE FALTABA! <---
     // Le decimos a la base de datos que el dinero pagado ahora es igual al precio total
     updatedOrder['paid_amount'] = updatedOrder['price'];
 
@@ -189,11 +190,11 @@ class _MainLayoutState extends State<MainLayout> {
                     onPressed: _showNewOrderDialog,
                     icon: const Icon(Icons.add),
                     color: AppColors.primary,
-                    tooltip: UiStrings.newOrder,
+                    tooltip: AppStrings.newOrder,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    UiStrings.newOrder,
+                    AppStrings.newOrder,
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.textMain,
@@ -209,28 +210,28 @@ class _MainLayoutState extends State<MainLayout> {
             destinations: const [
               NavigationRailDestination(
                 icon: Icon(Icons.dashboard_outlined),
-                label: Text(UiStrings.dashboard),
+                label: Text(AppStrings.dashboard),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.inventory_2_outlined),
-                label: Text(UiStrings.inventory),
+                label: Text(AppStrings.inventory),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.category_outlined),
-                label: Text(UiStrings.pieces),
+                label: Text(AppStrings.pieces),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.receipt_long_outlined),
-                label: Text(UiStrings.orders),
+                label: Text(AppStrings.orders),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.people_outline),
                 selectedIcon: Icon(Icons.people),
-                label: Text(UiStrings.clients),
+                label: Text(AppStrings.clients),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.settings_outlined),
-                label: Text(UiStrings.admin),
+                label: Text(AppStrings.admin),
               ),
             ],
           ),

@@ -6,8 +6,6 @@ import 'package:nesherprints/core/strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/data/service_locator.dart';
 
-// Extras management removed from admin panel - kept as separate screen
-
 class AdminView extends StatefulWidget {
   const AdminView({super.key});
 
@@ -31,13 +29,17 @@ class _AdminViewState extends State<AdminView> {
   // Cargamos los valores de la base de datos a los cuadros de texto
   Future<void> _loadSettings() async {
     final data = await ServiceLocator.settingsRepo.getAllSettings();
+    if (!mounted) return;
     setState(() {
       _marginController.text =
-          data[SettingKeys.margenBeneficio]?.toStringAsFixed(2) ?? '45.00';
+          data[SettingKeys.margenBeneficio]?.toStringAsFixed(2) ??
+          FinanceDefaults.defaultBenefitMargin.toStringAsFixed(2);
       _paintHourController.text =
-          data[SettingKeys.costeHoraPintado]?.toStringAsFixed(2) ?? '15.00';
+          data[SettingKeys.costeHoraPintado]?.toStringAsFixed(2) ??
+          FinanceDefaults.defaultPaintingCost.toStringAsFixed(2);
       _plateExtraController.text =
-          data[SettingKeys.costePlacaExtra]?.toStringAsFixed(2) ?? '2.50';
+          data[SettingKeys.costePlacaExtra]?.toStringAsFixed(2) ??
+          FinanceDefaults.defaultPlateExtraCost.toStringAsFixed(2);
       _isLoading = false;
     });
   }
@@ -54,7 +56,10 @@ class _AdminViewState extends State<AdminView> {
     );
     await ServiceLocator.settingsRepo.updateSetting(
       SettingKeys.costePlacaExtra,
-      parseDecimal(_plateExtraController.text, fallback: 2.50),
+      parseDecimal(
+        _plateExtraController.text,
+        fallback: FinanceDefaults.defaultPlateExtraCost,
+      ),
     );
 
     if (mounted) {
@@ -92,7 +97,7 @@ class _AdminViewState extends State<AdminView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            UiStrings.admin,
+            AppStrings.admin,
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,

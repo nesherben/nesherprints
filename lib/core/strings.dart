@@ -1,4 +1,12 @@
 class AppStrings {
+  // Navigation
+  static const String all = 'Todos';
+  static const String dashboard = 'Panel';
+  static const String inventory = 'Inventario';
+  static const String orders = 'Pedidos';
+  static const String clients = 'Clientes';
+  static const String admin = 'Administración';
+
   // General actions
   static const String cancel = 'Cancelar';
   static const String save = 'Guardar';

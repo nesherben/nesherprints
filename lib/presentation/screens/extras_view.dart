@@ -25,6 +25,7 @@ class _ExtrasViewState extends State<ExtrasView> {
 
   Future<void> _loadExtras() async {
     final data = await ServiceLocator.extrasRepo.getAllExtras();
+    if (!mounted) return;
     setState(() {
       _extras = data;
       _isLoading = false;

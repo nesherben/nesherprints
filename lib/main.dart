@@ -28,19 +28,7 @@ class NesherPrintsApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: AppRoutes.home,
       routes: {AppRoutes.home: (context) => const MainLayout()},
-      theme: ThemeData(
-        scaffoldBackgroundColor: AppColors.background,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          brightness: Brightness.dark,
-        ),
-        cardTheme: const CardThemeData(
-          color: AppColors.surface,
-          elevation: 4,
-          margin: EdgeInsets.all(8),
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.dark,
     );
   }
 }
