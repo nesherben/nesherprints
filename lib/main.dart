@@ -3,32 +3,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'package:nesherprints/core.dart';
-import 'package:nesherprints/presentation/screens/main_layout.dart';
+import 'package:nesherprints/app/app.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicializamos SQLite para Windows/Desktop
+  // En escritorio SQLite va por FFI.
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
 
   runApp(const NesherPrintsApp());
-}
-
-class NesherPrintsApp extends StatelessWidget {
-  const NesherPrintsApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'NesherPrints ERP',
-      debugShowCheckedModeBanner: false,
-      initialRoute: AppRoutes.home,
-      routes: {AppRoutes.home: (context) => const MainLayout()},
-      theme: AppTheme.dark,
-    );
-  }
 }
