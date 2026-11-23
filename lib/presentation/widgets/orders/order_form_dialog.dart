@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants.dart';
-import '../../../core/number_utils.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/strings.dart';
-import '../../../data/service_locator.dart';
-import '../client_dialog.dart';
-import '../material_dialog.dart';
-import 'material_form_section.dart';
-import 'finance_form_section.dart';
+
+import 'package:nesherprints/core/constants.dart';
+import 'package:nesherprints/core/number_utils.dart';
+import 'package:nesherprints/core/strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/data/service_locator.dart';
+import 'package:nesherprints/presentation/widgets/clients/client_form_dialog.dart';
+import 'package:nesherprints/presentation/widgets/inventory/material_dialog.dart';
+import 'package:nesherprints/presentation/widgets/orders/finance_form_section.dart';
+import 'package:nesherprints/presentation/widgets/orders/material_form_section.dart';
 
 class OrderFormDialog extends StatefulWidget {
   final Function(Map<String, dynamic>) onSave;
@@ -203,7 +204,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   void _showClientDialog() {
     showDialog(
       context: context,
-      builder: (context) => ClientDialog(
+      builder: (context) => ClientFormDialog(
         onSave: (newClient) async {
           int newId = await ServiceLocator.clientRepo.insertClient(newClient);
           final updatedClients = await ServiceLocator.clientRepo

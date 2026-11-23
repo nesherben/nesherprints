@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/strings.dart';
+
+import 'package:nesherprints/core/strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
 
 class ClientFormDialog extends StatefulWidget {
   final Function(Map<String, dynamic>) onSave;

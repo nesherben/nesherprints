@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../core/constants.dart';
-import '../../core/theme/app_colors.dart';
-import '../../data/service_locator.dart';
-import '../widgets/orders/order_data_table.dart';
-import '../widgets/orders/waste_dialog.dart';
+
+import 'package:nesherprints/core/constants.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/data/service_locator.dart';
+import 'package:nesherprints/presentation/widgets/orders/order_data_table.dart';
+import 'package:nesherprints/presentation/widgets/orders/waste_dialog.dart';
 
 class OrdersView extends StatefulWidget {
   final List<Map<String, dynamic>> orders;

@@ -1,7 +1,7 @@
 import 'package:path/path.dart';
-import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import '../../core/constants.dart';
+
+import 'package:nesherprints/core/constants.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -16,10 +16,6 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB(String filePath) async {
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
-    }
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 

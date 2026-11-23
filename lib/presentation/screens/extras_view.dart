@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/strings.dart';
-import '../../data/service_locator.dart';
-import '../widgets/extra_dialog.dart';
-import '../widgets/add_stock_dialog.dart';
+
+import 'package:nesherprints/core/strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/data/service_locator.dart';
+import 'package:nesherprints/presentation/widgets/extras/add_stock_dialog.dart';
+import 'package:nesherprints/presentation/widgets/extras/extra_dialog.dart';
 
 class ExtrasView extends StatefulWidget {
   const ExtrasView({super.key});

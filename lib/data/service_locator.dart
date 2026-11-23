@@ -1,8 +1,8 @@
-import 'package:nesherprints/data/repositories/order_repository.dart';
-import 'package:nesherprints/data/repositories/material_repository.dart';
 import 'package:nesherprints/data/repositories/client_repository.dart';
-import 'package:nesherprints/data/repositories/settings_repository.dart';
 import 'package:nesherprints/data/repositories/extras_repository.dart';
+import 'package:nesherprints/data/repositories/material_repository.dart';
+import 'package:nesherprints/data/repositories/order_repository.dart';
+import 'package:nesherprints/data/repositories/settings_repository.dart';
 
 /// Service Locator: Proporciona instancias singleton de todos los repositorios
 /// Acceso global desde cualquier parte del app sin duplicación de instancias

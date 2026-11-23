@@ -1,5 +1,5 @@
 name: nesherprints
-description: "A new Flutter project."
+description: "ERP local para gestionar pedidos, inventario y costes de impresión 3D."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -33,11 +33,9 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
   sqflite: ^2.4.1        # El motor de la base de datos
   sqflite_common_ffi: ^2.3.0
   path: ^1.9.1           # Para encontrar la ruta donde guardar el archivo
-  intl: ^0.19.0
   fl_chart: ^0.70.0
 
 dev_dependencies:

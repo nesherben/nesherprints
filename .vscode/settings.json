@@ -1,9 +1,0 @@
-{
-    "files.exclude": {
-        "ios": true,
-        "linux": true,
-        "macos": true,
-        "test": true
-    },
-    "cmake.sourceDirectory": "E:/Desktop/nesherprints/nesherprints/windows"
-}

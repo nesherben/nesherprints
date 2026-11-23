@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
-import '../../data/service_locator.dart';
-import '../widgets/material_dialog.dart';
-import '../../core/strings.dart';
+
+import 'package:nesherprints/core/strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/data/service_locator.dart';
+import 'package:nesherprints/presentation/widgets/inventory/material_dialog.dart';
 
 class InventoryView extends StatefulWidget {
   const InventoryView({super.key});

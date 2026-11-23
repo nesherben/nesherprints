@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../core/constants.dart';
-import '../../core/number_utils.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/strings.dart';
-import '../../data/service_locator.dart';
+
+import 'package:nesherprints/core/constants.dart';
+import 'package:nesherprints/core/number_utils.dart';
+import 'package:nesherprints/core/strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/data/service_locator.dart';
+
 // Extras management removed from admin panel - kept as separate screen
 
 class AdminView extends StatefulWidget {
@@ -66,6 +68,14 @@ class _AdminViewState extends State<AdminView> {
         ),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _marginController.dispose();
+    _paintHourController.dispose();
+    _plateExtraController.dispose();
+    super.dispose();
   }
 
   @override

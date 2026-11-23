@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'package:nesherprints/core/number_utils.dart';
-import '../../../core/strings.dart';
-import '../../../core/theme/app_colors.dart';
+import 'package:nesherprints/core/strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
 
 class FinanceFormSection extends StatelessWidget {
   final TextEditingController platesController;

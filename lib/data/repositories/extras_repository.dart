@@ -1,5 +1,5 @@
-import '../database/db_helper.dart';
-import '../../core/constants.dart';
+import 'package:nesherprints/core/constants.dart';
+import 'package:nesherprints/data/database/db_helper.dart';
 
 class ExtrasRepository {
   final dbHelper = DatabaseHelper.instance;

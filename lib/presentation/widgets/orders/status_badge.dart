@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../data/service_locator.dart';
+
+import 'package:nesherprints/core/constants.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/data/service_locator.dart';
 
 class StatusBadge extends StatelessWidget {
   final Map<String, dynamic> order;

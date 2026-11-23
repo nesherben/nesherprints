@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/number_utils.dart';
-import '../../core/strings.dart';
+
+import 'package:nesherprints/core/number_utils.dart';
+import 'package:nesherprints/core/strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
 
 class AddStockDialog extends StatefulWidget {
   final Map<String, dynamic> extra;

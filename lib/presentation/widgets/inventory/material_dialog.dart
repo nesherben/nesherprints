@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/number_utils.dart';
-import '../../core/strings.dart';
+
+import 'package:nesherprints/core/number_utils.dart';
+import 'package:nesherprints/core/strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
 
 class MaterialDialog extends StatefulWidget {
   final Function(Map<String, dynamic>) onSave;
@@ -29,6 +30,15 @@ class _MaterialDialogState extends State<MaterialDialog> {
     _colorController.text = mat?['color'] ?? '';
     _costController.text = (mat?['cost_per_kg'] ?? '').toString();
     _stockController.text = (mat?['stock_g'] ?? '').toString();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _colorController.dispose();
+    _costController.dispose();
+    _stockController.dispose();
+    super.dispose();
   }
 
   @override

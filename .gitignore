@@ -1,6 +1,6 @@
 # Miscellaneous
 *.class
-*.lock
+# pubspec.lock se commitea (es una app)
 *.log
 *.pyc
 *.swp
@@ -117,3 +117,10 @@ app.*.symbols
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Claude Code (local)
+.claude/settings.local.json

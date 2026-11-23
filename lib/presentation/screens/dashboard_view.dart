@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../core/constants.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/strings.dart';
-import '../../data/service_locator.dart';
+import 'package:flutter/material.dart';
+
+import 'package:nesherprints/core/constants.dart';
+import 'package:nesherprints/core/strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/data/service_locator.dart';
 
 class DashboardView extends StatefulWidget {
   final List<Map<String, dynamic>> orders;

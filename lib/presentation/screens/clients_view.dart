@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/strings.dart';
-import '../../data/service_locator.dart';
-import '../widgets/clients/client_form_dialog.dart';
-import '../widgets/clients/client_card.dart';
+
+import 'package:nesherprints/core/strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/data/service_locator.dart';
+import 'package:nesherprints/presentation/widgets/clients/client_card.dart';
+import 'package:nesherprints/presentation/widgets/clients/client_form_dialog.dart';
 
 class ClientsView extends StatefulWidget {
   const ClientsView({super.key});

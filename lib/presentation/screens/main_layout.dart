@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import '../../core/constants.dart';
-import '../../core/theme/app_colors.dart';
-import '../../data/service_locator.dart';
-import 'dashboard_view.dart';
-import 'inventory_view.dart';
-import 'extras_view.dart';
-import 'orders_view.dart';
-import 'clients_view.dart';
-import 'admin_view.dart';
-import '../widgets/forms/order_form_dialog.dart';
+
+import 'package:nesherprints/core/constants.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/data/service_locator.dart';
+import 'package:nesherprints/presentation/screens/admin_view.dart';
+import 'package:nesherprints/presentation/screens/clients_view.dart';
+import 'package:nesherprints/presentation/screens/dashboard_view.dart';
+import 'package:nesherprints/presentation/screens/extras_view.dart';
+import 'package:nesherprints/presentation/screens/inventory_view.dart';
+import 'package:nesherprints/presentation/screens/orders_view.dart';
+import 'package:nesherprints/presentation/widgets/orders/order_form_dialog.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});

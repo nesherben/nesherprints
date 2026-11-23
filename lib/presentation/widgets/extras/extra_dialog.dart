@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/number_utils.dart';
-import '../../core/strings.dart';
+
+import 'package:nesherprints/core/number_utils.dart';
+import 'package:nesherprints/core/strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
 
 class ExtraDialog extends StatefulWidget {
   final Function(Map<String, dynamic>) onSave;
@@ -30,6 +31,14 @@ class _ExtraDialogState extends State<ExtraDialog> {
         ? (unitPrice * (stock > 0 ? stock : 1)).toStringAsFixed(2)
         : '';
     _unitsController.text = stock > 0 ? stock.toString() : '';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _totalPriceController.dispose();
+    _unitsController.dispose();
+    super.dispose();
   }
 
   @override
