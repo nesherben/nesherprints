@@ -45,5 +45,5 @@ class PlateDraft {
   );
 
   PricingPlate toPricing() =>
-      PricingPlate(materialId: materialId, grams: grams);
+      PricingPlate(materialId: materialId, grams: grams, minutes: minutes);
 }

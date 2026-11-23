@@ -70,6 +70,8 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   final _priceController = TextEditingController();
   final _paidController = TextEditingController(text: '0.00');
   final _paintHoursController = TextEditingController(text: '1');
+  final _paintColorsController = TextEditingController(text: '0');
+  final _attemptsController = TextEditingController(text: '1');
 
   PriceEstimate _estimate = PriceEstimate.zero;
 
@@ -87,6 +89,8 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     _priceController.dispose();
     _paidController.dispose();
     _paintHoursController.dispose();
+    _paintColorsController.dispose();
+    _attemptsController.dispose();
     super.dispose();
   }
 
@@ -117,6 +121,9 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
         _clientId = order.clientId;
         _priceController.text = order.price.toStringAsFixed(2);
         _paidController.text = order.paidAmount.toStringAsFixed(2);
+        _paintHoursController.text = '${order.paintHours}';
+        _paintColorsController.text = '${order.paintColors}';
+        _attemptsController.text = '${order.attempts}';
       }
       _isLoading = false;
     });
@@ -127,11 +134,16 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     setState(() {
       _estimate = PricingCalculator.estimate(
         plates: [for (final p in _plates) p.toPricing()],
-        materialCostPerKg: {for (final m in _materials) m.id!: m.costPerKg},
+        materials: {
+          for (final m in _materials)
+            m.id!: PricingMaterial(costPerKg: m.costPerKg, kind: m.kind),
+        },
         extraUnitPrices: {for (final e in _extras) e.id!: e.unitPrice},
         selectedExtras: _selectedExtras,
+        attempts: parseDecimal(_attemptsController.text, fallback: 1),
         isPainted: _isPainted,
         paintHours: parseDecimal(_paintHoursController.text),
+        paintColors: parseDecimal(_paintColorsController.text),
         settings: _settings,
       );
     });
@@ -210,6 +222,10 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
           status: _status,
           isPainted: _isPainted,
           notes: initial?.notes ?? '',
+          attempts: parseDecimal(_attemptsController.text, fallback: 1),
+          paintHours: parseDecimal(_paintHoursController.text),
+          paintColors: parseDecimal(_paintColorsController.text),
+          costOverride: initial?.costOverride,
         ),
         plates: [for (final p in _plates) p.toPlate()],
         extras: [
@@ -278,12 +294,15 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                 paintHoursController: _paintHoursController,
                 priceController: _priceController,
                 paidController: _paidController,
+                attemptsController: _attemptsController,
+                paintColorsController: _paintColorsController,
                 estimate: _estimate,
                 isLocked: _isLocked,
                 onPaintedChanged: (value) {
                   _isPainted = value;
                   _recalculate();
                 },
+                onInputsChanged: _recalculate,
                 onPaintHoursChanged: _recalculate,
                 onPriceChanged: () => setState(() {}),
                 onApplySuggestedPrice: () => setState(() {

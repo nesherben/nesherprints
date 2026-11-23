@@ -20,9 +20,11 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView> {
   bool _isLoading = true;
-  final _marginController = TextEditingController();
-  final _paintingController = TextEditingController();
-  final _plateExtraController = TextEditingController();
+
+  /// Un controlador por ajuste, en el orden en que se muestran.
+  late final Map<_Field, TextEditingController> _controllers = {
+    for (final f in _Field.values) f: TextEditingController(),
+  };
 
   @override
   void initState() {
@@ -32,38 +34,61 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   void dispose() {
-    _marginController.dispose();
-    _paintingController.dispose();
-    _plateExtraController.dispose();
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
+
+  /// Hasta 6 decimales sin ceros sobrantes: `50` → `50`, `0.0375` → `0.0375`.
+  String _fmt(double v) =>
+      v.toStringAsFixed(6).replaceFirst(RegExp(r'\.?0+$'), '');
 
   Future<void> _load() async {
     final s = await ServiceLocator.settings.getPricingSettings();
     if (!mounted) return;
     setState(() {
-      _marginController.text = s.profitMarginPercent.toStringAsFixed(2);
-      _paintingController.text = s.paintingCostPerHour.toStringAsFixed(2);
-      _plateExtraController.text = s.plateExtraCost.toStringAsFixed(2);
+      _controllers[_Field.profitMargin]!.text = _fmt(s.profitMarginPercent);
+      _controllers[_Field.safetyMargin]!.text = _fmt(s.safetyMarginPercent);
+      _controllers[_Field.paintingCost]!.text = _fmt(s.paintingCostPerHour);
+      _controllers[_Field.paintColorCost]!.text = _fmt(s.paintColorUnitCost);
+      _controllers[_Field.kwhCost]!.text = _fmt(s.kwhCost);
+      _controllers[_Field.filamentFee]!.text = _fmt(s.filamentPlateFee);
+      _controllers[_Field.resinFee]!.text = _fmt(s.resinPlateFee);
+      _controllers[_Field.profitGoal]!.text = _fmt(s.profitGoal);
       _isLoading = false;
     });
   }
 
+  double _value(_Field field, double fallback) =>
+      parseDecimal(_controllers[field]!.text, fallback: fallback);
+
   Future<void> _save() async {
     await ServiceLocator.settings.savePricingSettings(
       PricingSettings(
-        profitMarginPercent: parseDecimal(
-          _marginController.text,
-          fallback: FinanceDefaults.profitMarginPercent,
+        profitMarginPercent: _value(
+          _Field.profitMargin,
+          FinanceDefaults.profitMarginPercent,
         ),
-        paintingCostPerHour: parseDecimal(
-          _paintingController.text,
-          fallback: FinanceDefaults.paintingCostPerHour,
+        safetyMarginPercent: _value(
+          _Field.safetyMargin,
+          FinanceDefaults.safetyMarginPercent,
         ),
-        plateExtraCost: parseDecimal(
-          _plateExtraController.text,
-          fallback: FinanceDefaults.plateExtraCost,
+        paintingCostPerHour: _value(
+          _Field.paintingCost,
+          FinanceDefaults.paintingCostPerHour,
         ),
+        paintColorUnitCost: _value(
+          _Field.paintColorCost,
+          FinanceDefaults.paintColorUnitCost,
+        ),
+        kwhCost: _value(_Field.kwhCost, FinanceDefaults.kwhCost),
+        filamentPlateFee: _value(
+          _Field.filamentFee,
+          FinanceDefaults.filamentPlateFee,
+        ),
+        resinPlateFee: _value(_Field.resinFee, FinanceDefaults.resinPlateFee),
+        profitGoal: _value(_Field.profitGoal, FinanceDefaults.profitGoal),
       ),
     );
     if (!mounted) return;
@@ -93,55 +118,54 @@ class _SettingsViewState extends State<SettingsView> {
         children: [
           const PageHeader(title: AppStrings.settingsTitle),
           const SizedBox(height: 24),
-          SizedBox(
-            width: 600,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      AppStrings.pricingCalculatorTitle,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+          Expanded(
+            child: SingleChildScrollView(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 640,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            AppStrings.pricingCalculatorTitle,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const Text(
+                            AppStrings.pricingCalculatorHint,
+                            style: AppTextStyles.mutedSmall,
+                          ),
+                          const Divider(height: 32),
+                          for (final f in _Field.values) ...[
+                            _SettingRow(
+                              label: f.label,
+                              hint: f.hint,
+                              controller: _controllers[f]!,
+                              icon: f.icon,
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: ElevatedButton.icon(
+                              onPressed: _save,
+                              icon: const Icon(Icons.save),
+                              label: const Text(AppStrings.saveSettings),
+                              style: AppButtonStyles.primary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const Text(
-                      AppStrings.pricingCalculatorHint,
-                      style: AppTextStyles.mutedSmall,
-                    ),
-                    const Divider(height: 32),
-                    _SettingRow(
-                      label: AppStrings.profitMarginLabel,
-                      controller: _marginController,
-                      icon: Icons.percent,
-                    ),
-                    const SizedBox(height: 16),
-                    _SettingRow(
-                      label: AppStrings.paintingCostLabel,
-                      controller: _paintingController,
-                      icon: Icons.brush,
-                    ),
-                    const SizedBox(height: 16),
-                    _SettingRow(
-                      label: AppStrings.plateExtraCostLabel,
-                      controller: _plateExtraController,
-                      icon: Icons.layers,
-                    ),
-                    const SizedBox(height: 24),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton.icon(
-                        onPressed: _save,
-                        icon: const Icon(Icons.save),
-                        label: const Text(AppStrings.saveSettings),
-                        style: AppButtonStyles.primary,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -152,14 +176,38 @@ class _SettingsViewState extends State<SettingsView> {
   }
 }
 
+/// Ajustes editables, en el orden en que se muestran.
+enum _Field {
+  profitMargin(
+    AppStrings.profitMarginLabel,
+    Icons.percent,
+    hint: AppStrings.profitMarginHint,
+  ),
+  safetyMargin(AppStrings.safetyMarginLabel, Icons.shield_outlined),
+  kwhCost(AppStrings.kwhCostLabel, Icons.bolt),
+  filamentFee(AppStrings.filamentPlateFeeLabel, Icons.layers),
+  resinFee(AppStrings.resinPlateFeeLabel, Icons.layers),
+  paintingCost(AppStrings.paintingCostLabel, Icons.brush),
+  paintColorCost(AppStrings.paintColorCostLabel, Icons.palette_outlined),
+  profitGoal(AppStrings.profitGoalLabel, Icons.flag_outlined);
+
+  const _Field(this.label, this.icon, {this.hint});
+
+  final String label;
+  final IconData icon;
+  final String? hint;
+}
+
 class _SettingRow extends StatelessWidget {
   const _SettingRow({
     required this.label,
     required this.controller,
     required this.icon,
+    this.hint,
   });
 
   final String label;
+  final String? hint;
   final TextEditingController controller;
   final IconData icon;
 
@@ -171,7 +219,13 @@ class _SettingRow extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           flex: 2,
-          child: Text(label, style: const TextStyle(fontSize: 16)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 16)),
+              if (hint != null) Text(hint!, style: AppTextStyles.mutedSmall),
+            ],
+          ),
         ),
         Expanded(
           child: TextField(

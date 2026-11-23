@@ -7,6 +7,7 @@ library;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:nesherprints/core/constants/app_constants.dart';
+import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
 /// Nombre del archivo de base de datos (histórico: el "v6" no es la versión
 /// del esquema, que se controla con [DbSchema.version]).
@@ -49,6 +50,14 @@ class OrdersTable {
   static const status = 'status';
   static const isPainted = 'is_painted';
   static const notes = 'notes';
+
+  /// Multiplicador de material y luz por fallos (1 = a la primera). Desde v3.
+  static const attempts = 'attempts';
+  static const paintHours = 'paint_hours';
+  static const paintColors = 'paint_colors';
+
+  /// Coste real fijo (pedidos importados del Excel con otra fórmula). Desde v3.
+  static const costOverride = 'cost_override';
 }
 
 /// Tabla heredada: ya no se escribe, pero el panel aún la lee.
@@ -103,7 +112,7 @@ class DbSchema {
   DbSchema._();
 
   /// Versión del esquema (PRAGMA user_version).
-  static const int version = 2;
+  static const int version = 3;
 
   static const String _createSettings =
       '''
@@ -146,6 +155,10 @@ class DbSchema {
       ${OrdersTable.status} TEXT NOT NULL,
       ${OrdersTable.isPainted} INTEGER NOT NULL,
       ${OrdersTable.notes} TEXT,
+      ${OrdersTable.attempts} REAL NOT NULL DEFAULT 1,
+      ${OrdersTable.paintHours} REAL NOT NULL DEFAULT 0,
+      ${OrdersTable.paintColors} REAL NOT NULL DEFAULT 0,
+      ${OrdersTable.costOverride} REAL,
       FOREIGN KEY (${OrdersTable.clientId}) REFERENCES ${ClientsTable.name} (${ClientsTable.id})
     )''';
 
@@ -226,18 +239,12 @@ class DbSchema {
     for (final sql in _allTables) {
       await db.execute(sql);
     }
-    await db.insert(SettingsTable.name, {
-      SettingsTable.key: SettingKeys.profitMargin,
-      SettingsTable.value: FinanceDefaults.profitMarginPercent,
-    });
-    await db.insert(SettingsTable.name, {
-      SettingsTable.key: SettingKeys.paintingCostPerHour,
-      SettingsTable.value: FinanceDefaults.paintingCostPerHour,
-    });
-    await db.insert(SettingsTable.name, {
-      SettingsTable.key: SettingKeys.plateExtraCost,
-      SettingsTable.value: FinanceDefaults.plateExtraCost,
-    });
+    for (final entry in const PricingSettings().toMap().entries) {
+      await db.insert(SettingsTable.name, {
+        SettingsTable.key: entry.key,
+        SettingsTable.value: entry.value,
+      });
+    }
   }
 
   /// Migraciones incrementales. Añadir aquí `if (oldVersion < N)`.
@@ -246,26 +253,87 @@ class DbSchema {
     int oldVersion,
     int newVersion,
   ) async {
-    if (oldVersion < 2) {
-      // v2: clientes, placas, extras y ajuste "coste placa extra".
-      await db.execute(_createClients);
-      await db.execute(_createOrderPlates);
-      await db.execute(_createExtras);
-      await db.execute(_createOrderExtras);
+    // Garantiza que existen todas las tablas (con el esquema actual) antes de
+    // migrar: así las migraciones pueden suponer que están.
+    for (final sql in _allTables) {
+      await db.execute(sql);
+    }
 
-      final existing = await db.query(
-        SettingsTable.name,
-        where: '${SettingsTable.key} = ?',
-        whereArgs: [SettingKeys.plateExtraCost],
-      );
-      if (existing.isEmpty) {
-        await db.insert(SettingsTable.name, {
-          SettingsTable.key: SettingKeys.plateExtraCost,
-          SettingsTable.value: FinanceDefaults.plateExtraCost,
-        });
+    if (oldVersion < 2) {
+      // v2: clientes, placas, piezas y el ajuste "coste placa extra" (obsoleto
+      // desde v3, pero se conserva la fila).
+      await _insertSettingIfMissing(db, SettingKeys.legacyPlateExtraCost, 2.5);
+    }
+
+    if (oldVersion < 3) {
+      // v3: fórmulas del Excel. Datos de pintura/intentos por pedido y
+      // ajustes nuevos; los ajustes antiguos con su valor por defecto de
+      // entonces se actualizan al del Excel (los editados a mano se respetan).
+      for (final column in [
+        '${OrdersTable.attempts} REAL NOT NULL DEFAULT 1',
+        '${OrdersTable.paintHours} REAL NOT NULL DEFAULT 0',
+        '${OrdersTable.paintColors} REAL NOT NULL DEFAULT 0',
+        '${OrdersTable.costOverride} REAL',
+      ]) {
+        await _addColumnIfMissing(db, OrdersTable.name, column);
       }
+      for (final entry in const PricingSettings().toMap().entries) {
+        await _insertSettingIfMissing(db, entry.key, entry.value);
+      }
+      await _replaceSettingIf(
+        db,
+        SettingKeys.profitMargin,
+        from: FinanceDefaults.legacyProfitMarginPercent,
+        to: FinanceDefaults.profitMarginPercent,
+      );
+      await _replaceSettingIf(
+        db,
+        SettingKeys.paintingCostPerHour,
+        from: FinanceDefaults.legacyPaintingCostPerHour,
+        to: FinanceDefaults.paintingCostPerHour,
+      );
     }
   }
+
+  static Future<void> _addColumnIfMissing(
+    Database db,
+    String table,
+    String columnDefinition,
+  ) async {
+    final name = columnDefinition.split(' ').first;
+    final columns = await db.rawQuery('PRAGMA table_info($table)');
+    if (columns.any((c) => c['name'] == name)) return;
+    await db.execute('ALTER TABLE $table ADD COLUMN $columnDefinition');
+  }
+
+  static Future<void> _insertSettingIfMissing(
+    Database db,
+    String key,
+    double value,
+  ) async {
+    final existing = await db.query(
+      SettingsTable.name,
+      where: '${SettingsTable.key} = ?',
+      whereArgs: [key],
+    );
+    if (existing.isNotEmpty) return;
+    await db.insert(SettingsTable.name, {
+      SettingsTable.key: key,
+      SettingsTable.value: value,
+    });
+  }
+
+  static Future<void> _replaceSettingIf(
+    Database db,
+    String key, {
+    required double from,
+    required double to,
+  }) => db.update(
+    SettingsTable.name,
+    {SettingsTable.value: to},
+    where: '${SettingsTable.key} = ? AND ${SettingsTable.value} = ?',
+    whereArgs: [key, from],
+  );
 
   /// Red de seguridad en cada apertura: garantiza que existen todas las
   /// tablas (bases de datos antiguas o incompletas). No modifica datos.

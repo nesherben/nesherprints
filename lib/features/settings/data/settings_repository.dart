@@ -17,18 +17,23 @@ class SettingsRepository {
     });
   }
 
-  /// Guarda los valores con UPDATE: solo actualiza claves que ya existen
-  /// (se crean al crear/migrar la base de datos).
+  /// Guarda los valores; si una clave no existe todavía, la crea.
   Future<void> savePricingSettings(PricingSettings settings) async {
     final db = await _db.database;
     await db.transaction((txn) async {
       for (final entry in settings.toMap().entries) {
-        await txn.update(
+        final updated = await txn.update(
           SettingsTable.name,
           {SettingsTable.value: entry.value},
           where: '${SettingsTable.key} = ?',
           whereArgs: [entry.key],
         );
+        if (updated == 0) {
+          await txn.insert(SettingsTable.name, {
+            SettingsTable.key: entry.key,
+            SettingsTable.value: entry.value,
+          });
+        }
       }
     });
   }

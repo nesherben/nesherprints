@@ -68,9 +68,13 @@ void main() {
   group('Settings', () {
     test('una BD nueva trae los valores por defecto', () async {
       final s = await settings.getPricingSettings();
-      expect(s.profitMarginPercent, FinanceDefaults.profitMarginPercent);
-      expect(s.paintingCostPerHour, FinanceDefaults.paintingCostPerHour);
-      expect(s.plateExtraCost, FinanceDefaults.plateExtraCost);
+      expect(s.profitMarginPercent, 15);
+      expect(s.safetyMarginPercent, 15);
+      expect(s.paintingCostPerHour, 8);
+      expect(s.kwhCost, 0.0375);
+      expect(s.filamentPlateFee, 0.5);
+      expect(s.resinPlateFee, 1.5);
+      expect(s.profitGoal, 5000);
     });
 
     test('guardar y leer', () async {
@@ -78,12 +82,23 @@ void main() {
         const PricingSettings(
           profitMarginPercent: 60,
           paintingCostPerHour: 10,
-          plateExtraCost: 1,
+          kwhCost: 0.05,
         ),
       );
       final s = await settings.getPricingSettings();
       expect(s.profitMarginPercent, 60);
-      expect(s.plateExtraCost, 1);
+      expect(s.kwhCost, 0.05);
+    });
+
+    test('guardar crea una clave que faltaba', () async {
+      final raw = await db.database;
+      await raw.delete(
+        SettingsTable.name,
+        where: '${SettingsTable.key} = ?',
+        whereArgs: [SettingKeys.kwhCost],
+      );
+      await settings.savePricingSettings(const PricingSettings(kwhCost: 0.07));
+      expect((await settings.getPricingSettings()).kwhCost, 0.07);
     });
   });
 
@@ -171,6 +186,37 @@ void main() {
       expect(await materialStock(matId), 850);
     });
 
+    test('intentos, horas y colores de pintura se guardan y se leen', () async {
+      final id = await orders.create(
+        const Order(
+          name: 'Pintado',
+          price: 50,
+          date: '2026-11-23',
+          status: OrderStatus.draft,
+          isPainted: true,
+          attempts: 1.3,
+          paintHours: 2.5,
+          paintColors: 9,
+          costOverride: 12.34,
+        ),
+        plates: const [],
+      );
+      final o = (await orders.getAllWithDetails()).single.order;
+      expect(o.id, id);
+      expect(o.attempts, 1.3);
+      expect(o.paintHours, 2.5);
+      expect(o.paintColors, 9);
+      expect(o.costOverride, 12.34);
+    });
+
+    test('un pedido sin esos datos usa intentos 1 y sin coste fijo', () async {
+      await orders.create(newOrder(), plates: const []);
+      final o = (await orders.getAllWithDetails()).single.order;
+      expect(o.attempts, 1);
+      expect(o.paintHours, 0);
+      expect(o.costOverride, isNull);
+    });
+
     test('cambiar estado solo cambia el estado', () async {
       final id = await orders.create(newOrder(), plates: const []);
       await orders.updateStatus(id, OrderStatus.reserved);
@@ -229,34 +275,43 @@ void main() {
   });
 
   group('Migración', () {
-    test('una BD v1 se actualiza a v2 sin perder datos', () async {
+    Future<Database> openOld(
+      int version,
+      Future<void> Function(Database) seed,
+    ) async {
       sqfliteFfiInit();
-      final raw = await databaseFactoryFfi.openDatabase(
+      return databaseFactoryFfi.openDatabase(
         inMemoryDatabasePath,
         options: OpenDatabaseOptions(
-          version: 1,
+          version: version,
           singleInstance: false,
-          onCreate: (db, _) async {
-            await db.execute(
-              'CREATE TABLE settings (key TEXT UNIQUE, value REAL, '
-              'id INTEGER PRIMARY KEY AUTOINCREMENT)',
-            );
-            await db.insert('settings', {
-              'key': 'margen_beneficio',
-              'value': 50,
-            });
-          },
+          onCreate: (db, _) => seed(db),
         ),
       );
-      // Simula la apertura de la app con la versión actual.
+    }
+
+    Future<Map<String, double>> settingsOf(Database raw) async => {
+      for (final r in await raw.query('settings'))
+        r['key'] as String: (r['value'] as num).toDouble(),
+    };
+
+    Future<Set<Object?>> tablesOf(Database raw) async => (await raw.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'table'",
+    )).map((r) => r['name']).toSet();
+
+    test('v1 → v3 crea las tablas y conserva los datos', () async {
+      final raw = await openOld(1, (db) async {
+        await db.execute(
+          'CREATE TABLE settings (key TEXT UNIQUE, value REAL, '
+          'id INTEGER PRIMARY KEY AUTOINCREMENT)',
+        );
+        await db.insert('settings', {'key': 'margen_beneficio', 'value': 50});
+      });
       await DbSchema.onUpgrade(raw, 1, DbSchema.version);
       await DbSchema.onOpen(raw);
 
-      final tables = (await raw.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type = 'table'",
-      )).map((r) => r['name']).toSet();
       expect(
-        tables,
+        await tablesOf(raw),
         containsAll([
           'clients',
           'orders',
@@ -266,13 +321,81 @@ void main() {
           'materials',
         ]),
       );
-      final rows = await raw.query('settings');
-      expect(rows.length, 2);
+      final values = await settingsOf(raw);
       expect(
-        rows.firstWhere((r) => r['key'] == 'margen_beneficio')['value'],
+        values['margen_beneficio'],
         50,
+        reason: 'valor editado, se respeta',
       );
+      expect(values['coste_kwh'], 0.0375);
+      expect(values['tarifa_placa_resina'], 1.5);
       await raw.close();
     });
+
+    test(
+      'v2 → v3 añade columnas y actualiza solo los valores por defecto antiguos',
+      () async {
+        final raw = await openOld(2, (db) async {
+          await db.execute(
+            'CREATE TABLE settings (key TEXT UNIQUE, value REAL, '
+            'id INTEGER PRIMARY KEY AUTOINCREMENT)',
+          );
+          await db.insert('settings', {'key': 'margen_beneficio', 'value': 45});
+          await db.insert('settings', {
+            'key': 'coste_hora_pintado',
+            'value': 12,
+          });
+          await db.insert('settings', {
+            'key': 'coste_placa_extra',
+            'value': 2.5,
+          });
+          await db.execute(
+            'CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+            'client_id INTEGER, name TEXT NOT NULL, price REAL NOT NULL, '
+            'paid_amount REAL DEFAULT 0.0, date TEXT NOT NULL, status TEXT NOT NULL, '
+            'is_painted INTEGER NOT NULL, notes TEXT)',
+          );
+          await db.insert('orders', {
+            'name': 'Antiguo',
+            'price': 10,
+            'date': '2026-01-01',
+            'status': 'Completed',
+            'is_painted': 0,
+          });
+        });
+        await DbSchema.onUpgrade(raw, 2, DbSchema.version);
+        await DbSchema.onOpen(raw);
+
+        final values = await settingsOf(raw);
+        expect(
+          values['margen_beneficio'],
+          15,
+          reason: '45 era el valor por defecto antiguo',
+        );
+        expect(
+          values['coste_hora_pintado'],
+          12,
+          reason: 'editado a mano: se respeta',
+        );
+        expect(
+          values['coste_placa_extra'],
+          2.5,
+          reason: 'obsoleta pero se conserva',
+        );
+        expect(values['margen_seguridad'], 15);
+
+        final order = (await raw.query('orders')).single;
+        expect(order['name'], 'Antiguo');
+        expect(order['attempts'], 1);
+        expect(order['paint_hours'], 0);
+        expect(order['cost_override'], isNull);
+
+        // Reaplicar la migración no falla ni duplica nada.
+        await DbSchema.onUpgrade(raw, 2, DbSchema.version);
+        // 8 ajustes de la calculadora + la clave obsoleta.
+        expect((await settingsOf(raw)).length, 9);
+        await raw.close();
+      },
+    );
   });
 }

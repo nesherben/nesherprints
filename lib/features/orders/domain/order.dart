@@ -15,6 +15,10 @@ class Order {
     required this.status,
     this.isPainted = false,
     this.notes = '',
+    this.attempts = 1,
+    this.paintHours = 0,
+    this.paintColors = 0,
+    this.costOverride,
   });
 
   final int? id;
@@ -33,6 +37,18 @@ class Order {
   final bool isPainted;
   final String notes;
 
+  /// Multiplicador de material y luz por impresiones falladas (1 = a la
+  /// primera, 1,3 = un 30 % más).
+  final double attempts;
+
+  /// Horas de trabajo de pintura y unidades de color usadas.
+  final double paintHours;
+  final double paintColors;
+
+  /// Coste real fijo. Solo lo tienen los pedidos importados del Excel con
+  /// otra fórmula; si existe, sustituye al coste calculado.
+  final double? costOverride;
+
   /// Lo que falta por cobrar (puede ser negativo si se cobró de más).
   double get pendingAmount => price - paidAmount;
 
@@ -49,6 +65,10 @@ class Order {
     status: status ?? this.status,
     isPainted: isPainted,
     notes: notes,
+    attempts: attempts,
+    paintHours: paintHours,
+    paintColors: paintColors,
+    costOverride: costOverride,
   );
 
   factory Order.fromMap(Map<String, Object?> map) => Order(
@@ -61,6 +81,10 @@ class Order {
     status: OrderStatus.fromDb(map[OrdersTable.status] as String?),
     isPainted: map[OrdersTable.isPainted] == 1,
     notes: map[OrdersTable.notes] as String? ?? '',
+    attempts: asDouble(map[OrdersTable.attempts], fallback: 1),
+    paintHours: asDouble(map[OrdersTable.paintHours]),
+    paintColors: asDouble(map[OrdersTable.paintColors]),
+    costOverride: (map[OrdersTable.costOverride] as num?)?.toDouble(),
   );
 
   /// Columnas de `orders` (sin `id`).
@@ -73,6 +97,10 @@ class Order {
     OrdersTable.status: status.dbValue,
     OrdersTable.isPainted: isPainted ? 1 : 0,
     OrdersTable.notes: notes,
+    OrdersTable.attempts: attempts,
+    OrdersTable.paintHours: paintHours,
+    OrdersTable.paintColors: paintColors,
+    OrdersTable.costOverride: costOverride,
   };
 }
 

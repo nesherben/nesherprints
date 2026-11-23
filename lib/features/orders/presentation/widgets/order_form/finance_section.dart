@@ -17,9 +17,12 @@ class FinanceSection extends StatelessWidget {
     required this.paintHoursController,
     required this.priceController,
     required this.paidController,
+    required this.attemptsController,
+    required this.paintColorsController,
     required this.estimate,
     required this.isLocked,
     required this.onPaintedChanged,
+    required this.onInputsChanged,
     required this.onPaintHoursChanged,
     required this.onPriceChanged,
     required this.onApplySuggestedPrice,
@@ -30,9 +33,12 @@ class FinanceSection extends StatelessWidget {
   final TextEditingController paintHoursController;
   final TextEditingController priceController;
   final TextEditingController paidController;
+  final TextEditingController attemptsController;
+  final TextEditingController paintColorsController;
   final PriceEstimate estimate;
   final bool isLocked;
   final ValueChanged<bool> onPaintedChanged;
+  final VoidCallback onInputsChanged;
   final VoidCallback onPaintHoursChanged;
   final VoidCallback onPriceChanged;
   final VoidCallback onApplySuggestedPrice;
@@ -106,8 +112,38 @@ class FinanceSection extends StatelessWidget {
                   onChanged: (_) => onPaintHoursChanged(),
                 ),
               ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextFormField(
+                  controller: paintColorsController,
+                  decoration: const InputDecoration(
+                    labelText: AppStrings.paintColorsLabel,
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: decimalKeyboard,
+                  readOnly: isLocked,
+                  inputFormatters: decimalInputFormatters,
+                  onChanged: (_) => onInputsChanged(),
+                ),
+              ),
             ],
           ],
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: 260,
+          child: TextFormField(
+            controller: attemptsController,
+            decoration: const InputDecoration(
+              labelText: AppStrings.attemptsLabel,
+              border: OutlineInputBorder(),
+              suffixText: '×',
+            ),
+            keyboardType: decimalKeyboard,
+            readOnly: isLocked,
+            inputFormatters: decimalInputFormatters,
+            onChanged: (_) => onInputsChanged(),
+          ),
         ),
         const SizedBox(height: 16),
 
@@ -132,7 +168,7 @@ class FinanceSection extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      formatEuro(estimate.totalCost),
+                      formatEuro(estimate.cost),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

@@ -140,8 +140,10 @@ class AppStrings {
   static const totalPlatesAuto = 'Total Placas (Automático)';
   static const paintServiceTitle = 'Servicio de Pintura';
   static const paintHoursLabel = 'Horas Pintura';
+  static const paintColorsLabel = 'Colores';
+  static const attemptsLabel = 'Intentos (1 = a la primera)';
   static const costManufacture = 'Coste Fabricación';
-  static const suggestedPrice = 'Precio Sugerido';
+  static const suggestedPrice = 'Precio Recomendado';
   static const finalPriceLabel = 'Precio Final (€)';
   static const paidAdvanceLabel = 'Pagado / Adelanto';
 
@@ -182,8 +184,16 @@ class AppStrings {
   static const pricingCalculatorHint =
       'Estos valores afectarán automáticamente a los nuevos pedidos creados.';
   static const profitMarginLabel = 'Margen de Beneficio (%)';
+  static const profitMarginHint =
+      'El precio recomendado se multiplica por 2 + margen';
+  static const safetyMarginLabel = 'Margen de Seguridad del coste (%)';
   static const paintingCostLabel = 'Coste de Pintado (€/hora)';
-  static const plateExtraCostLabel = 'Extra por Placa Base (€)';
+  static const paintColorCostLabel = 'Coste por unidad de color (€)';
+  static const kwhCostLabel = 'Coste de luz (€/hora de impresión)';
+  static const filamentPlateFeeLabel =
+      'Recargo por placa extra · filamento (€)';
+  static const resinPlateFeeLabel = 'Recargo por placa extra · resina (€)';
+  static const profitGoalLabel = 'Objetivo de beneficio (€)';
   static const saveSettings = 'Guardar Configuración';
   static const settingsUpdated = 'Variables actualizadas correctamente';
 }
