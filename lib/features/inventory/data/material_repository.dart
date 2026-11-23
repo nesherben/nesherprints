@@ -33,6 +33,17 @@ class MaterialRepository {
     return material.id!;
   }
 
+  /// Número de placas de pedidos que usan el material.
+  Future<int> usageCount(int id) async {
+    final db = await _db.database;
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) AS n FROM ${OrderPlatesTable.name} '
+      'WHERE ${OrderPlatesTable.materialId} = ?',
+      [id],
+    );
+    return (rows.first['n'] as int?) ?? 0;
+  }
+
   Future<void> delete(int id) async {
     final db = await _db.database;
     await db.delete(

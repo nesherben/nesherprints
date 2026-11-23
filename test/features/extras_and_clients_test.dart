@@ -33,13 +33,23 @@ void main() {
         ),
         2,
       );
-      // Stock resultante ≤ 0: se mantiene el precio actual.
+      // Un stock negativo cuenta como 0: 2 uds por 10 € → 5 € cada una.
       expect(
         ExtraPricing.weightedUnitPrice(
           currentStock: -5,
           currentUnitPrice: 3,
           addedUnits: 2,
           addedTotal: 10,
+        ),
+        5,
+      );
+      // Sin unidades nuevas y sin stock se mantiene el precio actual.
+      expect(
+        ExtraPricing.weightedUnitPrice(
+          currentStock: 0,
+          currentUnitPrice: 3,
+          addedUnits: 0,
+          addedTotal: 0,
         ),
         3,
       );

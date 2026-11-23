@@ -56,17 +56,23 @@ class Order {
   /// Pagado del todo o completado.
   bool get isSettled => status == OrderStatus.completed || pendingAmount <= 0;
 
-  Order copyWith({OrderStatus? status, double? paidAmount}) => Order(
+  Order copyWith({
+    String? name,
+    double? price,
+    double? paidAmount,
+    OrderStatus? status,
+    double? attempts,
+  }) => Order(
     id: id,
     clientId: clientId,
-    name: name,
-    price: price,
+    name: name ?? this.name,
+    price: price ?? this.price,
     paidAmount: paidAmount ?? this.paidAmount,
     date: date,
     status: status ?? this.status,
     isPainted: isPainted,
     notes: notes,
-    attempts: attempts,
+    attempts: attempts ?? this.attempts,
     paintHours: paintHours,
     paintDetail: paintDetail,
     costOverride: costOverride,

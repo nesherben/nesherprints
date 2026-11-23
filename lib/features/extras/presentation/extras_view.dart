@@ -57,7 +57,7 @@ class _ExtrasViewState extends State<ExtrasView> {
         extra: extra,
         onConfirm: (units, total) async {
           await ServiceLocator.extras.addStock(
-            extra,
+            extra.id!,
             units: units,
             totalPrice: total,
           );

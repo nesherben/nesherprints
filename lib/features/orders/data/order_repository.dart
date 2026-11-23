@@ -1,15 +1,21 @@
+import 'dart:math' as math;
+
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:nesherprints/core/database/app_database.dart';
 import 'package:nesherprints/core/database/db_schema.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_parts.dart';
+import 'package:nesherprints/features/orders/domain/order_rules.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
 
 /// Pedidos, sus placas, piezas extra y mermas.
 ///
 /// Todas las operaciones que tocan stock (material o piezas) se ejecutan en
-/// una transacción.
+/// una transacción y respetan las reglas de estado (ver docs/SPEC.md §5):
+/// - el material solo se descuenta al **completar**, una única vez;
+/// - un pedido completado/enviado no se puede modificar ni reabrir;
+/// - las piezas se descuentan al crear/editar y se devuelven al borrar.
 class OrderRepository {
   OrderRepository(this._db);
 
@@ -58,6 +64,17 @@ class OrderRepository {
     return rows.map(OrderPlate.fromMap).toList();
   }
 
+  /// Piezas extra de un pedido, con el precio unitario registrado.
+  Future<List<OrderExtraLine>> getExtras(int orderId) async {
+    final db = await _db.database;
+    final rows = await db.query(
+      OrderExtrasTable.name,
+      where: '${OrderExtrasTable.orderId} = ?',
+      whereArgs: [orderId],
+    );
+    return [for (final row in rows) _lineFromRow(row)];
+  }
+
   Future<List<WasteRecord>> getAllWaste() async {
     final db = await _db.database;
     final rows = await db.query(OrderWasteTable.name);
@@ -74,33 +91,55 @@ class OrderRepository {
   // ==================== ESCRITURA ====================
 
   /// Crea un pedido con sus placas y piezas extra (restando su stock).
+  ///
+  /// Lanza [OrderRuleException] si el pedido no es válido o ya viene cerrado.
   Future<int> create(
     Order order, {
     required List<OrderPlate> plates,
     List<OrderExtraLine> extras = const [],
   }) async {
+    OrderRules.requireValid(order);
+    if (order.status.isLocked) {
+      throw const OrderRuleException(
+        'Un pedido nuevo no puede nacer completado o enviado.',
+      );
+    }
     final db = await _db.database;
     return db.transaction((txn) async {
       final orderId = await txn.insert(OrdersTable.name, order.toMap());
       await _insertPlates(txn, orderId, plates);
-      await _addExtras(txn, orderId, extras);
+      await _addExtras(txn, orderId, extras, const {});
       return orderId;
     });
   }
 
   /// Actualiza los datos del pedido.
   ///
-  /// - [plates] `null`: las placas no se tocan; si no, se reemplazan todas.
+  /// - [plates] `null`: las placas no se tocan; si no, se reemplazan todas
+  ///   (una lista vacía las borra).
   /// - [extras] `null`: las piezas no se tocan; si no, se devuelven al stock
-  ///   las anteriores y se aplican las nuevas.
+  ///   las anteriores y se aplican las nuevas. Una pieza que ya estaba en el
+  ///   pedido conserva el precio unitario registrado.
+  ///
+  /// Lanza [OrderRuleException] si el pedido no es válido o está cerrado.
   Future<void> update(
     Order order, {
     List<OrderPlate>? plates,
     List<OrderExtraLine>? extras,
   }) async {
     final orderId = order.id!;
+    OrderRules.requireValid(order);
+    if (order.status.isLocked) {
+      throw const OrderRuleException('Para cerrar un pedido usa "Completar".');
+    }
     final db = await _db.database;
     await db.transaction((txn) async {
+      final current = await _statusOf(txn, orderId);
+      if (current.isLocked) {
+        throw const OrderRuleException(
+          'Un pedido completado o enviado no se puede modificar.',
+        );
+      }
       await txn.update(
         OrdersTable.name,
         order.toMap(),
@@ -116,57 +155,99 @@ class OrderRepository {
         await _insertPlates(txn, orderId, plates);
       }
       if (extras != null) {
-        await _removeExtras(txn, orderId);
-        await _addExtras(txn, orderId, extras);
+        final previous = await _removeExtras(txn, orderId);
+        await _addExtras(txn, orderId, extras, {
+          for (final line in previous) line.extraId: line.unitPrice!,
+        });
       }
     });
   }
 
-  /// Cambia solo el estado del pedido.
+  /// Cambio rápido de estado. Un pedido abierto puede pasar a cualquier
+  /// estado abierto; uno `Completed` solo puede pasar a `Shipped`.
+  /// `Completed` se alcanza únicamente con [complete].
   Future<void> updateStatus(int orderId, OrderStatus status) async {
     final db = await _db.database;
-    await db.update(
-      OrdersTable.name,
-      {OrdersTable.status: status.dbValue},
-      where: '${OrdersTable.id} = ?',
-      whereArgs: [orderId],
-    );
+    await db.transaction((txn) async {
+      final current = await _statusOf(txn, orderId);
+      if (current == status) return;
+      if (!current.quickChangeTargets.contains(status)) {
+        throw OrderRuleException(
+          current.isLocked
+              ? 'Un pedido ${current.label.toLowerCase()} no se puede reabrir.'
+              : 'Para pasar a ${status.label.toLowerCase()} usa "Completar".',
+        );
+      }
+      await txn.update(
+        OrdersTable.name,
+        {OrdersTable.status: status.dbValue},
+        where: '${OrdersTable.id} = ?',
+        whereArgs: [orderId],
+      );
+    });
   }
 
   /// Completa el pedido: estado `Completed`, cobrado = precio y resta del
-  /// inventario los gramos de todas sus placas.
+  /// inventario el material de sus placas, descontando lo que ya salió como
+  /// merma de ese mismo material. Completar un pedido ya cerrado no hace nada.
   Future<void> complete(int orderId) async {
     final db = await _db.database;
     await db.transaction((txn) async {
+      final current = await _statusOf(txn, orderId);
+      if (current.isLocked) return;
+      if (current == OrderStatus.canceled) {
+        throw const OrderRuleException(
+          'No se puede completar un pedido cancelado.',
+        );
+      }
       await txn.rawUpdate(
         'UPDATE ${OrdersTable.name} '
         'SET ${OrdersTable.status} = ?, ${OrdersTable.paidAmount} = ${OrdersTable.price} '
         'WHERE ${OrdersTable.id} = ?',
         [OrderStatus.completed.dbValue, orderId],
       );
-      final plates = await txn.query(
+
+      final planned = <int, double>{};
+      for (final row in await txn.query(
         OrderPlatesTable.name,
         where: '${OrderPlatesTable.orderId} = ?',
         whereArgs: [orderId],
-      );
-      for (final plate in plates.map(OrderPlate.fromMap)) {
-        await _consumeMaterial(txn, plate.materialId!, plate.grams);
+      )) {
+        final plate = OrderPlate.fromMap(row);
+        planned[plate.materialId!] =
+            (planned[plate.materialId!] ?? 0) + plate.grams;
+      }
+      final wasted = <int, double>{
+        for (final row in await txn.rawQuery(
+          'SELECT ${OrderWasteTable.materialId} AS material, '
+          'SUM(${OrderWasteTable.gramsWasted}) AS grams '
+          'FROM ${OrderWasteTable.name} '
+          'WHERE ${OrderWasteTable.orderId} = ? '
+          'GROUP BY ${OrderWasteTable.materialId}',
+          [orderId],
+        ))
+          row['material'] as int: (row['grams'] as num).toDouble(),
+      };
+      for (final entry in planned.entries) {
+        final remaining = math.max(0.0, entry.value - (wasted[entry.key] ?? 0));
+        if (remaining > 0) await _consumeMaterial(txn, entry.key, remaining);
       }
     });
   }
 
-  /// Borra el pedido devolviendo al stock sus piezas extra.
-  ///
-  /// Nota: no borra sus placas ni sus mermas (ver docs/SPEC.md).
+  /// Borra el pedido con sus placas, mermas y piezas, y devuelve al stock las
+  /// piezas extra. El material **no** se repone: ya se gastó al imprimir.
   Future<void> delete(int orderId) async {
     final db = await _db.database;
     await db.transaction((txn) async {
       await _removeExtras(txn, orderId);
-      await txn.delete(
+      for (final table in [
         OrderItemsTable.name,
-        where: '${OrderItemsTable.orderId} = ?',
-        whereArgs: [orderId],
-      );
+        OrderPlatesTable.name,
+        OrderWasteTable.name,
+      ]) {
+        await txn.delete(table, where: 'order_id = ?', whereArgs: [orderId]);
+      }
       await txn.delete(
         OrdersTable.name,
         where: '${OrdersTable.id} = ?',
@@ -182,8 +263,12 @@ class OrderRepository {
     required double grams,
     required String reason,
   }) async {
+    if (grams.isNaN || grams.isInfinite || grams <= 0) {
+      throw const OrderRuleException('Los gramos perdidos deben ser más de 0.');
+    }
     final db = await _db.database;
     await db.transaction((txn) async {
+      await _statusOf(txn, orderId); // comprueba que el pedido existe
       await txn.insert(OrderWasteTable.name, {
         OrderWasteTable.orderId: orderId,
         OrderWasteTable.materialId: materialId,
@@ -195,6 +280,24 @@ class OrderRepository {
   }
 
   // ==================== PRIVADOS ====================
+
+  Future<OrderStatus> _statusOf(DatabaseExecutor txn, int orderId) async {
+    final rows = await txn.query(
+      OrdersTable.name,
+      columns: [OrdersTable.status],
+      where: '${OrdersTable.id} = ?',
+      whereArgs: [orderId],
+    );
+    if (rows.isEmpty) throw const OrderRuleException('El pedido ya no existe.');
+    return OrderStatus.fromDb(rows.first[OrdersTable.status] as String?);
+  }
+
+  static OrderExtraLine _lineFromRow(Map<String, Object?> row) =>
+      OrderExtraLine(
+        extraId: row[OrderExtrasTable.extraId] as int,
+        quantity: row[OrderExtrasTable.quantity] as int,
+        unitPrice: (row[OrderExtrasTable.unitPrice] as num).toDouble(),
+      );
 
   Future<void> _insertPlates(
     Transaction txn,
@@ -217,14 +320,17 @@ class OrderRepository {
     [grams, materialId],
   );
 
-  /// Vincula piezas al pedido con su precio unitario actual y resta stock.
+  /// Vincula piezas al pedido y resta stock. El precio unitario es el que ya
+  /// tenía la pieza en el pedido ([keepPrices]) o, si es nueva, el actual.
   /// Las piezas que ya no existen se ignoran.
   Future<void> _addExtras(
     Transaction txn,
     int orderId,
     List<OrderExtraLine> extras,
+    Map<int, double> keepPrices,
   ) async {
     for (final line in extras) {
+      if (line.quantity <= 0) continue;
       final rows = await txn.query(
         ExtrasTable.name,
         columns: [ExtrasTable.price],
@@ -232,22 +338,26 @@ class OrderRepository {
         whereArgs: [line.extraId],
       );
       if (rows.isEmpty) continue;
+      final currentPrice = (rows.first[ExtrasTable.price] as num).toDouble();
       await txn.insert(OrderExtrasTable.name, {
         OrderExtrasTable.orderId: orderId,
         OrderExtrasTable.extraId: line.extraId,
         OrderExtrasTable.quantity: line.quantity,
-        OrderExtrasTable.unitPrice: (rows.first[ExtrasTable.price] as num)
-            .toDouble(),
+        OrderExtrasTable.unitPrice:
+            line.unitPrice ?? keepPrices[line.extraId] ?? currentPrice,
       });
       await _adjustExtraStock(txn, line.extraId, -line.quantity);
     }
   }
 
-  /// Devuelve al stock las piezas del pedido y borra sus vínculos.
-  Future<void> _removeExtras(Transaction txn, int orderId) async {
+  /// Devuelve al stock las piezas del pedido y borra sus vínculos. Devuelve
+  /// las líneas que había.
+  Future<List<OrderExtraLine>> _removeExtras(
+    Transaction txn,
+    int orderId,
+  ) async {
     final previous = await txn.query(
       OrderExtrasTable.name,
-      columns: [OrderExtrasTable.extraId, OrderExtrasTable.quantity],
       where: '${OrderExtrasTable.orderId} = ?',
       whereArgs: [orderId],
     );
@@ -256,13 +366,11 @@ class OrderRepository {
       where: '${OrderExtrasTable.orderId} = ?',
       whereArgs: [orderId],
     );
-    for (final row in previous) {
-      await _adjustExtraStock(
-        txn,
-        row[OrderExtrasTable.extraId] as int,
-        row[OrderExtrasTable.quantity] as int,
-      );
+    final lines = [for (final row in previous) _lineFromRow(row)];
+    for (final line in lines) {
+      await _adjustExtraStock(txn, line.extraId, line.quantity);
     }
+    return lines;
   }
 
   Future<void> _adjustExtraStock(

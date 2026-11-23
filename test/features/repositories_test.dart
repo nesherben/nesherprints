@@ -268,7 +268,7 @@ void main() {
     test('sumar stock recalcula el precio medio', () async {
       final id = await keychain(stock: 10); // 10 × 0,5 € = 5 €
       final extra = (await extras.getAll()).single;
-      await extras.addStock(extra, units: 10, totalPrice: 15);
+      await extras.addStock(extra.id!, units: 10, totalPrice: 15);
       final updated = (await extras.getAll()).single;
       expect(updated.id, id);
       expect(updated.stock, 20);

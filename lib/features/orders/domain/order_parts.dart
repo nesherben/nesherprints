@@ -43,10 +43,18 @@ class OrderPlate {
 
 /// Pieza extra añadida a un pedido: id de la pieza y cantidad.
 class OrderExtraLine {
-  const OrderExtraLine({required this.extraId, required this.quantity});
+  const OrderExtraLine({
+    required this.extraId,
+    required this.quantity,
+    this.unitPrice,
+  });
 
   final int extraId;
   final int quantity;
+
+  /// Precio unitario registrado al añadir la pieza al pedido (`null` en una
+  /// línea nueva: se tomará el precio actual de la pieza).
+  final double? unitPrice;
 }
 
 /// Merma registrada (fila de `order_waste`).

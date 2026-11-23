@@ -59,16 +59,17 @@ class ExtraPricing {
       extra.unitPrice * (extra.stock > 0 ? extra.stock : 1);
 
   /// Nuevo precio unitario al sumar stock: media ponderada entre el valor
-  /// actual del stock y lo comprado. Si el stock resultante es ≤ 0 se
-  /// mantiene el precio actual.
+  /// actual del stock y lo comprado. Un stock negativo cuenta como 0 y, si el
+  /// stock resultante es ≤ 0, se mantiene el precio actual.
   static double weightedUnitPrice({
     required int currentStock,
     required double currentUnitPrice,
     required int addedUnits,
     required double addedTotal,
   }) {
-    final newStock = currentStock + addedUnits;
+    final owned = currentStock < 0 ? 0 : currentStock;
+    final newStock = owned + addedUnits;
     if (newStock <= 0) return currentUnitPrice;
-    return (currentUnitPrice * currentStock + addedTotal) / newStock;
+    return (currentUnitPrice * owned + addedTotal) / newStock;
   }
 }
