@@ -52,4 +52,4 @@ flutter build apk --release   # APK de release
 
 ## Licencia
 
-Consulta el archivo [LICENSE](LICENSE).
+GPL v2. Consulta el archivo [LICENSE](LICENSE).
