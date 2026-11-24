@@ -1,15 +1,29 @@
 import 'package:flutter/material.dart';
 
-/// Contenido de un diálogo mientras carga sus datos.
+import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/core/theme/app_theme.dart';
+
+/// Diálogo breve mientras se cargan datos.
 class LoadingDialog extends StatelessWidget {
   const LoadingDialog({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const AlertDialog(
-      content: SizedBox(
-        height: 100,
-        child: Center(child: CircularProgressIndicator()),
+    return const Dialog(
+      child: Padding(
+        padding: EdgeInsets.all(AppSpacing.xl),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            SizedBox(width: AppSpacing.lg),
+            Text('Cargando…', style: TextStyle(color: AppColors.textMuted)),
+          ],
+        ),
       ),
     );
   }

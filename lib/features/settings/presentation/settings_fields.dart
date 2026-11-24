@@ -1,0 +1,180 @@
+import 'package:flutter/material.dart';
+
+import 'package:nesherprints/core/constants/app_constants.dart';
+import 'package:nesherprints/core/strings/app_strings.dart';
+import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
+
+/// Hasta 6 decimales sin ceros sobrantes: `50` → `50`, `0.0375` → `0.0375`.
+String formatSettingValue(double v) =>
+    v.toStringAsFixed(6).replaceFirst(RegExp(r'\.?0+$'), '');
+
+/// Tarjetas en las que se agrupan los ajustes, en el orden de la pantalla
+/// de una sola columna.
+enum SettingGroup {
+  price(
+    AppStrings.settingsGroupPrice,
+    AppStrings.settingsGroupPriceHint,
+    Icons.sell_outlined,
+  ),
+  energy(
+    AppStrings.settingsGroupEnergy,
+    AppStrings.settingsGroupEnergyHint,
+    Icons.bolt,
+  ),
+  paint(
+    AppStrings.settingsGroupPaint,
+    AppStrings.settingsGroupPaintHint,
+    Icons.brush_outlined,
+  ),
+  goals(
+    AppStrings.settingsGroupGoals,
+    AppStrings.settingsGroupGoalsHint,
+    Icons.flag_outlined,
+  );
+
+  const SettingGroup(this.title, this.subtitle, this.icon);
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  List<SettingField> get fields => [
+    for (final f in SettingField.values)
+      if (f.group == this) f,
+  ];
+}
+
+/// Ajustes editables, en el orden en que se muestran dentro de su tarjeta.
+enum SettingField {
+  profitMargin(
+    SettingGroup.price,
+    SettingKeys.profitMargin,
+    AppStrings.profitMarginLabel,
+    AppStrings.profitMarginHint,
+    AppStrings.unitPercent,
+    FinanceDefaults.profitMarginPercent,
+    max: _maxMargin,
+  ),
+  safetyMargin(
+    SettingGroup.price,
+    SettingKeys.safetyMargin,
+    AppStrings.safetyMarginLabel,
+    AppStrings.safetyMarginHint,
+    AppStrings.unitPercent,
+    FinanceDefaults.safetyMarginPercent,
+    max: _maxMargin,
+  ),
+  kwhCost(
+    SettingGroup.energy,
+    SettingKeys.kwhCost,
+    AppStrings.kwhCostLabel,
+    AppStrings.kwhCostHint,
+    AppStrings.unitEuroPerHour,
+    FinanceDefaults.kwhCost,
+  ),
+  filamentFee(
+    SettingGroup.energy,
+    SettingKeys.filamentPlateFee,
+    AppStrings.filamentPlateFeeLabel,
+    AppStrings.filamentPlateFeeHint,
+    AppStrings.unitEuro,
+    FinanceDefaults.filamentPlateFee,
+  ),
+  resinFee(
+    SettingGroup.energy,
+    SettingKeys.resinPlateFee,
+    AppStrings.resinPlateFeeLabel,
+    AppStrings.resinPlateFeeHint,
+    AppStrings.unitEuro,
+    FinanceDefaults.resinPlateFee,
+  ),
+  paintingCost(
+    SettingGroup.paint,
+    SettingKeys.paintingCostPerHour,
+    AppStrings.paintingCostLabel,
+    AppStrings.paintingCostHint,
+    AppStrings.unitEuroPerHour,
+    FinanceDefaults.paintingCostPerHour,
+  ),
+  paintDetailFew(
+    SettingGroup.paint,
+    SettingKeys.paintDetailFewCost,
+    AppStrings.paintDetailFewCostLabel,
+    AppStrings.paintDetailCostHint,
+    AppStrings.unitEuro,
+    FinanceDefaults.paintDetailFewCost,
+  ),
+  paintDetailNormal(
+    SettingGroup.paint,
+    SettingKeys.paintDetailNormalCost,
+    AppStrings.paintDetailNormalCostLabel,
+    AppStrings.paintDetailCostHint,
+    AppStrings.unitEuro,
+    FinanceDefaults.paintDetailNormalCost,
+  ),
+  paintDetailMany(
+    SettingGroup.paint,
+    SettingKeys.paintDetailManyCost,
+    AppStrings.paintDetailManyCostLabel,
+    AppStrings.paintDetailCostHint,
+    AppStrings.unitEuro,
+    FinanceDefaults.paintDetailManyCost,
+  ),
+  profitGoal(
+    SettingGroup.goals,
+    SettingKeys.profitGoal,
+    AppStrings.profitGoalLabel,
+    AppStrings.profitGoalHint,
+    AppStrings.unitEuro,
+    FinanceDefaults.profitGoal,
+  );
+
+  const SettingField(
+    this.group,
+    this.key,
+    this.label,
+    this.hint,
+    this.suffix,
+    this.defaultValue, {
+    this.max,
+  });
+
+  static const double _maxMargin = 1000;
+
+  /// Dos números iguales a la precisión con la que se muestran.
+  static const double _tolerance = 5e-7;
+
+  final SettingGroup group;
+
+  /// Clave en la tabla `settings`.
+  final String key;
+  final String label;
+  final String hint;
+  final String suffix;
+  final double defaultValue;
+
+  /// Tope opcional (los márgenes).
+  final double? max;
+
+  double valueOf(PricingSettings s) => s.toMap()[key]!;
+
+  /// Número escrito (coma o punto), o `null` si no es un número válido.
+  double? parse(String text) {
+    final v = double.tryParse(text.replaceAll(',', '.').trim());
+    return v != null && v.isFinite ? v : null;
+  }
+
+  /// Texto de error del campo, o `null` si es válido.
+  String? validate(String text) {
+    if (text.trim().isEmpty) return AppStrings.settingsErrorRequired;
+    final v = parse(text);
+    if (v == null) return AppStrings.settingsErrorInvalid;
+    if (v < 0) return AppStrings.settingsErrorNegative;
+    if (max != null && v > max!) return AppStrings.settingsErrorTooBig;
+    return null;
+  }
+
+  /// `true` si [v] coincide con [other] a la precisión mostrada.
+  static bool sameValue(double? v, double other) =>
+      v != null && (v - other).abs() < _tolerance;
+}

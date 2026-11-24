@@ -1,12 +1,20 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:nesherprints/app/service_locator.dart';
 import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
+import 'package:nesherprints/core/utils/input_formatters.dart';
 import 'package:nesherprints/core/utils/number_utils.dart';
+import 'package:nesherprints/core/widgets/app_dialog_frame.dart';
+import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/loading_dialog.dart';
+import 'package:nesherprints/core/widgets/section_card.dart';
+import 'package:nesherprints/core/widgets/status_pill.dart';
 import 'package:nesherprints/features/clients/domain/client.dart';
 import 'package:nesherprints/features/clients/presentation/widgets/client_form_dialog.dart';
 import 'package:nesherprints/features/extras/domain/extra.dart';
@@ -14,13 +22,15 @@ import 'package:nesherprints/features/inventory/domain/print_material.dart';
 import 'package:nesherprints/features/inventory/presentation/widgets/material_dialog.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_parts.dart';
+import 'package:nesherprints/features/orders/domain/order_rules.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
 import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
+import 'package:nesherprints/features/orders/presentation/status_style.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_form/extras_section.dart';
-import 'package:nesherprints/features/orders/presentation/widgets/order_form/finance_section.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_form/plate_draft.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_form/plates_section.dart';
+import 'package:nesherprints/features/orders/presentation/widgets/order_form/price_summary_panel.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
 /// Lo que devuelve el formulario al guardar.
@@ -38,12 +48,21 @@ class OrderFormResult {
 
 /// Formulario de alta/edición de pedido con calculadora de precio.
 ///
-/// Si el pedido está cerrado (completado o enviado) se muestra en solo lectura.
+/// - [initialOrder]: edita ese pedido (solo lectura si está completado/enviado).
+/// - [duplicateOf]: pedido nuevo con las placas y piezas de otro.
 class OrderFormDialog extends StatefulWidget {
-  const OrderFormDialog({super.key, required this.onSave, this.initialOrder});
+  const OrderFormDialog({
+    super.key,
+    required this.onSave,
+    this.initialOrder,
+    this.duplicateOf,
+  });
 
-  final ValueChanged<OrderFormResult> onSave;
+  /// Guarda el resultado. Si lanza, el diálogo sigue abierto y muestra el
+  /// error sin perder lo escrito.
+  final Future<void> Function(OrderFormResult result) onSave;
   final Order? initialOrder;
+  final Order? duplicateOf;
 
   @override
   State<OrderFormDialog> createState() => _OrderFormDialogState();
@@ -51,6 +70,11 @@ class OrderFormDialog extends StatefulWidget {
 
 class _OrderFormDialogState extends State<OrderFormDialog> {
   bool _isLoading = true;
+  bool _saving = false;
+
+  /// Errores de validación mostrados en el pie (tras un intento de guardar).
+  List<String> _errors = [];
+  bool _attempted = false;
 
   // Datos de referencia
   PricingSettings _settings = const PricingSettings();
@@ -68,15 +92,19 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   /// Cantidad por id de pieza (solo > 0).
   final Map<int, int> _selectedExtras = {};
 
+  /// Precio unitario ya registrado de las piezas que el pedido tenía.
+  final Map<int, double> _lockedExtraPrices = {};
+
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
-  final _paidController = TextEditingController(text: '0.00');
+  final _paidController = TextEditingController(text: '0');
   final _paintHoursController = TextEditingController(text: '1');
   final _attemptsController = TextEditingController(text: '1');
 
   PriceEstimate _estimate = PriceEstimate.zero;
 
-  bool get _isLocked => _status.isLocked;
+  bool get _isEditing => widget.initialOrder != null;
+  bool get _isLocked => _isEditing && _status.isLocked;
 
   @override
   void initState() {
@@ -95,40 +123,74 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   }
 
   Future<void> _loadInitialData() async {
-    final settings = await ServiceLocator.settings.getPricingSettings();
-    final materials = await ServiceLocator.materials.getAll();
-    final clients = await ServiceLocator.clients.getAll();
-    final extras = await ServiceLocator.extras.getAll();
+    try {
+      final settings = await ServiceLocator.settings.getPricingSettings();
+      final materials = await ServiceLocator.materials.getAll();
+      final clients = await ServiceLocator.clients.getAll();
+      final extras = await ServiceLocator.extras.getAll();
 
-    final order = widget.initialOrder;
-    var plates = <PlateDraft>[];
-    if (order != null) {
-      final saved = await ServiceLocator.orders.getPlates(order.id!);
-      plates = saved.map(PlateDraft.fromPlate).toList();
-    }
-    if (!mounted) return;
-
-    setState(() {
-      _settings = settings;
-      _materials = materials;
-      _clients = clients;
-      _extras = extras;
-      _plates = plates;
-      if (order != null) {
-        _nameController.text = order.name;
-        _status = order.status;
-        _isPainted = order.isPainted;
-        _clientId = order.clientId;
-        _priceController.text = order.price.toStringAsFixed(2);
-        _paidController.text = order.paidAmount.toStringAsFixed(2);
-        _paintHoursController.text = '${order.paintHours}';
-        _paintDetail = order.paintDetail;
-        _attemptsController.text = '${order.attempts}';
+      final source = widget.initialOrder ?? widget.duplicateOf;
+      var plates = <PlateDraft>[];
+      var lines = <OrderExtraLine>[];
+      if (source != null) {
+        final saved = await ServiceLocator.orders.getPlates(source.id!);
+        // Al duplicar, las placas son nuevas (sin el id de las originales).
+        plates = [
+          for (final p in saved)
+            _isEditing
+                ? PlateDraft.fromPlate(p)
+                : PlateDraft.fromPlate(p).duplicate(p.name),
+        ];
+        lines = await ServiceLocator.orders.getExtras(source.id!);
       }
-      _isLoading = false;
-    });
-    _recalculate();
+      if (!mounted) return;
+
+      setState(() {
+        _settings = settings;
+        _materials = materials;
+        _clients = clients;
+        _extras = extras;
+        _plates = plates;
+        if (source != null) {
+          final duplicating = !_isEditing;
+          _nameController.text = duplicating
+              ? '${source.name}${AppStrings.copySuffix}'
+              : source.name;
+          _status = duplicating ? OrderStatus.draft : source.status;
+          _isPainted = source.isPainted;
+          _paintDetail = source.paintDetail;
+          _clientId = source.clientId;
+          _priceController.text = source.price.toStringAsFixed(2);
+          _paidController.text = duplicating
+              ? '0'
+              : source.paidAmount.toStringAsFixed(2);
+          _paintHoursController.text = formatInputNumber(source.paintHours);
+          _attemptsController.text = formatInputNumber(source.attempts);
+          for (final line in lines) {
+            if (line.quantity <= 0) continue;
+            _selectedExtras[line.extraId] = line.quantity;
+            if (!duplicating && line.unitPrice != null) {
+              _lockedExtraPrices[line.extraId] = line.unitPrice!;
+            }
+          }
+        }
+        _isLoading = false;
+      });
+      _recalculate();
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      AppFeedback.failure(context, e);
+    }
   }
+
+  // ==================== CÁLCULO ====================
+
+  Map<int, double> get _extraPrices => {
+    for (final e in _extras) e.id!: _lockedExtraPrices[e.id] ?? e.unitPrice,
+  };
+
+  double get _attempts => parseDecimal(_attemptsController.text, fallback: 1);
 
   void _recalculate() {
     setState(() {
@@ -138,16 +200,22 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
           for (final m in _materials)
             m.id!: PricingMaterial(costPerKg: m.costPerKg, kind: m.kind),
         },
-        extraUnitPrices: {for (final e in _extras) e.id!: e.unitPrice},
+        extraUnitPrices: _extraPrices,
         selectedExtras: _selectedExtras,
-        attempts: parseDecimal(_attemptsController.text, fallback: 1),
+        attempts: _attempts,
         isPainted: _isPainted,
         paintHours: parseDecimal(_paintHoursController.text),
         paintDetail: _paintDetail,
         settings: _settings,
       );
+      if (_attempted) _errors = _validate();
     });
   }
+
+  /// Refresca lo que depende de los campos de texto sin recalcular el precio.
+  void _onFieldChanged() => setState(() {
+    if (_attempted) _errors = _validate();
+  });
 
   // ==================== ACCIONES ====================
 
@@ -155,7 +223,9 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     _plates.add(
       PlateDraft(
         name: AppStrings.defaultPlateName(_plates.length + 1),
-        materialId: _materials.isNotEmpty ? _materials.first.id : null,
+        materialId: _plates.isNotEmpty
+            ? _plates.last.materialId
+            : (_materials.isNotEmpty ? _materials.first.id : null),
       ),
     );
     _recalculate();
@@ -163,6 +233,15 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
 
   void _removePlate(PlateDraft plate) {
     _plates.remove(plate);
+    _recalculate();
+  }
+
+  void _duplicatePlate(PlateDraft plate) {
+    final index = _plates.indexOf(plate);
+    _plates.insert(
+      index + 1,
+      plate.duplicate(AppStrings.defaultPlateName(_plates.length + 1)),
+    );
     _recalculate();
   }
 
@@ -180,12 +259,16 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       context: context,
       builder: (_) => MaterialDialog(
         onSave: (material) async {
-          final newId = await ServiceLocator.materials.save(material);
-          final materials = await ServiceLocator.materials.getAll();
-          if (!mounted) return;
-          _materials = materials;
-          plate.materialId = newId;
-          _recalculate();
+          try {
+            final newId = await ServiceLocator.materials.save(material);
+            final materials = await ServiceLocator.materials.getAll();
+            if (!mounted) return;
+            _materials = materials;
+            plate.materialId = newId;
+            _recalculate();
+          } catch (e) {
+            if (mounted) AppFeedback.failure(context, e);
+          }
         },
       ),
     );
@@ -196,210 +279,519 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       context: context,
       builder: (_) => ClientFormDialog(
         onSave: (client) async {
-          final newId = await ServiceLocator.clients.save(client);
-          final clients = await ServiceLocator.clients.getAll();
-          if (!mounted) return;
-          setState(() {
-            _clients = clients;
-            _clientId = newId;
-          });
+          try {
+            final newId = await ServiceLocator.clients.save(client);
+            final clients = await ServiceLocator.clients.getAll();
+            if (!mounted) return;
+            setState(() {
+              _clients = clients;
+              _clientId = newId;
+            });
+          } catch (e) {
+            if (mounted) AppFeedback.failure(context, e);
+          }
         },
       ),
     );
   }
 
-  void _save() {
+  // ==================== GUARDADO ====================
+
+  Order _buildOrder() {
     final initial = widget.initialOrder;
-    widget.onSave(
-      OrderFormResult(
-        order: Order(
-          id: initial?.id,
-          clientId: _clientId,
-          name: _nameController.text,
-          price: parseDecimal(_priceController.text),
-          paidAmount: parseDecimal(_paidController.text),
-          date: initial?.date ?? todayIsoDate(),
-          status: _status,
-          isPainted: _isPainted,
-          notes: initial?.notes ?? '',
-          attempts: parseDecimal(_attemptsController.text, fallback: 1),
-          paintHours: parseDecimal(_paintHoursController.text),
-          paintDetail: _paintDetail,
-          costOverride: initial?.costOverride,
-        ),
-        plates: [for (final p in _plates) p.toPlate()],
-        extras: [
-          for (final e in _selectedExtras.entries)
-            OrderExtraLine(extraId: e.key, quantity: e.value),
-        ],
-      ),
+    return Order(
+      id: initial?.id,
+      clientId: _clientId,
+      name: _nameController.text.trim(),
+      price: parseDecimal(_priceController.text),
+      paidAmount: parseDecimal(_paidController.text),
+      date: initial?.date ?? todayIsoDate(),
+      status: _status,
+      isPainted: _isPainted,
+      notes: initial?.notes ?? '',
+      attempts: _attempts,
+      paintHours: parseDecimal(_paintHoursController.text),
+      paintDetail: _paintDetail,
+      costOverride: initial?.costOverride,
     );
-    Navigator.pop(context);
+  }
+
+  List<String> _validate() => OrderRules.validateForm(_buildOrder(), [
+    for (final p in _plates) p.toPlate(),
+  ]);
+
+  Future<void> _save() async {
+    if (_saving || _isLocked) return;
+    final errors = _validate();
+    if (errors.isNotEmpty) {
+      setState(() {
+        _attempted = true;
+        _errors = errors;
+      });
+      return;
+    }
+    setState(() {
+      _errors = [];
+      _saving = true;
+    });
+    try {
+      await widget.onSave(
+        OrderFormResult(
+          order: _buildOrder(),
+          plates: [for (final p in _plates) p.toPlate()],
+          extras: [
+            for (final e in _selectedExtras.entries)
+              OrderExtraLine(extraId: e.key, quantity: e.value),
+          ],
+        ),
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _attempted = true;
+        _errors = [AppFeedback.describe(e)];
+      });
+    }
   }
 
   // ==================== UI ====================
+
+  String get _title {
+    if (_isLocked) return AppStrings.viewOrder;
+    if (_isEditing) return AppStrings.editOrder;
+    if (widget.duplicateOf != null) return AppStrings.duplicateOrderTitle;
+    return AppStrings.newOrder;
+  }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const LoadingDialog();
 
-    return AlertDialog(
-      backgroundColor: AppColors.surface,
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            widget.initialOrder == null
-                ? AppStrings.newOrder
-                : AppStrings.editOrder,
+    final initial = widget.initialOrder;
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): _save,
+      },
+      child: AppDialogFrame(
+        title: _title,
+        subtitle: initial == null
+            ? null
+            : AppStrings.orderSubtitle(initial.id!, initial.date),
+        icon: Icons.receipt_long_outlined,
+        width: 1040,
+        scrollable: false,
+        padding: EdgeInsets.zero,
+        headerTrailing: _isLocked
+            ? StatusPill(
+                label: _status.label,
+                color: statusColor(_status),
+                icon: statusIcon(_status),
+              )
+            : null,
+        footerLeading: _buildErrorSummary(),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(_isLocked ? AppStrings.close : AppStrings.cancel),
           ),
-          if (_isLocked)
-            const Chip(
-              label: Text(AppStrings.locked, style: TextStyle(fontSize: 10)),
-              backgroundColor: AppColors.success,
+          if (!_isLocked)
+            ElevatedButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check, size: 18),
+              label: Text(_saving ? AppStrings.saving : AppStrings.saveOrder),
             ),
         ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final twoColumns = constraints.maxWidth >= 860;
+            if (twoColumns) {
+              final height = math.min(constraints.maxHeight, 760.0);
+              return SizedBox(
+                height: height,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(AppSpacing.xl),
+                        child: _buildMain(),
+                      ),
+                    ),
+                    const VerticalDivider(),
+                    SizedBox(
+                      width: 340,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(AppSpacing.xl),
+                        child: _buildSummary(),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                children: [
+                  _buildMain(),
+                  const SizedBox(height: AppSpacing.lg),
+                  SectionCard(
+                    title: AppStrings.summaryTitle,
+                    icon: Icons.calculate_outlined,
+                    child: _buildSummary(),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
-      content: SizedBox(
-        width: 600,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget? _buildErrorSummary() {
+    if (_errors.isEmpty) return null;
+    final more = _errors.length - 1;
+    return Tooltip(
+      message: _errors.join('\n'),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, size: 18, color: AppColors.danger),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              more > 0
+                  ? AppStrings.errorsMore(_errors.first, more)
+                  : _errors.first,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.danger,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummary() {
+    final totalMinutes = _plates.fold(0.0, (sum, p) => sum + p.minutes);
+    final totalGrams = _plates.fold(0.0, (sum, p) => sum + p.grams);
+    return PriceSummaryPanel(
+      estimate: _estimate,
+      attempts: _attempts,
+      plateCount: _plates.length,
+      totalMinutes: totalMinutes,
+      totalGrams: totalGrams,
+      priceController: _priceController,
+      paidController: _paidController,
+      isLocked: _isLocked,
+      onPriceChanged: _onFieldChanged,
+      onPaidChanged: _onFieldChanged,
+      onApplySuggested: () {
+        _priceController.text = _estimate.suggestedPrice.toStringAsFixed(2);
+        _onFieldChanged();
+      },
+      onSetPaid: (value) {
+        _paidController.text = value.toStringAsFixed(2);
+        _onFieldChanged();
+      },
+    );
+  }
+
+  Widget _buildMain() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_isLocked) ...[
+          _buildLockedBanner(),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+        _buildDataCard(),
+        const SizedBox(height: AppSpacing.lg),
+        PlatesSection(
+          plates: _plates,
+          materials: _materials,
+          isLocked: _isLocked,
+          onChanged: _recalculate,
+          onAddPlate: _addPlate,
+          onRemovePlate: _removePlate,
+          onDuplicatePlate: _duplicatePlate,
+          onAddNewMaterial: _addNewMaterial,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        ExtrasSection(
+          extras: _extras,
+          unitPrices: _extraPrices,
+          selected: _selectedExtras,
+          isLocked: _isLocked,
+          onQuantityChanged: _setExtraQuantity,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _buildProductionCard(),
+      ],
+    );
+  }
+
+  Widget _buildLockedBanner() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.info.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.35)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.lock_outline, size: 18, color: AppColors.info),
+          SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              AppStrings.lockedBanner,
+              style: TextStyle(color: AppColors.info, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataCard() {
+    final statusOptions = _isLocked
+        ? [_status]
+        : {...OrderStatus.manualChoices, _status}.toList();
+    return SectionCard(
+      title: AppStrings.orderDataTitle,
+      icon: Icons.assignment_outlined,
+      child: Column(
+        children: [
+          _ResponsiveRow(
+            flexes: const [3, 2],
             children: [
-              _buildClientRow(),
-              const SizedBox(height: 16),
-              _buildNameAndStatusRow(),
-              const Divider(height: 32),
-              PlatesSection(
-                plates: _plates,
-                materials: _materials,
-                isLocked: _isLocked,
-                onChanged: _recalculate,
-                onAddPlate: _addPlate,
-                onRemovePlate: _removePlate,
-                onAddNewMaterial: _addNewMaterial,
+              TextField(
+                controller: _nameController,
+                enabled: !_isLocked,
+                textInputAction: TextInputAction.next,
+                onChanged: (_) => _onFieldChanged(),
+                decoration: const InputDecoration(
+                  labelText: AppStrings.projectName,
+                ),
               ),
-              const SizedBox(height: 16),
-              ExtrasSection(
-                extras: _extras,
-                selected: _selectedExtras,
-                isLocked: _isLocked,
-                onQuantityChanged: _setExtraQuantity,
-              ),
-              const Divider(height: 32),
-              FinanceSection(
-                platesCount: _plates.length,
-                isPainted: _isPainted,
-                paintHoursController: _paintHoursController,
-                priceController: _priceController,
-                paidController: _paidController,
-                attemptsController: _attemptsController,
-                paintDetail: _paintDetail,
-                estimate: _estimate,
-                isLocked: _isLocked,
-                onPaintedChanged: (value) {
-                  _isPainted = value;
-                  _recalculate();
-                },
-                onInputsChanged: _recalculate,
-                onPaintDetailChanged: (detail) {
-                  _paintDetail = detail;
-                  _recalculate();
-                },
-                onPaintHoursChanged: _recalculate,
-                onPriceChanged: () => setState(() {}),
-                onApplySuggestedPrice: () => setState(() {
-                  _priceController.text = _estimate.suggestedPrice
-                      .toStringAsFixed(2);
-                }),
+              DropdownButtonFormField<OrderStatus>(
+                key: ValueKey(_status),
+                initialValue: _status,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: AppStrings.status),
+                items: [
+                  for (final s in statusOptions)
+                    DropdownMenuItem(
+                      value: s,
+                      child: Row(
+                        children: [
+                          Icon(statusIcon(s), size: 18, color: statusColor(s)),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              s.label,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+                onChanged: _isLocked
+                    ? null
+                    : (v) => setState(() => _status = v ?? _status),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  // La clave refleja el cliente recién creado desde aquí.
+                  key: ValueKey(_clientId),
+                  initialValue: _clientId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: AppStrings.clientOptional,
+                    prefixIcon: Icon(Icons.person_outline, size: 20),
+                  ),
+                  items: [
+                    const DropdownMenuItem<int>(
+                      value: null,
+                      child: Text(AppStrings.unassigned),
+                    ),
+                    for (final c in _clients)
+                      DropdownMenuItem<int>(
+                        value: c.id,
+                        child: Text(c.name, overflow: TextOverflow.ellipsis),
+                      ),
+                  ],
+                  onChanged: _isLocked
+                      ? null
+                      : (v) => setState(() => _clientId = v),
+                ),
+              ),
+              if (!_isLocked)
+                IconButton(
+                  tooltip: AppStrings.createNewClient,
+                  icon: const Icon(Icons.person_add_alt_1_outlined),
+                  color: AppColors.primary,
+                  onPressed: _addNewClient,
+                ),
+            ],
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text(AppStrings.cancel),
-        ),
-        ElevatedButton(
-          style: AppButtonStyles.primary,
-          onPressed: _isLocked ? null : _save,
-          child: const Text(AppStrings.saveOrder),
-        ),
-      ],
     );
   }
 
-  Widget _buildClientRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: DropdownButtonFormField<int>(
-            // La clave refleja el cliente recién creado desde aquí.
-            key: ValueKey(_clientId),
-            initialValue: _clientId,
-            decoration: const InputDecoration(
-              labelText: AppStrings.clientOptional,
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.person_outline),
-            ),
-            items: [
-              const DropdownMenuItem<int>(
-                value: null,
-                child: Text(AppStrings.unassigned),
+  Widget _buildProductionCard() {
+    return SectionCard(
+      title: AppStrings.productionTitle,
+      icon: Icons.tune,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ResponsiveRow(
+            children: [
+              TextField(
+                controller: _attemptsController,
+                readOnly: _isLocked,
+                keyboardType: decimalKeyboard,
+                inputFormatters: decimalInputFormatters,
+                onChanged: (_) => _recalculate(),
+                decoration: const InputDecoration(
+                  labelText: AppStrings.attemptsLabel,
+                  helperText: AppStrings.attemptsHelp,
+                  helperMaxLines: 2,
+                  suffixText: '×',
+                ),
               ),
-              for (final c in _clients)
-                DropdownMenuItem<int>(value: c.id, child: Text(c.name)),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(AppStrings.paintServiceTitle),
+                subtitle: const Text(
+                  AppStrings.paintServiceHint,
+                  style: AppTextStyles.mutedSmall,
+                ),
+                value: _isPainted,
+                onChanged: _isLocked
+                    ? null
+                    : (v) {
+                        _isPainted = v;
+                        _recalculate();
+                      },
+              ),
             ],
-            onChanged: _isLocked ? null : (v) => setState(() => _clientId = v),
           ),
-        ),
-        if (!_isLocked)
-          IconButton(
-            icon: const Icon(Icons.person_add, color: AppColors.primary),
-            tooltip: AppStrings.createNewClient,
-            onPressed: _addNewClient,
-          ),
-      ],
+          if (_isPainted) ...[
+            const SizedBox(height: AppSpacing.md),
+            _ResponsiveRow(
+              flexes: const [2, 3],
+              children: [
+                TextField(
+                  controller: _paintHoursController,
+                  readOnly: _isLocked,
+                  keyboardType: decimalKeyboard,
+                  inputFormatters: decimalInputFormatters,
+                  onChanged: (_) => _recalculate(),
+                  decoration: const InputDecoration(
+                    labelText: AppStrings.paintHoursLabel,
+                    suffixText: 'h',
+                  ),
+                ),
+                SegmentedButton<PaintDetail>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: PaintDetail.few,
+                      label: Text(AppStrings.paintDetailFewShort),
+                      tooltip: AppStrings.paintDetailFew,
+                    ),
+                    ButtonSegment(
+                      value: PaintDetail.normal,
+                      label: Text(AppStrings.paintDetailNormalShort),
+                      tooltip: AppStrings.paintDetailNormal,
+                    ),
+                    ButtonSegment(
+                      value: PaintDetail.many,
+                      label: Text(AppStrings.paintDetailManyShort),
+                      tooltip: AppStrings.paintDetailMany,
+                    ),
+                  ],
+                  selected: {_paintDetail},
+                  onSelectionChanged: _isLocked
+                      ? null
+                      : (s) {
+                          _paintDetail = s.first;
+                          _recalculate();
+                        },
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              AppStrings.paintDetailHint,
+              style: AppTextStyles.mutedSmall,
+            ),
+          ],
+        ],
+      ),
     );
   }
+}
 
-  Widget _buildNameAndStatusRow() {
-    final statusOptions = [
-      ...OrderStatus.manualChoices,
-      if (_status == OrderStatus.completed) OrderStatus.completed,
-    ];
-    return Row(
-      children: [
-        Expanded(
-          flex: 2,
-          child: TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: AppStrings.projectName,
-              border: OutlineInputBorder(),
-            ),
-            enabled: !_isLocked,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: DropdownButtonFormField<OrderStatus>(
-            initialValue: _status,
-            decoration: const InputDecoration(
-              labelText: AppStrings.status,
-              border: OutlineInputBorder(),
-            ),
-            items: [
-              for (final s in statusOptions)
-                DropdownMenuItem(value: s, child: Text(s.label)),
+/// Coloca los hijos en una fila con la proporción [flexes] si caben, o
+/// apilados si el ancho es pequeño. Nunca desborda.
+class _ResponsiveRow extends StatelessWidget {
+  const _ResponsiveRow({required this.children, this.flexes});
+
+  /// Por debajo de este ancho los hijos se apilan.
+  static const double breakpoint = 460;
+
+  final List<Widget> children;
+  final List<int>? flexes;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < breakpoint) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final (i, child) in children.indexed) ...[
+                if (i > 0) const SizedBox(height: AppSpacing.md),
+                child,
+              ],
             ],
-            onChanged: _isLocked ? null : (v) => setState(() => _status = v!),
-          ),
-        ),
-      ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            for (final (i, child) in children.indexed) ...[
+              if (i > 0) const SizedBox(width: AppSpacing.md),
+              Expanded(flex: flexes?[i] ?? 1, child: child),
+            ],
+          ],
+        );
+      },
     );
   }
 }

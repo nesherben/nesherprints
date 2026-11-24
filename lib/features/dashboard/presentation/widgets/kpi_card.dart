@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/core/theme/app_theme.dart';
 
-/// Tarjeta de indicador: icono, título y valor.
+/// Tarjeta de indicador: icono, título, cifra grande, texto de apoyo y, si
+/// procede, una barra de progreso.
 class KpiCard extends StatelessWidget {
   const KpiCard({
     super.key,
@@ -10,52 +12,77 @@ class KpiCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
+    this.subtitle,
+    this.progress,
   });
 
   final String title;
   final String value;
   final IconData icon;
   final Color color;
+  final String? subtitle;
+
+  /// Avance de 0 a 1 (se acota al pintar); `null` si no lleva barra.
+  final double? progress;
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Row(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 32),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            Row(
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 14,
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
+                  child: Icon(icon, color: color, size: 20),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textMain,
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.muted,
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: AppSpacing.md),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value, style: AppTextStyles.kpiValue),
+            ),
+            if (progress != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: LinearProgressIndicator(
+                  value: progress!.clamp(0.0, 1.0),
+                  minHeight: 8,
+                  color: color,
+                  backgroundColor: AppColors.surfaceHigh,
+                ),
+              ),
+            ],
+            if (subtitle != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                subtitle!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.mutedSmall,
+              ),
+            ],
           ],
         ),
       ),

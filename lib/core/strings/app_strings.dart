@@ -13,7 +13,11 @@ class AppStrings {
   static const navOrders = 'Pedidos';
   static const navClients = 'Clientes';
   static const navSettings = 'Administración';
-  static const newOrder = 'Nuevo Pedido';
+  static const newOrder = 'Nuevo pedido';
+
+  static const brandName = 'NesherPrints';
+  static const loadErrorTitle = 'No se pudieron cargar los datos';
+  static const retry = 'Reintentar';
 
   // ==================== GENÉRICOS ====================
   static const all = 'Todos';
@@ -29,14 +33,46 @@ class AppStrings {
       '¿Eliminar "$name"? Esta acción no se puede deshacer.';
 
   // ==================== PANEL (DASHBOARD) ====================
+  static const dashboardTitle = 'Panel';
+  static const monthlyChartTitle = 'Facturación y beneficio por mes';
+  static String chartTooltipGross(String month, String amount) =>
+      '$month\nFacturado $amount';
+  static String chartTooltipProfit(String amount, String margin) =>
+      'Beneficio $amount\nMargen $margin';
+  static const ordersWord = 'pedidos';
+  static const monthlyDetailTitle = 'Detalle mensual';
+  static const colMonth = 'Mes';
+  static const colOrders = 'Pedidos';
+  static const colGross = 'Facturado';
+  static const colProfit = 'Beneficio';
+  static const colMargin = 'Margen';
+  static const pendingListTitle = 'Pendientes de cobro';
+  static const allCollected = 'Todo cobrado';
+  static String orderNumber(int id) => 'Pedido #$id';
+  static String pendingAge(int id, int days) => days == 0
+      ? 'Pedido #$id · de hoy'
+      : days == 1
+      ? 'Pedido #$id · hace 1 día'
+      : 'Pedido #$id · hace $days días';
+  static String completedOrdersCount(int n) =>
+      n == 1 ? '1 pedido completado' : '$n pedidos completados';
+  static String marginOnRevenue(String pct) =>
+      'Margen del $pct sobre lo facturado';
+  static String pendingOrdersCount(int n) => n == 0
+      ? 'Nada pendiente'
+      : (n == 1 ? '1 pedido por cobrar' : '$n pedidos por cobrar');
+  static const kpiGoal = 'Objetivo de beneficio';
+  static String goalOf(String current, String goal) => '$current de $goal';
+  static String wasteNote(int records, double grams, String cost) =>
+      'Mermas registradas: $records · ${grams.toStringAsFixed(0)} g · $cost de material.';
   static const billingHistoryTitle = 'Histórico de Facturación';
   static const dashboardSubtitle =
-      'Análisis de ingresos brutos, beneficios netos y proyecciones';
-  static const kpiGrossRevenue = 'Ingresos Brutos';
-  static const kpiNetProfit = 'Beneficio Neto (Real)';
+      'Cómo va tu negocio: facturación, beneficio, objetivo y cobros.';
+  static const kpiGrossRevenue = 'Facturado';
+  static const kpiNetProfit = 'Beneficio real';
   static const kpiPendingCollection = 'Pendiente de Cobro';
-  static const grossLabel = 'Bruto';
-  static const netLabel = 'Neto';
+  static const grossLabel = 'Facturado';
+  static const netLabel = 'Beneficio';
   static const distributionTitle = 'Distribución de Pedidos';
   static const completeFirstOrderHint =
       'Completa tu primer pedido para ver el gráfico.';
@@ -102,21 +138,17 @@ class AppStrings {
   static String wastePercent(double percent) =>
       '+${percent.toStringAsFixed(0)}% Merma';
   static const changeStatusTooltip = 'Cambiar estado rápidamente';
-  static const completeTooltip = 'Marcar como Completado (Resta Stock)';
-  static const completeTitle = '¿Completar Pedido?';
-  static const completeMessage =
-      'Al completar este pedido, se restará el material de tu inventario. ¿La impresión ha sido exitosa?';
+  static const completeTooltip = 'Completar pedido (descuenta el material)';
+  static const completeTitle = 'Completar pedido';
   static const completeConfirm = 'Sí, completar';
   static const orderCompleted = 'Pedido completado y stock actualizado';
   static const wasteTooltip = 'Registrar Impresión Fallida';
-  static const deleteOrderTitle = '¿Eliminar Pedido?';
-  static const deleteOrderMessage =
-      'Esta acción no se puede deshacer. Los datos financieros desaparecerán.';
+  static const deleteOrderTitle = 'Eliminar pedido';
   static const wasteRegistered = 'Merma registrada y stock actualizado';
 
   // ==================== PEDIDOS: FORMULARIO ====================
-  static const editOrder = 'Editar Pedido';
-  static const saveOrder = 'Guardar Pedido';
+  static const editOrder = 'Editar pedido';
+  static const saveOrder = 'Guardar pedido';
   static const locked = 'BLOQUEADO';
   static const clientOptional = 'Cliente (Opcional)';
   static const unassigned = 'Sin asignar';
@@ -146,9 +178,116 @@ class AppStrings {
   static const paintDetailMany = 'Muchos (> 10)';
   static const attemptsLabel = 'Intentos (1 = a la primera)';
   static const costManufacture = 'Coste Fabricación';
-  static const suggestedPrice = 'Precio Recomendado';
+  static const suggestedPrice = 'Precio recomendado';
   static const finalPriceLabel = 'Precio Final (€)';
   static const paidAdvanceLabel = 'Pagado / Adelanto';
+
+  // ==================== PEDIDOS: LISTADO (rediseño) ====================
+  static String ordersCount(int n) => n == 1 ? '1 pedido' : '$n pedidos';
+  static const searchOrdersHint =
+      'Buscar por proyecto, cliente, nº de pedido o placa…  (Ctrl+F)';
+  static const clearSearch = 'Borrar búsqueda';
+  static const filterAll = 'Todos';
+  static const filterReceivable = 'Por cobrar';
+  static const sortBy = 'Ordenar por';
+  static const sortPending = 'Pendiente de cobro';
+  static String showingCount(int shown, int total) =>
+      'Mostrando $shown de $total pedidos';
+  static const emptyOrdersTitle = 'Aún no hay pedidos';
+  static const emptyOrdersMessage =
+      'Crea el primero para calcular su precio y llevar el stock al día.';
+  static const createFirstOrder = 'Crear el primer pedido';
+  static const emptyMatchesTitle = 'Ningún pedido coincide';
+  static const emptyMatchesMessage =
+      'Prueba con otra búsqueda o quita los filtros.';
+  static const colDetailsUpper = 'DETALLES';
+  static const collected = 'Cobrado';
+  static String paidOfPending(String paid, String pending) =>
+      'Pagado $paid · Falta $pending';
+  static const viewAction = 'Ver pedido';
+  static const editAction = 'Editar pedido';
+  static const moreActions = 'Más acciones';
+  static const wasteAction = 'Registrar merma';
+  static const duplicateAction = 'Duplicar';
+  static const deleteAction = 'Eliminar';
+  static String completeMessage(double grams) =>
+      'El pedido pasará a «Completado» y «Cobrado» y se descontarán '
+      'unos ${grams.toStringAsFixed(0)} g de material del inventario. '
+      'No se puede deshacer.';
+  static String deleteOrderMessage(String name) =>
+      'Se eliminará «$name» con sus placas y mermas. Las piezas extra '
+      'vuelven al stock; el material ya gastado no se repone.';
+  static const orderSaved = 'Pedido guardado';
+  static const orderDeleted = 'Pedido eliminado';
+  static String statusChanged(String label) => 'Estado cambiado a «$label»';
+  static const wasteDialogSubtitle = 'Resta del inventario el material perdido';
+  static const nothingToDeduct =
+      'Mueve el deslizador para indicar cuánto se perdió';
+
+  // ==================== PEDIDOS: FORMULARIO (rediseño) ====================
+  static const platesSectionHint =
+      'Cada placa lleva su material, sus gramos y su tiempo de impresión.';
+  static const duplicatePlate = 'Duplicar placa';
+  static const removePlate = 'Quitar placa';
+  static String materialName(String name, String color) =>
+      color.isEmpty ? name : '$name · $color';
+  static String notEnoughStock(double stock) =>
+      'Solo quedan ${stock.toStringAsFixed(0)} g de este material';
+  static String plateMaterialCost(String cost, double stock) =>
+      '$cost de material · quedan ${stock.toStringAsFixed(0)} g';
+  static const extrasSectionHint =
+      'Se descuentan del stock al guardar el pedido.';
+  static String extrasTotal(String amount) => 'Piezas: $amount';
+  static String extraNotEnough(int stock) => 'Solo quedan $stock unidades';
+  static String extraPriceStock(String price, int stock) =>
+      '$price/ud · quedan $stock';
+  static const removeOne = 'Quitar una';
+  static const addOne = 'Añadir una';
+  static const summaryTitle = 'RESUMEN';
+  static String summaryMeta(int plates, String time, double grams) =>
+      '${plates == 1 ? '1 placa' : '$plates placas'} · $time · '
+      '${grams.toStringAsFixed(0)} g';
+  static const lineMaterial = 'Material';
+  static const lineElectricity = 'Luz';
+  static const linePlateFee = 'Recargo por placas';
+  static const linePaint = 'Pintura';
+  static const lineExtras = 'Piezas';
+  static String attemptsNote(String attempts) =>
+      'Intentos ×$attempts aplicados a material y luz';
+  static const costReal = 'Coste real';
+  static const quickPaidNone = '0 €';
+  static const quickPaidHalf = '50 %';
+  static const quickPaidAll = 'Todo';
+  static String healthGood(String benefit, double pct) =>
+      'Beneficio $benefit (+${pct.toStringAsFixed(0)} % sobre el coste)';
+  static String healthLow(String diff, String benefit) =>
+      'Por debajo del recomendado ($diff menos). Beneficio $benefit';
+  static String healthLoss(String loss) =>
+      'Pierdes $loss: el precio no cubre el coste';
+  static const healthHint = 'Escribe el precio final para ver tu margen';
+  static const fullyPaid = 'Cobrado por completo';
+  static String pendingToCollect(String amount) => 'Falta por cobrar: $amount';
+  static const copySuffix = ' (copia)';
+  static const viewOrder = 'Pedido';
+  static const duplicateOrderTitle = 'Duplicar pedido';
+  static String orderSubtitle(int id, String date) =>
+      date.isEmpty ? 'Pedido #$id' : 'Pedido #$id · $date';
+  static String errorsMore(String first, int more) => '$first (y $more más)';
+  static const saving = 'Guardando…';
+  static const close = 'Cerrar';
+  static const orderDataTitle = 'Datos del pedido';
+  static const productionTitle = 'Producción';
+  static const lockedBanner =
+      'Pedido completado o enviado: solo lectura. El material ya se '
+      'descontó del inventario.';
+  static const attemptsHelp =
+      'Reimpresiones por fallos: sube el coste, no el precio recomendado.';
+  static const paintServiceHint = 'Suma horas y material de pintura';
+  static const paintDetailFewShort = 'Pocos';
+  static const paintDetailNormalShort = 'Normal';
+  static const paintDetailManyShort = 'Muchos';
+  static const paintDetailHint =
+      'Detalle de la pieza: pocos ≤ 4 colores, normal 5–10, muchos > 10.';
 
   // ==================== PEDIDOS: MERMA ====================
   static const wasteDialogTitle = 'Registrar Merma';
@@ -181,27 +320,136 @@ class AppStrings {
   static String clientPhone(String phone) => '📞 $phone';
   static String clientEmail(String email) => '✉️ $email';
 
+  // ==================== INVENTARIO / PIEZAS / CLIENTES (REDISEÑO) ====================
+  static const listClearSearch = 'Borrar búsqueda';
+  static const listNoResultsTitle = 'Sin resultados';
+  static const listNoResultsMessage =
+      'Ningún elemento coincide con la búsqueda.';
+  static const copied = 'Copiado';
+
+  // Inventario
+  static const inventorySubtitle = 'Bobinas de filamento y botes de resina';
+  static const inventorySearchHint = 'Buscar por nombre, color o tipo...';
+  static const inventoryEmptyTitle = 'Aún no hay materiales';
+  static const inventorySummaryMaterials = 'Materiales';
+  static const inventorySummaryStock = 'Stock total';
+  static const inventorySummaryLow = 'Con stock bajo';
+  static String kilos(double grams) =>
+      '${(grams / 1000).toStringAsFixed(2)} kg';
+  static String pricePerKg(String price) => '$price/kg';
+  static const lowStock = 'Stock bajo';
+  static const materialNameRequired = 'Indica el nombre o la marca';
+  static const materialCostInvalid = 'Indica un coste válido (0 o más)';
+  static const materialStockInvalid = 'Indica un stock válido (0 o más)';
+  static String materialInUse(String name, int plates) =>
+      'No se puede eliminar "$name": lo usan $plates placas de pedidos.';
+
+  // Piezas
+  static const extrasSubtitle = 'Llaveros, clickers y otras piezas con stock';
+  static const extrasSearchHint = 'Buscar pieza...';
+  static const extrasEmptyTitle = 'Aún no hay piezas';
+  static const extrasEmptyMessage =
+      'Añade tu primer paquete de piezas para usarlas en los pedidos.';
+  static const extrasSummaryCount = 'Piezas';
+  static const extrasSummaryValue = 'Valor del stock';
+  static const extrasSummarySoldOut = 'Agotadas';
+  static const extraSoldOut = 'Agotado';
+  static const extraNegativeStock = 'Stock negativo';
+  static const extraFewUnits = 'Pocas unidades';
+  static String perUnit(String price) => '$price c/u';
+  static const extraNameRequired = 'Indica el nombre de la pieza';
+  static const extraUnitsInvalid = 'Indica unidades válidas (0 o más)';
+  static const extraPriceInvalid = 'Indica un precio válido (0 o más)';
+  static const extraPackageHint =
+      'Al editar, las unidades sustituyen al stock actual.';
+  static const stockUnitPriceNow = 'Precio unitario actual';
+  static const stockUnitPriceNew = 'Nuevo precio unitario';
+  static const stockApplyHint =
+      'Indica las unidades (más de 0) y el precio total para continuar.';
+  static String stockAfter(int units) => 'Stock resultante: $units uds';
+
+  // Clientes
+  static const clientsSearchHint = 'Buscar por nombre, teléfono o email...';
+  static const clientsEmptyMessage =
+      'Añade a tus clientes para asignarles pedidos y ver cuánto te deben.';
+  static const copyPhone = 'Copiar teléfono';
+  static const copyEmail = 'Copiar email';
+  static String clientOrders(int count) =>
+      count == 1 ? '1 pedido' : '$count pedidos';
+  static String clientStats(int count, String billed) =>
+      '${clientOrders(count)} · $billed facturado';
+  static String clientOwes(String amount) => 'Debe $amount';
+
   // ==================== ADMINISTRACIÓN (AJUSTES) ====================
   static const settingsTitle = 'Administración';
-  static const pricingCalculatorTitle = 'Calculadora de Precios (Constantes)';
-  static const pricingCalculatorHint =
-      'Estos valores afectarán automáticamente a los nuevos pedidos creados.';
-  static const profitMarginLabel = 'Margen de Beneficio (%)';
+  static const settingsSubtitle =
+      'Constantes de la calculadora de precios. Afectan a los pedidos nuevos '
+      'y a los que se recalculen.';
+  static const settingsUnsaved = 'Cambios sin guardar';
+  static const settingsSaved = 'Todo guardado';
+  static const saveSettings = 'Guardar';
+  static const settingsUpdated = 'Ajustes guardados correctamente';
+  static const settingsRestoreAll = 'Restaurar valores por defecto';
+  static const settingsRestoreAllTitle = 'Restaurar valores por defecto';
+  static const settingsRestoreAllMessage =
+      'Todos los campos volverán a sus valores por defecto. Los cambios no '
+      'se guardan hasta que pulses Guardar.';
+  static const settingsRestoreAllConfirm = 'Restaurar';
+  static const settingsRestoreOne = 'Restaurar este valor';
+  static String settingsDefaultValue(String value) => 'Por defecto: $value';
+  static const settingsErrorRequired = 'Obligatorio';
+  static const settingsErrorInvalid = 'Número no válido';
+  static const settingsErrorNegative = 'Debe ser 0 o más';
+  static const settingsErrorTooBig = 'Máximo 1000';
+
+  static const settingsGroupPrice = 'Precio';
+  static const settingsGroupPriceHint = 'Cuánto se gana sobre el coste.';
+  static const settingsGroupEnergy = 'Energía y placas';
+  static const settingsGroupEnergyHint = 'Luz y recargo por placa extra.';
+  static const settingsGroupPaint = 'Pintura';
+  static const settingsGroupPaintHint = 'Mano de obra y material de pintado.';
+  static const settingsGroupGoals = 'Objetivos';
+  static const settingsGroupGoalsHint = 'Meta que se muestra en el panel.';
+
+  static const profitMarginLabel = 'Margen de beneficio';
   static const profitMarginHint =
-      'El precio recomendado se multiplica por 2 + margen';
-  static const safetyMarginLabel = 'Margen de Seguridad del coste (%)';
-  static const paintingCostLabel = 'Coste de Pintado (€/hora)';
-  static const paintDetailFewCostLabel =
-      'Material de pintura · pocos detalles (€)';
-  static const paintDetailNormalCostLabel =
-      'Material de pintura · detalle normal (€)';
-  static const paintDetailManyCostLabel =
-      'Material de pintura · muchos detalles (€)';
-  static const kwhCostLabel = 'Coste de luz (€/hora de impresión)';
-  static const filamentPlateFeeLabel =
-      'Recargo por placa extra · filamento (€)';
-  static const resinPlateFeeLabel = 'Recargo por placa extra · resina (€)';
-  static const profitGoalLabel = 'Objetivo de beneficio (€)';
-  static const saveSettings = 'Guardar Configuración';
-  static const settingsUpdated = 'Variables actualizadas correctamente';
+      'El precio recomendado se multiplica por 2 + este margen. Con 15 % '
+      'se multiplica por 2,15.';
+  static const safetyMarginLabel = 'Margen de seguridad del coste';
+  static const safetyMarginHint =
+      'Se suma al coste real (material, luz y pintura) para cubrir '
+      'imprevistos. Sube el coste y el precio recomendado.';
+  static const kwhCostLabel = 'Coste de luz';
+  static const kwhCostHint =
+      'Euros de electricidad por cada hora de impresión.';
+  static const filamentPlateFeeLabel = 'Recargo por placa extra · filamento';
+  static const filamentPlateFeeHint =
+      'Se añade al coste por cada placa a partir de la segunda.';
+  static const resinPlateFeeLabel = 'Recargo por placa extra · resina';
+  static const resinPlateFeeHint =
+      'Igual que el de filamento, para las placas de resina.';
+  static const paintingCostLabel = 'Coste de pintado';
+  static const paintingCostHint =
+      'Euros por hora de trabajo de pintura en pedidos pintados.';
+  static const paintDetailFewCostLabel = 'Material · pocos colores (≤ 4)';
+  static const paintDetailNormalCostLabel = 'Material · detalle normal (5–10)';
+  static const paintDetailManyCostLabel = 'Material · muchos colores (> 10)';
+  static const paintDetailCostHint =
+      'Pintura gastada por pedido según el detalle elegido.';
+  static const profitGoalLabel = 'Objetivo de beneficio';
+  static const profitGoalHint =
+      'Beneficio acumulado al que aspiras; el panel mide tu avance.';
+
+  static const unitPercent = '%';
+  static const unitEuro = '€';
+  static const unitEuroPerHour = '€/h';
+
+  static const settingsExampleTitle = 'Ejemplo en vivo';
+  static const settingsExampleHint =
+      '1 placa de 100 g de filamento a 20 €/kg, 2 h de impresión, sin '
+      'pintura ni piezas.';
+  static const settingsExampleCost = 'Coste';
+  static const settingsExamplePrice = 'Precio recomendado';
+  static const settingsExampleInvalid =
+      'Corrige los campos con error para ver el ejemplo.';
 }

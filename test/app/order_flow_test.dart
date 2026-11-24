@@ -4,21 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nesherprints/app/app.dart';
 import 'package:nesherprints/app/service_locator.dart';
 import 'package:nesherprints/core/database/app_database.dart';
+import 'package:nesherprints/features/extras/domain/extra.dart';
 import 'package:nesherprints/features/inventory/domain/print_material.dart';
+import 'package:nesherprints/features/orders/domain/order.dart';
+import 'package:nesherprints/features/orders/domain/order_parts.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
 
 /// Recorrido por las pantallas reales (toques y escritura simulados) sobre una
 /// base de datos en memoria. Los accesos a la BD usan un hilo real, de ahí
 /// `runAsync` al esperar.
-/// Fallo confirmado y sin arreglar: se omite hasta que se corrija. Al
-/// arreglarlo, cambiar `bugTestWidgets` por `testWidgets`.
-void bugTestWidgets(String name, Future<void> Function(WidgetTester) body) =>
-    testWidgets(
-      name,
-      body,
-      skip: true, // bug confirmado, ver docs/REVISION_2026-11.md
-    );
-
 void main() {
   late AppDatabase db;
 
@@ -28,7 +22,6 @@ void main() {
   setUp(() {
     db = AppDatabase.inMemory();
     ServiceLocator.useDatabase(db);
-
     overflows = [];
   });
 
@@ -51,6 +44,13 @@ void main() {
     await settle(t, rounds: 4);
   }
 
+  Future<void> tapTooltip(WidgetTester t, String tooltip) async {
+    final finder = find.byTooltip(tooltip).first;
+    await t.ensureVisible(finder);
+    await t.tap(finder);
+    await settle(t, rounds: 4);
+  }
+
   Future<void> enter(WidgetTester t, String label, String value) async {
     final finder = find.widgetWithText(TextField, label).first;
     await t.ensureVisible(finder);
@@ -68,7 +68,14 @@ void main() {
           r'overflowed by ([\d.]+) pixels',
         ).firstMatch(text);
         final place = RegExp(r'lib/[\w/]+\.dart:\d+').firstMatch(text);
-        overflows.add('${place?.group(0) ?? '?'} (${pixels?.group(1)} px)');
+        // Cadena de padres del widget que desborda, en una línea.
+        final creator = RegExp(
+          r'creator: (.*?)(?:\n\s*parentData|\n\s*constraints)',
+          dotAll: true,
+        ).firstMatch(text)?.group(1)?.replaceAll(RegExp(r'\s+'), ' ');
+        overflows.add(
+          '${place?.group(0) ?? '?'} (${pixels?.group(1)} px) <- $creator',
+        );
         return;
       }
       original?.call(details);
@@ -76,9 +83,15 @@ void main() {
     addTearDown(() => FlutterError.onError = original);
   }
 
-  Future<void> openApp(WidgetTester t) async {
+  /// Abre la app con un material (PLA) ya creado. [seed] se ejecuta antes de
+  /// arrancar, para que la lista de pedidos inicial ya incluya sus datos.
+  Future<void> openApp(
+    WidgetTester t, {
+    Size size = const Size(1600, 1000),
+    Future<void> Function()? seed,
+  }) async {
     captureOverflows();
-    t.view.physicalSize = const Size(1600, 1000);
+    t.view.physicalSize = size;
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
     await t.runAsync(() async {
@@ -91,15 +104,14 @@ void main() {
           stockGrams: 1000,
         ),
       );
+      await seed?.call();
     });
     await t.pumpWidget(const NesherPrintsApp());
     await settle(t);
   }
 
-  /// Crea un pedido de 100 g y 2 h con el formulario.
-  Future<void> createOrderThroughForm(WidgetTester t) async {
-    await t.tap(find.byTooltip('Nuevo Pedido'));
-    await settle(t);
+  /// Rellena el formulario de un pedido de 100 g y 2 h.
+  Future<void> fillOrderForm(WidgetTester t) async {
     await enter(t, 'Nombre del Proyecto', 'Figura de prueba');
     await tapText(t, 'Añadir Placa');
     await enter(t, 'Gramos (g)', '100');
@@ -107,9 +119,44 @@ void main() {
     await settle(t, rounds: 2);
   }
 
+  Future<void> createOrderThroughForm(WidgetTester t) async {
+    await tapTooltip(t, 'Nuevo pedido');
+    await settle(t);
+    await fillOrderForm(t);
+  }
+
   Future<double> stockOfPla(WidgetTester t) async => (await t.runAsync(
     () => ServiceLocator.materials.getAll(),
   ))!.single.stockGrams;
+
+  Future<List<OrderSummary>> allOrders(WidgetTester t) async =>
+      (await t.runAsync(() => ServiceLocator.orders.getAllWithDetails()))!;
+
+  /// Crea un pedido directamente en la BD (sin pasar por el formulario).
+  Future<int> seedOrder({
+    String name = 'Figura',
+    List<OrderExtraLine> extras = const [],
+  }) async {
+    final materialId = (await ServiceLocator.materials.getAll()).single.id!;
+    return ServiceLocator.orders.create(
+      Order(
+        name: name,
+        price: 30,
+        paidAmount: 10,
+        date: '2026-11-20',
+        status: OrderStatus.inProgress,
+      ),
+      plates: [
+        OrderPlate(
+          name: 'Base',
+          grams: 100,
+          minutes: 120,
+          materialId: materialId,
+        ),
+      ],
+      extras: extras,
+    );
+  }
 
   testWidgets('crear un pedido muestra coste y precio recomendado correctos', (
     t,
@@ -122,7 +169,7 @@ void main() {
     // Recomendado = (2 × 2 + 0,075) × 2,15 = 8,76 €
     expect(find.text('€2.39'), findsOneWidget, reason: 'coste real');
     expect(find.text('€8.76'), findsOneWidget, reason: 'precio recomendado');
-    expect(find.text('Total Placas (Automático)'), findsOneWidget);
+    expect(find.text('1 placa · 2 h · 100 g'), findsOneWidget);
   });
 
   testWidgets('flujo completo: crear, ver en Pedidos y completar', (t) async {
@@ -130,11 +177,9 @@ void main() {
     await createOrderThroughForm(t);
 
     await tapText(t, 'Aplicar');
-    await tapText(t, 'Guardar Pedido');
+    await tapText(t, 'Guardar pedido');
 
-    final saved = (await t.runAsync(
-      () => ServiceLocator.orders.getAllWithDetails(),
-    ))!;
+    final saved = await allOrders(t);
     expect(saved, hasLength(1));
     expect(saved.single.order.name, 'Figura de prueba');
     expect(saved.single.order.price, closeTo(8.76, 0.01));
@@ -144,48 +189,40 @@ void main() {
     // Ir a Pedidos y completar.
     await tapText(t, 'Pedidos');
     expect(find.text('Figura de prueba'), findsOneWidget);
-    await t.tap(find.byTooltip('Marcar como Completado (Resta Stock)'));
-    await settle(t, rounds: 3);
+    await tapTooltip(t, 'Completar pedido (descuenta el material)');
     await tapText(t, 'Sí, completar');
     await settle(t);
 
     expect(await stockOfPla(t), 900, reason: 'completar descuenta 100 g');
-    final done = (await t.runAsync(
-      () => ServiceLocator.orders.getAllWithDetails(),
-    ))!.single.order;
+    final done = (await allOrders(t)).single.order;
     expect(done.status, OrderStatus.completed);
     expect(done.paidAmount, done.price);
     expect(
-      find.byTooltip('Marcar como Completado (Resta Stock)'),
+      find.byTooltip('Completar pedido (descuenta el material)'),
       findsNothing,
       reason: 'ya no se puede completar otra vez',
     );
   });
 
-  bugTestWidgets('cambiar el estado desde la tabla y volver a completar no '
-      'descuenta el material dos veces', (t) async {
-    await openApp(t);
-    await createOrderThroughForm(t);
-    await tapText(t, 'Guardar Pedido');
+  testWidgets('un pedido completado no se reabre: solo pasa a Enviado', (
+    t,
+  ) async {
+    await openApp(t, seed: seedOrder);
     await tapText(t, 'Pedidos');
-
-    await t.tap(find.byTooltip('Marcar como Completado (Resta Stock)'));
-    await settle(t, rounds: 3);
+    await tapTooltip(t, 'Completar pedido (descuenta el material)');
     await tapText(t, 'Sí, completar');
     await settle(t);
     expect(await stockOfPla(t), 900);
 
-    // Cambio rápido de estado desde la etiqueta: Completed → In Progress.
-    await t.tap(find.text('Completed'));
-    await settle(t, rounds: 3);
-    await tapText(t, 'In Progress');
+    // El menú de la etiqueta solo ofrece «Enviado».
+    await tapText(t, 'Completado');
+    expect(find.text('En curso'), findsNothing);
+    expect(find.text('Borrador'), findsNothing);
+    await tapText(t, 'Enviado');
     await settle(t);
 
-    await t.tap(find.byTooltip('Marcar como Completado (Resta Stock)'));
-    await settle(t, rounds: 3);
-    await tapText(t, 'Sí, completar');
-    await settle(t);
-
+    final order = (await allOrders(t)).single.order;
+    expect(order.status, OrderStatus.shipped);
     expect(
       await stockOfPla(t),
       900,
@@ -193,12 +230,126 @@ void main() {
     );
   });
 
-  bugTestWidgets('ninguna pantalla ni diálogo se desborda', (t) async {
+  testWidgets('guardar sin placas avisa y no cierra el formulario', (t) async {
     await openApp(t);
+    await tapTooltip(t, 'Nuevo pedido');
+    await settle(t);
+    await enter(t, 'Nombre del Proyecto', 'Sin placas');
+    await tapText(t, 'Guardar pedido');
+
+    expect(find.textContaining('Añade al menos una placa'), findsOneWidget);
+    expect(
+      find.text('Guardar pedido'),
+      findsOneWidget,
+      reason: 'sigue abierto',
+    );
+    expect(await allOrders(t), isEmpty);
+  });
+
+  testWidgets('editar y guardar sin tocar conserva las piezas del pedido', (
+    t,
+  ) async {
+    late int orderId;
+    await openApp(
+      t,
+      seed: () async {
+        final extraId = await ServiceLocator.extras.save(
+          const Extra(name: 'Anilla', unitPrice: 0.5, stock: 10),
+        );
+        orderId = await seedOrder(
+          extras: [OrderExtraLine(extraId: extraId, quantity: 2)],
+        );
+      },
+    );
+
+    await tapText(t, 'Pedidos');
+    await tapTooltip(t, 'Editar pedido');
+    await settle(t);
+    await tapText(t, 'Guardar pedido');
+
+    final lines = await t.runAsync(
+      () => ServiceLocator.orders.getExtras(orderId),
+    );
+    expect(lines, hasLength(1), reason: 'las piezas se cargan y se conservan');
+    expect(lines!.single.quantity, 2);
+    final extras = await t.runAsync(() => ServiceLocator.extras.getAll());
+    expect(extras!.single.stock, 8, reason: 'el stock no cambia al re-guardar');
+  });
+
+  testWidgets('duplicar un pedido abre el formulario con una copia', (t) async {
+    await openApp(t, seed: () => seedOrder(name: 'Figura'));
+    await tapText(t, 'Pedidos');
+    await tapTooltip(t, 'Más acciones');
+    await tapText(t, 'Duplicar');
+    await settle(t);
+
+    expect(find.text('Duplicar pedido'), findsOneWidget);
+    expect(find.text('Figura (copia)'), findsOneWidget);
+    expect(
+      find.widgetWithText(TextFormField, 'Base'),
+      findsOneWidget,
+      reason: 'copia las placas',
+    );
+    await tapText(t, 'Guardar pedido');
+
+    final orders = await allOrders(t);
+    expect(orders, hasLength(2));
+    expect(orders.first.order.name, 'Figura (copia)');
+    expect(orders.first.order.status, OrderStatus.draft);
+    expect(orders.first.order.paidAmount, 0);
+  });
+
+  testWidgets('eliminar un pedido pide confirmación', (t) async {
+    await openApp(t, seed: seedOrder);
+    await tapText(t, 'Pedidos');
+    await tapTooltip(t, 'Más acciones');
+    await tapText(t, 'Eliminar');
+    expect(find.text('Eliminar pedido'), findsOneWidget);
+    await tapText(t, 'Cancelar');
+    expect(await allOrders(t), hasLength(1));
+
+    await tapTooltip(t, 'Más acciones');
+    await tapText(t, 'Eliminar');
+    final confirm = find.widgetWithText(ElevatedButton, 'Eliminar');
+    await t.tap(confirm);
+    await settle(t);
+    expect(await allOrders(t), isEmpty);
+  });
+
+  Future<void> visitEverything(WidgetTester t) async {
     await createOrderThroughForm(t);
     await tapText(t, 'Servicio de Pintura');
     await settle(t, rounds: 2);
-    await tapText(t, 'Guardar Pedido');
+    await tapText(t, 'Guardar pedido');
+  }
+
+  testWidgets('ninguna pantalla ni diálogo se desborda (escritorio)', (
+    t,
+  ) async {
+    await openApp(t, seed: seedOrder);
+    await visitEverything(t);
+    for (final section in [
+      'Inventario',
+      'Piezas',
+      'Pedidos',
+      'Clientes',
+      'Administración',
+      'Panel',
+    ]) {
+      await tapText(t, section);
+      await settle(t, rounds: 3);
+    }
+    expect(overflows.toSet().toList()..sort(), isEmpty);
+  });
+
+  testWidgets('ninguna pantalla ni diálogo se desborda (móvil)', (t) async {
+    await openApp(t, size: const Size(420, 900), seed: seedOrder);
+    await tapTooltip(t, 'Nuevo pedido');
+    await settle(t);
+    await fillOrderForm(t);
+    await tapText(t, 'Servicio de Pintura');
+    await settle(t, rounds: 2);
+    await tapText(t, 'Cancelar');
 
     for (final section in [
       'Inventario',
@@ -211,7 +362,6 @@ void main() {
       await tapText(t, section);
       await settle(t, rounds: 3);
     }
-
     expect(overflows.toSet().toList()..sort(), isEmpty);
   });
 }

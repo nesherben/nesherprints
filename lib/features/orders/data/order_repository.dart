@@ -75,6 +75,32 @@ class OrderRepository {
     return [for (final row in rows) _lineFromRow(row)];
   }
 
+  /// Placas de todos los pedidos, agrupadas por número de pedido.
+  Future<Map<int, List<OrderPlate>>> getPlatesByOrder() async {
+    final db = await _db.database;
+    final rows = await db.query(OrderPlatesTable.name);
+    final result = <int, List<OrderPlate>>{};
+    for (final row in rows) {
+      result
+          .putIfAbsent(row[OrderPlatesTable.orderId] as int, () => [])
+          .add(OrderPlate.fromMap(row));
+    }
+    return result;
+  }
+
+  /// Piezas extra de todos los pedidos, agrupadas por número de pedido.
+  Future<Map<int, List<OrderExtraLine>>> getExtraLinesByOrder() async {
+    final db = await _db.database;
+    final rows = await db.query(OrderExtrasTable.name);
+    final result = <int, List<OrderExtraLine>>{};
+    for (final row in rows) {
+      result
+          .putIfAbsent(row[OrderExtrasTable.orderId] as int, () => [])
+          .add(_lineFromRow(row));
+    }
+    return result;
+  }
+
   Future<List<WasteRecord>> getAllWaste() async {
     final db = await _db.database;
     final rows = await db.query(OrderWasteTable.name);

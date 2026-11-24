@@ -1,16 +1,24 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/core/theme/app_theme.dart';
+import 'package:nesherprints/core/utils/responsive.dart';
+import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/confirm_dialog.dart';
+import 'package:nesherprints/core/widgets/empty_state.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
-import 'package:nesherprints/features/orders/presentation/widgets/order_data_table.dart';
+import 'package:nesherprints/features/orders/presentation/status_style.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_form/order_form_dialog.dart';
+import 'package:nesherprints/features/orders/presentation/widgets/order_list.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/waste_dialog.dart';
 
-/// Registro de pedidos: búsqueda, filtro por estado, orden y acciones.
+/// Registro de pedidos: búsqueda, filtros por estado, orden y acciones.
 ///
 /// Los pedidos y las operaciones de escritura vienen de `MainLayout`.
 class OrdersView extends StatefulWidget {
@@ -38,95 +46,151 @@ class OrdersView extends StatefulWidget {
 
 class _OrdersViewState extends State<OrdersView> {
   final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
 
   /// `null` = todos los estados.
   OrderStatus? _statusFilter;
-  OrderSortColumn? _sortColumn;
-  bool _isAscending = false;
+  bool _receivableOnly = false;
+  OrderSortColumn _sortColumn = OrderSortColumn.id;
+  bool _ascending = false;
 
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
+
+  // ==================== FILTRADO Y ORDEN ====================
+
+  static bool _isReceivable(OrderSummary o) =>
+      o.order.status.countsAsReceivable && o.order.pendingAmount > 0;
 
   bool get _hasActiveFilters =>
       _searchController.text.isNotEmpty ||
       _statusFilter != null ||
-      _sortColumn != null;
+      _receivableOnly;
 
-  /// Pedidos tras aplicar búsqueda, filtro y orden.
   List<OrderSummary> get _visibleOrders {
-    final query = _searchController.text.toLowerCase();
+    final query = _searchController.text.trim().toLowerCase();
     final list = widget.orders.where((o) {
-      final matchesSearch = o.order.name.toLowerCase().contains(query);
-      final matchesStatus =
-          _statusFilter == null || o.order.status == _statusFilter;
-      return matchesSearch && matchesStatus;
+      if (_statusFilter != null && o.order.status != _statusFilter) {
+        return false;
+      }
+      if (_receivableOnly && !_isReceivable(o)) return false;
+      if (query.isEmpty) return true;
+      final haystack = [
+        o.order.name,
+        o.clientName ?? '',
+        '#${o.id}',
+        '${o.id}',
+        o.plateNames ?? '',
+      ].join(' ').toLowerCase();
+      return haystack.contains(query);
     }).toList();
 
-    if (_sortColumn == null) {
-      list.sort((a, b) => b.id.compareTo(a.id));
-      return list;
-    }
-    Comparable key(OrderSummary o) => switch (_sortColumn!) {
+    Comparable key(OrderSummary o) => switch (_sortColumn) {
       OrderSortColumn.id => o.id,
+      OrderSortColumn.date => o.order.date,
       OrderSortColumn.name => o.order.name.toLowerCase(),
-      OrderSortColumn.status => o.order.status.dbValue,
+      OrderSortColumn.status => o.order.status.index,
       OrderSortColumn.price => o.order.price,
+      OrderSortColumn.pending => o.order.pendingAmount,
     };
-    list.sort(
-      (a, b) => _isAscending
-          ? Comparable.compare(key(a), key(b))
-          : Comparable.compare(key(b), key(a)),
-    );
+    list.sort((a, b) {
+      final c = Comparable.compare(key(a), key(b));
+      // Desempata por número de pedido para un orden estable.
+      final result = c != 0 ? c : a.id.compareTo(b.id);
+      return _ascending ? result : -result;
+    });
     return list;
   }
 
-  void _resetFilters() {
+  void _sortBy(OrderSortColumn column) {
+    setState(() {
+      if (column == _sortColumn) {
+        _ascending = !_ascending;
+      } else {
+        _sortColumn = column;
+        _ascending = switch (column) {
+          OrderSortColumn.name || OrderSortColumn.status => true,
+          _ => false,
+        };
+      }
+    });
+  }
+
+  void _clearFilters() {
     setState(() {
       _searchController.clear();
       _statusFilter = null;
-      _sortColumn = null;
-      _isAscending = false;
+      _receivableOnly = false;
     });
   }
 
   // ==================== ACCIONES ====================
 
+  /// Ejecuta una acción y avisa si falla.
+  Future<bool> _attempt(Future<void> Function() action) async {
+    try {
+      await action();
+      return true;
+    } catch (e) {
+      if (mounted) AppFeedback.failure(context, e);
+      return false;
+    }
+  }
+
+  void _openForm({Order? edit, Order? duplicate}) {
+    showDialog(
+      context: context,
+      builder: (_) => OrderFormDialog(
+        initialOrder: edit,
+        duplicateOf: duplicate,
+        onSave: widget.onSave,
+      ),
+    );
+  }
+
+  Future<void> _changeStatus(OrderSummary order, OrderStatus status) async {
+    final ok = await _attempt(() => widget.onStatusChange(order, status));
+    if (ok && mounted) {
+      AppFeedback.success(context, AppStrings.statusChanged(status.label));
+    }
+  }
+
   Future<void> _complete(OrderSummary order) async {
-    final ok = await showConfirmDialog(
+    final grams = math.max(
+      0.0,
+      (order.theoreticalGrams ?? 0) - order.wastedGrams,
+    );
+    final confirmed = await showConfirmDialog(
       context,
       title: AppStrings.completeTitle,
-      message: AppStrings.completeMessage,
+      message: AppStrings.completeMessage(grams),
       confirmText: AppStrings.completeConfirm,
       color: AppColors.success,
+      icon: Icons.check_circle_outline,
     );
-    if (!ok) return;
-    await widget.onComplete(order);
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text(AppStrings.orderCompleted)));
+    if (!confirmed || !mounted) return;
+    final ok = await _attempt(() => widget.onComplete(order));
+    if (ok && mounted) {
+      AppFeedback.success(context, AppStrings.orderCompleted);
+    }
   }
 
   Future<void> _delete(OrderSummary order) async {
-    final ok = await showConfirmDialog(
+    final confirmed = await showConfirmDialog(
       context,
       title: AppStrings.deleteOrderTitle,
-      message: AppStrings.deleteOrderMessage,
+      message: AppStrings.deleteOrderMessage(order.order.name),
       confirmText: AppStrings.delete,
-      color: AppColors.dangerBright,
+      color: AppColors.danger,
+      icon: Icons.delete_outline,
     );
-    if (ok) await widget.onDelete(order);
-  }
-
-  void _edit(OrderSummary order) {
-    showDialog(
-      context: context,
-      builder: (_) =>
-          OrderFormDialog(initialOrder: order.order, onSave: widget.onSave),
-    );
+    if (!confirmed || !mounted) return;
+    final ok = await _attempt(() => widget.onDelete(order));
+    if (ok && mounted) AppFeedback.success(context, AppStrings.orderDeleted);
   }
 
   void _registerWaste(OrderSummary order) {
@@ -134,105 +198,227 @@ class _OrdersViewState extends State<OrdersView> {
       context: context,
       builder: (_) => WasteDialog(
         orderId: order.id,
-        onSaved: () {
-          widget.onRefresh();
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(AppStrings.wasteRegistered),
-              backgroundColor: AppColors.warning,
-            ),
-          );
+        onSaved: () async {
+          await _attempt(widget.onRefresh);
+          if (mounted) AppFeedback.warning(context, AppStrings.wasteRegistered);
         },
       ),
     );
+  }
+
+  void _onMenu(OrderSummary order, OrderMenuAction action) {
+    switch (action) {
+      case OrderMenuAction.waste:
+        _registerWaste(order);
+      case OrderMenuAction.duplicate:
+        _openForm(duplicate: order.order);
+      case OrderMenuAction.delete:
+        _delete(order);
+    }
   }
 
   // ==================== UI ====================
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const PageHeader(title: AppStrings.ordersTitle),
-          const SizedBox(height: 24),
-          _buildFilters(),
-          const SizedBox(height: 16),
-          Expanded(
-            child: Card(
-              child: OrderDataTable(
-                orders: _visibleOrders,
-                sortColumn: _sortColumn,
-                isAscending: _isAscending,
-                onSort: (column, ascending) => setState(() {
-                  _sortColumn = column;
-                  _isAscending = ascending;
-                }),
-                onStatusChange: widget.onStatusChange,
-                onComplete: _complete,
-                onEdit: _edit,
-                onWaste: _registerWaste,
-                onDelete: _delete,
+    final compact = context.isCompact;
+    final visible = _visibleOrders;
+
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true): () =>
+            _searchFocus.requestFocus(),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Padding(
+          padding: EdgeInsets.all(compact ? AppSpacing.lg : AppSpacing.xxl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              PageHeader(
+                title: AppStrings.ordersTitle,
+                subtitle: AppStrings.ordersCount(widget.orders.length),
+                action: ElevatedButton.icon(
+                  onPressed: () => _openForm(),
+                  icon: const Icon(Icons.add, size: 20),
+                  label: const Text(AppStrings.newOrder),
+                ),
               ),
-            ),
+              const SizedBox(height: AppSpacing.lg),
+              _buildSearchRow(compact),
+              const SizedBox(height: AppSpacing.md),
+              _buildFilterChips(),
+              const SizedBox(height: AppSpacing.md),
+              Expanded(child: Card(child: _buildBody(visible))),
+              if (widget.orders.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  AppStrings.showingCount(visible.length, widget.orders.length),
+                  style: AppTextStyles.mutedSmall,
+                ),
+              ],
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildFilters() {
+  Widget _buildBody(List<OrderSummary> visible) {
+    if (widget.orders.isEmpty) {
+      return EmptyState(
+        icon: Icons.receipt_long_outlined,
+        title: AppStrings.emptyOrdersTitle,
+        message: AppStrings.emptyOrdersMessage,
+        action: ElevatedButton.icon(
+          onPressed: () => _openForm(),
+          icon: const Icon(Icons.add, size: 20),
+          label: const Text(AppStrings.createFirstOrder),
+        ),
+      );
+    }
+    if (visible.isEmpty) {
+      return EmptyState(
+        icon: Icons.search_off,
+        title: AppStrings.emptyMatchesTitle,
+        message: AppStrings.emptyMatchesMessage,
+        action: OutlinedButton.icon(
+          onPressed: _clearFilters,
+          icon: const Icon(Icons.filter_alt_off, size: 18),
+          label: const Text(AppStrings.clearFilters),
+        ),
+      );
+    }
+    return OrderList(
+      orders: visible,
+      sortColumn: _sortColumn,
+      ascending: _ascending,
+      onSort: _sortBy,
+      actions: OrderListActions(
+        onOpen: (o) => _openForm(edit: o.order),
+        onStatusChange: _changeStatus,
+        onComplete: _complete,
+        onMenu: _onMenu,
+      ),
+    );
+  }
+
+  Widget _buildSearchRow(bool compact) {
     return Row(
       children: [
         Expanded(
-          flex: 2,
           child: TextField(
             controller: _searchController,
-            decoration: const InputDecoration(
-              labelText: AppStrings.searchProject,
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
-              isDense: true,
+            focusNode: _searchFocus,
+            decoration: InputDecoration(
+              hintText: AppStrings.searchOrdersHint,
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _searchController.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: AppStrings.clearSearch,
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => setState(_searchController.clear),
+                    ),
             ),
             onChanged: (_) => setState(() {}),
           ),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: DropdownButtonFormField<OrderStatus?>(
-            // La clave fuerza a mostrar "Todos" tras limpiar filtros.
-            key: ValueKey(_statusFilter),
-            initialValue: _statusFilter,
-            decoration: const InputDecoration(
-              labelText: AppStrings.filterByStatus,
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            items: [
-              const DropdownMenuItem(value: null, child: Text(AppStrings.all)),
-              for (final s in OrderStatus.values)
-                DropdownMenuItem(value: s, child: Text(s.label)),
+        if (compact) ...[
+          const SizedBox(width: AppSpacing.sm),
+          PopupMenuButton<OrderSortColumn>(
+            tooltip: AppStrings.sortBy,
+            icon: const Icon(Icons.sort),
+            onSelected: _sortBy,
+            itemBuilder: (_) => [
+              for (final (column, label) in [
+                (OrderSortColumn.id, AppStrings.colIdDate),
+                (OrderSortColumn.name, AppStrings.colProject),
+                (OrderSortColumn.status, AppStrings.colStatus),
+                (OrderSortColumn.price, AppStrings.colFinances),
+                (OrderSortColumn.pending, AppStrings.sortPending),
+              ])
+                CheckedPopupMenuItem(
+                  value: column,
+                  checked: column == _sortColumn,
+                  child: Text(label),
+                ),
             ],
-            onChanged: (s) => setState(() => _statusFilter = s),
           ),
-        ),
-        const SizedBox(width: 16),
-        if (_hasActiveFilters)
-          ElevatedButton.icon(
-            onPressed: _resetFilters,
-            icon: const Icon(Icons.filter_alt_off),
-            label: const Text(AppStrings.clearFilters),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.surface,
-              foregroundColor: AppColors.textMain,
-            ),
-          )
-        else
-          const SizedBox(width: 150),
+        ],
       ],
+    );
+  }
+
+  Widget _buildFilterChips() {
+    int count(bool Function(OrderSummary) test) =>
+        widget.orders.where(test).length;
+
+    Widget chip({
+      required String label,
+      required int count,
+      required bool selected,
+      required VoidCallback onTap,
+      Color? color,
+    }) {
+      return FilterChip(
+        selected: selected,
+        onSelected: (_) => onTap(),
+        avatar: color == null
+            ? null
+            : Icon(Icons.circle, size: 10, color: color),
+        label: Text('$label · $count'),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          chip(
+            label: AppStrings.filterAll,
+            count: widget.orders.length,
+            selected: _statusFilter == null && !_receivableOnly,
+            onTap: () => setState(() {
+              _statusFilter = null;
+              _receivableOnly = false;
+            }),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          chip(
+            label: AppStrings.filterReceivable,
+            count: count(_isReceivable),
+            selected: _receivableOnly,
+            color: AppColors.warning,
+            onTap: () => setState(() {
+              _receivableOnly = true;
+              _statusFilter = null;
+            }),
+          ),
+          for (final status in OrderStatus.values) ...[
+            const SizedBox(width: AppSpacing.sm),
+            chip(
+              label: status.label,
+              count: count((o) => o.order.status == status),
+              selected: _statusFilter == status,
+              color: statusColor(status),
+              onTap: () => setState(() {
+                _statusFilter = status;
+                _receivableOnly = false;
+              }),
+            ),
+          ],
+          if (_hasActiveFilters) ...[
+            const SizedBox(width: AppSpacing.sm),
+            TextButton.icon(
+              onPressed: _clearFilters,
+              icon: const Icon(Icons.filter_alt_off, size: 18),
+              label: const Text(AppStrings.clearFilters),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

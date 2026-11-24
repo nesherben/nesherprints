@@ -25,6 +25,16 @@ class Extra {
   /// Unidad de medida (no editable desde la UI; se conserva).
   final String unit;
 
+  /// Hasta cuántas unidades se avisa de que quedan pocas.
+  static const int fewUnitsMax = 5;
+
+  ExtraStockLevel get stockLevel {
+    if (stock < 0) return ExtraStockLevel.negative;
+    if (stock == 0) return ExtraStockLevel.soldOut;
+    if (stock <= fewUnitsMax) return ExtraStockLevel.few;
+    return ExtraStockLevel.ok;
+  }
+
   factory Extra.fromMap(Map<String, Object?> map) => Extra(
     id: map[ExtrasTable.id] as int?,
     name: map[ExtrasTable.extraName] as String? ?? '',
@@ -41,6 +51,9 @@ class Extra {
     ExtrasTable.unit: unit,
   };
 }
+
+/// Situación del stock de una pieza.
+enum ExtraStockLevel { negative, soldOut, few, ok }
 
 /// Cálculos de precio de las piezas.
 class ExtraPricing {
@@ -72,4 +85,9 @@ class ExtraPricing {
     if (newStock <= 0) return currentUnitPrice;
     return (currentUnitPrice * owned + addedTotal) / newStock;
   }
+
+  /// Valor del stock: suma de precio × unidades de las piezas con stock > 0.
+  static double stockValue(Iterable<Extra> extras) => extras
+      .where((e) => e.stock > 0)
+      .fold(0.0, (sum, e) => sum + e.unitPrice * e.stock);
 }

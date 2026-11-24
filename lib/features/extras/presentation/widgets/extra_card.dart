@@ -4,9 +4,10 @@ import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
+import 'package:nesherprints/core/widgets/status_pill.dart';
 import 'package:nesherprints/features/extras/domain/extra.dart';
 
-/// Fila de una pieza: nombre, precio, stock y acciones.
+/// Tarjeta de una pieza: nombre, precio unitario, stock y acciones.
 class ExtraCard extends StatelessWidget {
   const ExtraCard({
     super.key,
@@ -16,65 +17,100 @@ class ExtraCard extends StatelessWidget {
     required this.onDelete,
   });
 
+  /// Alto fijo de la tarjeta dentro de la rejilla.
+  static const double height = 132;
+
   final Extra extra;
   final VoidCallback onEdit;
   final VoidCallback onAddStock;
   final VoidCallback onDelete;
 
+  /// Etiqueta y color según el nivel de stock (`null` si no hay aviso).
+  (String, Color)? get _alert => switch (extra.stockLevel) {
+    ExtraStockLevel.negative => (
+      AppStrings.extraNegativeStock,
+      AppColors.danger,
+    ),
+    ExtraStockLevel.soldOut => (AppStrings.extraSoldOut, AppColors.danger),
+    ExtraStockLevel.few => (AppStrings.extraFewUnits, AppColors.warning),
+    ExtraStockLevel.ok => null,
+  };
+
   @override
   Widget build(BuildContext context) {
+    final alert = _alert;
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        child: Row(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    extra.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        formatEuro(extra.unitPrice),
-                        style: AppTextStyles.muted,
+                        extra.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.cardTitle,
                       ),
-                      const SizedBox(width: 12),
                       Text(
-                        AppStrings.units(extra.stock),
+                        AppStrings.perUnit(formatEuro(extra.unitPrice)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.muted,
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Flexible(
+                  child: Text(
+                    AppStrings.units(extra.stock),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.kpiValue.copyWith(
+                      fontSize: 22,
+                      color: alert?.$2 ?? AppColors.textMain,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            IconButton(
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit),
-              color: AppColors.primary,
-              tooltip: AppStrings.edit,
-            ),
-            IconButton(
-              onPressed: onAddStock,
-              icon: const Icon(Icons.add_box),
-              color: AppColors.success,
-              tooltip: AppStrings.addStock,
-            ),
-            IconButton(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete),
-              color: AppColors.danger,
-              tooltip: AppStrings.delete,
+            const Spacer(),
+            Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: alert == null
+                        ? null
+                        : StatusPill(label: alert.$1, color: alert.$2),
+                  ),
+                ),
+                IconButton(
+                  onPressed: onAddStock,
+                  icon: const Icon(Icons.add_box_outlined),
+                  color: AppColors.success,
+                  tooltip: AppStrings.addStock,
+                ),
+                IconButton(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined),
+                  color: AppColors.info,
+                  tooltip: AppStrings.edit,
+                ),
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline),
+                  color: AppColors.danger,
+                  tooltip: AppStrings.delete,
+                ),
+              ],
             ),
           ],
         ),

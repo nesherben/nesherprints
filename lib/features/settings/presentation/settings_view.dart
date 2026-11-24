@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:nesherprints/app/service_locator.dart';
-import 'package:nesherprints/core/constants/app_constants.dart';
 import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
+import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/input_formatters.dart';
-import 'package:nesherprints/core/utils/number_utils.dart';
+import 'package:nesherprints/core/utils/responsive.dart';
+import 'package:nesherprints/core/widgets/app_feedback.dart';
+import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
+import 'package:nesherprints/core/widgets/section_card.dart';
+import 'package:nesherprints/core/widgets/status_pill.dart';
+import 'package:nesherprints/features/inventory/domain/print_material.dart';
+import 'package:nesherprints/features/orders/domain/paint_detail.dart';
+import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
+import 'package:nesherprints/features/settings/presentation/settings_fields.dart';
 
 /// Administración: constantes de la calculadora de precios.
 class SettingsView extends StatefulWidget {
@@ -19,101 +28,149 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
-  bool _isLoading = true;
+  /// Ancho a partir del cual las tarjetas van en dos columnas.
+  static const double _twoColumnsWidth = 960;
 
-  /// Un controlador por ajuste, en el orden en que se muestran.
-  late final Map<_Field, TextEditingController> _controllers = {
-    for (final f in _Field.values) f: TextEditingController(),
+  bool _isLoading = true;
+  bool _isSaving = false;
+
+  /// Lo último guardado; sirve para saber si hay cambios.
+  PricingSettings _saved = const PricingSettings();
+
+  late final Map<SettingField, TextEditingController> _controllers = {
+    for (final f in SettingField.values) f: TextEditingController(),
   };
 
   @override
   void initState() {
     super.initState();
+    for (final c in _controllers.values) {
+      c.addListener(_onTextChanged);
+    }
     _load();
   }
 
   @override
   void dispose() {
     for (final c in _controllers.values) {
-      c.dispose();
+      c
+        ..removeListener(_onTextChanged)
+        ..dispose();
     }
     super.dispose();
   }
 
-  /// Hasta 6 decimales sin ceros sobrantes: `50` → `50`, `0.0375` → `0.0375`.
-  String _fmt(double v) =>
-      v.toStringAsFixed(6).replaceFirst(RegExp(r'\.?0+$'), '');
+  void _onTextChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _fill(PricingSettings s) {
+    for (final f in SettingField.values) {
+      _controllers[f]!.text = formatSettingValue(f.valueOf(s));
+    }
+  }
 
   Future<void> _load() async {
-    final s = await ServiceLocator.settings.getPricingSettings();
-    if (!mounted) return;
-    setState(() {
-      _controllers[_Field.profitMargin]!.text = _fmt(s.profitMarginPercent);
-      _controllers[_Field.safetyMargin]!.text = _fmt(s.safetyMarginPercent);
-      _controllers[_Field.paintingCost]!.text = _fmt(s.paintingCostPerHour);
-      _controllers[_Field.paintDetailFew]!.text = _fmt(s.paintDetailFewCost);
-      _controllers[_Field.paintDetailNormal]!.text = _fmt(
-        s.paintDetailNormalCost,
-      );
-      _controllers[_Field.paintDetailMany]!.text = _fmt(s.paintDetailManyCost);
-      _controllers[_Field.kwhCost]!.text = _fmt(s.kwhCost);
-      _controllers[_Field.filamentFee]!.text = _fmt(s.filamentPlateFee);
-      _controllers[_Field.resinFee]!.text = _fmt(s.resinPlateFee);
-      _controllers[_Field.profitGoal]!.text = _fmt(s.profitGoal);
-      _isLoading = false;
+    try {
+      final s = await ServiceLocator.settings.getPricingSettings();
+      if (!mounted) return;
+      setState(() {
+        _saved = s;
+        _fill(s);
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      AppFeedback.failure(context, e);
+    }
+  }
+
+  /// Valor numérico del campo, o `null` si el texto no es válido.
+  double? _parsed(SettingField f) => f.parse(_controllers[f]!.text);
+
+  String? _error(SettingField f) => f.validate(_controllers[f]!.text);
+
+  bool get _isValid => SettingField.values.every((f) => _error(f) == null);
+
+  bool get _isDirty => SettingField.values.any((f) {
+    return !SettingField.sameValue(_parsed(f), f.valueOf(_saved));
+  });
+
+  /// Valor del campo; si coincide con lo guardado o con el de fábrica se usa
+  /// el exacto (el texto solo muestra 6 decimales).
+  double _resolved(SettingField f) {
+    final v = _parsed(f)!;
+    if (SettingField.sameValue(v, f.valueOf(_saved))) return f.valueOf(_saved);
+    if (SettingField.sameValue(v, f.defaultValue)) return f.defaultValue;
+    return v;
+  }
+
+  /// Ajustes con lo escrito ahora; `null` si algún campo no es válido.
+  PricingSettings? _current() {
+    if (!_isValid) return null;
+    return PricingSettings.fromMap({
+      for (final f in SettingField.values) f.key: _resolved(f),
     });
   }
 
-  double _value(_Field field, double fallback) =>
-      parseDecimal(_controllers[field]!.text, fallback: fallback);
+  bool get _canSave => !_isSaving && _isDirty && _isValid;
 
   Future<void> _save() async {
-    await ServiceLocator.settings.savePricingSettings(
-      PricingSettings(
-        profitMarginPercent: _value(
-          _Field.profitMargin,
-          FinanceDefaults.profitMarginPercent,
-        ),
-        safetyMarginPercent: _value(
-          _Field.safetyMargin,
-          FinanceDefaults.safetyMarginPercent,
-        ),
-        paintingCostPerHour: _value(
-          _Field.paintingCost,
-          FinanceDefaults.paintingCostPerHour,
-        ),
-        paintDetailFewCost: _value(
-          _Field.paintDetailFew,
-          FinanceDefaults.paintDetailFewCost,
-        ),
-        paintDetailNormalCost: _value(
-          _Field.paintDetailNormal,
-          FinanceDefaults.paintDetailNormalCost,
-        ),
-        paintDetailManyCost: _value(
-          _Field.paintDetailMany,
-          FinanceDefaults.paintDetailManyCost,
-        ),
-        kwhCost: _value(_Field.kwhCost, FinanceDefaults.kwhCost),
-        filamentPlateFee: _value(
-          _Field.filamentFee,
-          FinanceDefaults.filamentPlateFee,
-        ),
-        resinPlateFee: _value(_Field.resinFee, FinanceDefaults.resinPlateFee),
-        profitGoal: _value(_Field.profitGoal, FinanceDefaults.profitGoal),
-      ),
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          AppStrings.settingsUpdated,
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: AppColors.success,
-      ),
-    );
+    final settings = _current();
+    if (!_canSave || settings == null) return;
+    setState(() => _isSaving = true);
+    try {
+      await ServiceLocator.settings.savePricingSettings(settings);
+      if (!mounted) return;
+      setState(() {
+        _saved = settings;
+        _isSaving = false;
+      });
+      AppFeedback.success(context, AppStrings.settingsUpdated);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      AppFeedback.failure(context, e);
+    }
   }
+
+  Future<void> _restoreAll() async {
+    final ok = await showConfirmDialog(
+      context,
+      title: AppStrings.settingsRestoreAllTitle,
+      message: AppStrings.settingsRestoreAllMessage,
+      confirmText: AppStrings.settingsRestoreAllConfirm,
+      icon: Icons.restore,
+    );
+    if (!ok || !mounted) return;
+    _fill(const PricingSettings());
+  }
+
+  void _restoreOne(SettingField f) {
+    _controllers[f]!.text = formatSettingValue(f.defaultValue);
+  }
+
+  Widget _group(SettingGroup group) => SectionCard(
+    title: group.title,
+    subtitle: group.subtitle,
+    icon: group.icon,
+    child: Column(
+      children: [
+        for (final (i, f) in group.fields.indexed) ...[
+          if (i > 0) const Divider(height: AppSpacing.lg * 2),
+          _SettingRow(
+            field: f,
+            controller: _controllers[f]!,
+            error: _error(f),
+            onRestore: () => _restoreOne(f),
+          ),
+        ],
+      ],
+    ),
+  );
+
+  Widget _example() => _LiveExample(settings: _current());
 
   @override
   Widget build(BuildContext context) {
@@ -123,137 +180,276 @@ class _SettingsViewState extends State<SettingsView> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const PageHeader(title: AppStrings.settingsTitle),
-          const SizedBox(height: 24),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: SizedBox(
-                  width: 640,
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
+    final dirty = _isDirty;
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): _save,
+      },
+      child: Focus(
+        autofocus: true,
+        child: Padding(
+          padding: EdgeInsets.all(context.isCompact ? AppSpacing.md : 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              PageHeader(
+                title: AppStrings.settingsTitle,
+                subtitle: AppStrings.settingsSubtitle,
+                actions: [
+                  StatusPill(
+                    label: dirty
+                        ? AppStrings.settingsUnsaved
+                        : AppStrings.settingsSaved,
+                    color: dirty ? AppColors.warning : AppColors.success,
+                    icon: dirty ? Icons.edit_note : Icons.check,
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _restoreAll,
+                    icon: const Icon(Icons.restore),
+                    label: const Text(AppStrings.settingsRestoreAll),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _canSave ? _save : null,
+                    icon: const Icon(Icons.save),
+                    label: const Text(AppStrings.saveSettings),
+                    style: AppButtonStyles.primary,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: LayoutBuilder(
+                    builder: (context, c) {
+                      if (c.maxWidth < _twoColumnsWidth) {
+                        return Column(
+                          children: [
+                            for (final g in SettingGroup.values) ...[
+                              _group(g),
+                              const SizedBox(height: AppSpacing.md),
+                            ],
+                            _example(),
+                          ],
+                        );
+                      }
+                      return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            AppStrings.pricingCalculatorTitle,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
+                          Expanded(
+                            child: Column(
+                              children: [
+                                _group(SettingGroup.price),
+                                const SizedBox(height: AppSpacing.md),
+                                _group(SettingGroup.energy),
+                                const SizedBox(height: AppSpacing.md),
+                                _group(SettingGroup.goals),
+                              ],
                             ),
                           ),
-                          const Text(
-                            AppStrings.pricingCalculatorHint,
-                            style: AppTextStyles.mutedSmall,
-                          ),
-                          const Divider(height: 32),
-                          for (final f in _Field.values) ...[
-                            _SettingRow(
-                              label: f.label,
-                              hint: f.hint,
-                              controller: _controllers[f]!,
-                              icon: f.icon,
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: ElevatedButton.icon(
-                              onPressed: _save,
-                              icon: const Icon(Icons.save),
-                              label: const Text(AppStrings.saveSettings),
-                              style: AppButtonStyles.primary,
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              children: [
+                                _example(),
+                                const SizedBox(height: AppSpacing.md),
+                                _group(SettingGroup.paint),
+                              ],
                             ),
                           ),
                         ],
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Ajustes editables, en el orden en que se muestran.
-enum _Field {
-  profitMargin(
-    AppStrings.profitMarginLabel,
-    Icons.percent,
-    hint: AppStrings.profitMarginHint,
-  ),
-  safetyMargin(AppStrings.safetyMarginLabel, Icons.shield_outlined),
-  kwhCost(AppStrings.kwhCostLabel, Icons.bolt),
-  filamentFee(AppStrings.filamentPlateFeeLabel, Icons.layers),
-  resinFee(AppStrings.resinPlateFeeLabel, Icons.layers),
-  paintingCost(AppStrings.paintingCostLabel, Icons.brush),
-  paintDetailFew(AppStrings.paintDetailFewCostLabel, Icons.palette_outlined),
-  paintDetailNormal(
-    AppStrings.paintDetailNormalCostLabel,
-    Icons.palette_outlined,
-  ),
-  paintDetailMany(AppStrings.paintDetailManyCostLabel, Icons.palette_outlined),
-  profitGoal(AppStrings.profitGoalLabel, Icons.flag_outlined);
-
-  const _Field(this.label, this.icon, {this.hint});
-
-  final String label;
-  final IconData icon;
-  final String? hint;
-}
-
+/// Una fila: etiqueta, ayuda, valor por defecto y campo con sufijo.
 class _SettingRow extends StatelessWidget {
   const _SettingRow({
-    required this.label,
+    required this.field,
     required this.controller,
-    required this.icon,
-    this.hint,
+    required this.error,
+    required this.onRestore,
   });
 
-  final String label;
-  final String? hint;
+  final SettingField field;
   final TextEditingController controller;
-  final IconData icon;
+  final String? error;
+  final VoidCallback onRestore;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final parsed = field.parse(controller.text);
+    final differs = !SettingField.sameValue(parsed, field.defaultValue);
+
+    final info = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: AppColors.textMuted, size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          flex: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontSize: 16)),
-              if (hint != null) Text(hint!, style: AppTextStyles.mutedSmall),
-            ],
+        Text(field.label, style: AppTextStyles.cardTitle),
+        const SizedBox(height: 2),
+        Text(field.hint, style: AppTextStyles.mutedSmall),
+        const SizedBox(height: 2),
+        Text(
+          AppStrings.settingsDefaultValue(
+            '${formatSettingValue(field.defaultValue)} ${field.suffix}',
           ),
+          style: AppTextStyles.mutedSmall,
         ),
-        Expanded(
+      ],
+    );
+
+    final input = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 150,
           child: TextField(
+            key: ValueKey(field.key),
             controller: controller,
             keyboardType: decimalKeyboard,
+            inputFormatters: decimalInputFormatters,
             textAlign: TextAlign.end,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
               isDense: true,
+              suffixText: field.suffix,
+              errorText: error,
+              errorMaxLines: 2,
             ),
           ),
+        ),
+        SizedBox(
+          width: 40,
+          child: differs
+              ? IconButton(
+                  tooltip: AppStrings.settingsRestoreOne,
+                  onPressed: onRestore,
+                  icon: const Icon(Icons.restore, size: 18),
+                )
+              : null,
+        ),
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, c) {
+        if (c.maxWidth < 440) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              info,
+              const SizedBox(height: AppSpacing.sm),
+              input,
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: info),
+            const SizedBox(width: AppSpacing.md),
+            input,
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Pedido de muestra calculado con los valores que hay ahora en los campos.
+class _LiveExample extends StatelessWidget {
+  const _LiveExample({required this.settings});
+
+  /// `null` si algún campo no es válido.
+  final PricingSettings? settings;
+
+  static const _materialId = 1;
+
+  PriceEstimate? _estimate() {
+    final s = settings;
+    if (s == null) return null;
+    return PricingCalculator.estimate(
+      plates: const [
+        PricingPlate(materialId: _materialId, grams: 100, minutes: 120),
+      ],
+      materials: const {
+        _materialId: PricingMaterial(
+          costPerKg: 20,
+          kind: MaterialKind.filament,
+        ),
+      },
+      extraUnitPrices: const {},
+      selectedExtras: const {},
+      attempts: 1,
+      isPainted: false,
+      paintHours: 0,
+      paintDetail: PaintDetail.normal,
+      settings: s,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final e = _estimate();
+    return SectionCard(
+      title: AppStrings.settingsExampleTitle,
+      subtitle: AppStrings.settingsExampleHint,
+      icon: Icons.calculate_outlined,
+      child: e == null
+          ? const Text(
+              AppStrings.settingsExampleInvalid,
+              style: AppTextStyles.muted,
+            )
+          : Wrap(
+              spacing: AppSpacing.xl,
+              runSpacing: AppSpacing.md,
+              children: [
+                _Figure(
+                  label: AppStrings.settingsExampleCost,
+                  value: formatEuro(e.cost),
+                ),
+                _Figure(
+                  label: AppStrings.settingsExamplePrice,
+                  value: formatEuro(e.suggestedPrice),
+                  highlight: true,
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _Figure extends StatelessWidget {
+  const _Figure({
+    required this.label,
+    required this.value,
+    this.highlight = false,
+  });
+
+  final String label;
+  final String value;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label.toUpperCase(), style: AppTextStyles.overline),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: highlight
+              ? AppTextStyles.kpiValue.copyWith(color: AppColors.primary)
+              : AppTextStyles.kpiValue,
         ),
       ],
     );

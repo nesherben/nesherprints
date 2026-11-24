@@ -18,6 +18,16 @@ class Client {
   final String email;
   final String notes;
 
+  /// Iniciales para el avatar (hasta dos letras; `?` si no hay nombre).
+  String get initials {
+    final words = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
+    final letters = words
+        .take(2)
+        .map((w) => String.fromCharCode(w.runes.first));
+    final text = letters.join().toUpperCase();
+    return text.isEmpty ? '?' : text;
+  }
+
   /// Construye un cliente desde el formulario aplicando las reglas de la
   /// agenda. Devuelve `null` si todos los campos están vacíos (no se guarda).
   /// Si falta el nombre, se usa el teléfono o, si no, el email.

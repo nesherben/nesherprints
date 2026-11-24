@@ -35,6 +35,14 @@ class PlateDraft {
   int? materialId;
   final PlateStatus status;
 
+  /// Copia como placa nueva (sin id), con el mismo material y medidas.
+  PlateDraft duplicate(String newName) => PlateDraft(
+    name: newName,
+    grams: grams,
+    minutes: minutes,
+    materialId: materialId,
+  );
+
   OrderPlate toPlate() => OrderPlate(
     id: id,
     name: name,

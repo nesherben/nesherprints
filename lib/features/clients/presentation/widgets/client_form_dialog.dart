@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
+import 'package:nesherprints/core/widgets/app_dialog_frame.dart';
 import 'package:nesherprints/features/clients/domain/client.dart';
 
 /// Alta/edición de cliente. Todos los campos son opcionales; si están todos
@@ -53,53 +54,52 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
   Widget _field(
     TextEditingController controller,
     String label,
-    IconData icon,
-  ) => TextField(
+    IconData icon, {
+    TextInputType? keyboardType,
+    bool last = false,
+  }) => TextField(
     controller: controller,
-    decoration: InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      border: const OutlineInputBorder(),
-    ),
+    keyboardType: keyboardType,
+    textInputAction: last ? TextInputAction.done : TextInputAction.next,
+    onSubmitted: last ? (_) => _save() : null,
+    decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
   );
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(
-        widget.initialClient == null
-            ? AppStrings.newClient
-            : AppStrings.editClient,
-      ),
-      content: SizedBox(
-        width: 400,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              AppStrings.optionalFields,
-              style: AppTextStyles.mutedSmall,
-            ),
-            const SizedBox(height: 16),
-            _field(_nameController, AppStrings.clientNameLabel, Icons.person),
-            const SizedBox(height: 16),
-            _field(_phoneController, AppStrings.clientPhoneLabel, Icons.phone),
-            const SizedBox(height: 16),
-            _field(
-              _emailController,
-              AppStrings.clientContactLabel,
-              Icons.alternate_email,
-            ),
-          ],
-        ),
-      ),
+    final isNew = widget.initialClient == null;
+    return AppDialogFrame(
+      title: isNew ? AppStrings.newClient : AppStrings.editClient,
+      subtitle: AppStrings.optionalFields,
+      icon: isNew ? Icons.person_add_alt_1_outlined : Icons.person_outline,
+      width: 460,
       actions: [
-        TextButton(
+        OutlinedButton(
           onPressed: () => Navigator.pop(context),
           child: const Text(AppStrings.cancel),
         ),
         ElevatedButton(onPressed: _save, child: const Text(AppStrings.save)),
       ],
+      child: Column(
+        children: [
+          _field(_nameController, AppStrings.clientNameLabel, Icons.person),
+          const SizedBox(height: AppSpacing.lg),
+          _field(
+            _phoneController,
+            AppStrings.clientPhoneLabel,
+            Icons.phone,
+            keyboardType: TextInputType.phone,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _field(
+            _emailController,
+            AppStrings.clientContactLabel,
+            Icons.alternate_email,
+            keyboardType: TextInputType.emailAddress,
+            last: true,
+          ),
+        ],
+      ),
     );
   }
 }
