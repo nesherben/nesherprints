@@ -46,10 +46,10 @@ lib/
 | Feature | Domain | Data | Presentation |
 |---|---|---|---|
 | `orders` | `Order`, `OrderSummary`, `OrderStatus` (reglas de estado) / `PlateStatus`, `OrderPlate`, `OrderExtraLine`, `WasteRecord`, `OrderRules` (validación), `PricingCalculator`/`PriceHealth`, `OrderCosting` | `OrderRepository` (crear/editar/completar/borrar/merma; todo el stock en transacción), `CostFreezer` (congela el coste al completar y en la migración v7) | `OrdersView`, `order_list.dart` (filas/tarjetas virtualizadas), `StatusBadge`, `WasteDialog`, `order_form/` (diálogo + placas, piezas, panel de resumen del precio) |
-| `dashboard` | `FinanceSummary.compute` (beneficio, objetivo, mensual, pendientes) | — (usa repos de orders/inventory/settings) | `DashboardView`, `KpiCard`, `MonthlyRevenueChart`, `StatusPieChart`, `MonthlyTable`, `PendingList` |
-| `inventory` | `PrintMaterial`, `MaterialKind` | `MaterialRepository` | `InventoryView`, `MaterialDialog`, tarjetas de material |
+| `dashboard` | `FinanceSummary.compute` (beneficio, objetivo, mensual, pendientes) | — (usa repos de orders/inventory/settings) | `DashboardView`, `KpiCard`, `MonthlyRevenueChart`, `StatusBreakdown`, `MonthlyTable`, `PendingList` |
+| `inventory` | `PrintMaterial`, `MaterialKind`, `ResinBlend` (precio medio del tanque), `ColorLibrary`, `BulkFilaments` | `MaterialRepository` (incl. `addResin`, `mergeResins`), `ColorLibraryRepository` | `InventoryView` (tanque `ResinCard`/`ResinTank` + estantería `FilamentShelf`/`SpoolIcon`), `MaterialDialog`, `AddResinDialog`, `BulkFilamentDialog`, `ColorLibraryDialog`, `ColorPickerDialog` |
 | `extras` | `Extra`, `ExtraPricing` | `ExtrasRepository` (incl. `addStock` atómico) | `ExtrasView`, `ExtraCard`, `ExtraDialog`, `AddStockDialog` |
-| `clients` | `Client` (`fromForm` aplica reglas), `ClientStats` | `ClientRepository` | `ClientsView`, `ClientCard`, `ClientFormDialog` |
+| `clients` | `Client` (`fromForm` aplica reglas), `ClientStats` | `ClientRepository` | `ClientsView`, `ClientCard` (tarjeta de alto fijo), `ClientFormDialog` |
 | `settings` | `PricingSettings` | `SettingsRepository` | `SettingsView` (pantalla "Administración") |
 
 Flujo de datos: Vista → `ServiceLocator.<repo>` → `AppDatabase` → SQLite. Los pedidos los carga `MainLayout` y los pasa a `DashboardView` y `OrdersView`; las escrituras de pedidos (`_saveOrder`, `_completeOrder`…) viven en `MainLayout` y **lanzan** si fallan: quien las llama (formulario o listado) avisa al usuario.

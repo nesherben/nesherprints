@@ -67,12 +67,12 @@ Se guardan en inglés (`dbValue`, no cambiar) y se muestran en español.
 
 **Listado** (`OrdersView` + `order_list.dart`)
 - Búsqueda por proyecto, cliente, nº de pedido (`#12`) o nombre de placa. `Ctrl+F` enfoca el buscador.
-- Filtros en chips con contador: Todos, **Por cobrar** (deuda > 0 en pedidos con deuda) y uno por estado. «Limpiar filtros» aparece si hay alguno activo.
+- Filtros en chips con contador: Todos, **Por cobrar** (deuda > 0 en pedidos con deuda) y uno por estado (los estados sin pedidos no aparecen, salvo el elegido). «Limpiar filtros» aparece si hay alguno activo.
 - Orden por columna (ID/fecha, proyecto, estado, finanzas) pulsando la cabecera; en estrecho, menú «Ordenar por» (incluye «pendiente de cobro»). Sin elegir: más reciente primero.
-- Filas virtualizadas (válidas para cientos de pedidos). **Ancho (≥ 880 px del listado):** columnas ID/fecha, proyecto + cliente, estado, finanzas, detalles, acciones. **Estrecho:** tarjetas apiladas.
-- **Finanzas**: total; «Cobrado» en verde con ✓ si está saldado (completado o pendiente ≤ 0); si no, «Pagado X · Falta Y».
-- **Detalles**: nº de placas, «Pintado», merma en % (rojo > 30 %, ámbar > 10 %, verde) y nombres de las placas. Merma % = gramos perdidos / gramos de las placas × 100, sin límite.
-- **Acciones**: Completar (solo si procede), Editar/Ver y menú ⋮ (Registrar merma, Duplicar, Eliminar). Tocar la fila abre el pedido.
+- Filas virtualizadas (válidas para cientos de pedidos). **Ancho (≥ 880 px del listado):** tabla con cabecera ordenable y los pedidos **agrupados por mes** (con nº de pedidos y facturado) cuando se ordena por ID o fecha. Columnas: ID, fecha, **proyecto en dos líneas** (nombre arriba; cliente, nº de placas, «Pintado» y merma en % debajo), estado (menú para cambiarlo), **precio con el beneficio debajo** en los pedidos cerrados (+verde / −rojo) y cobro. Una franja de color a la izquierda marca el estado. **Estrecho:** tarjetas apiladas.
+- **Cobro**: «Cobrado» en gris con ✓ (lo normal) si está saldado; si no, «Falta Y» en ámbar con el detalle «Pagado X · Falta Y» en el tooltip.
+- Merma %: gramos perdidos / gramos de las placas × 100, sin límite (rojo > 30 %, ámbar > 10 %, verde).
+- **Acciones**: Completar (solo si procede) y menú ⋮ (Registrar merma, Duplicar, Eliminar). Tocar la fila abre el pedido.
 - **Completar** pide confirmación indicando los gramos aproximados que se descontarán. **Eliminar** pide confirmación y explica qué ocurre. Toda acción fallida muestra un aviso con el motivo.
 - Estados vacíos: sin pedidos («Crear el primer pedido») y sin resultados («Limpiar filtros»).
 
@@ -119,7 +119,7 @@ RECOMENDADO = SIN PINTAR + importe de pintura del nivel (si se pinta)
 
 - **Indicadores**: Facturado (suma de pedidos completados o enviados), **Beneficio** (facturado − coste real; con su margen %), **Pendiente de cobro** (deuda de pedidos que no son borrador ni cancelados) y **Objetivo** (beneficio / objetivo configurable, con barra de progreso).
 - **Coste real** de cada pedido cerrado: su coste fijo (`costOverride`). Se **congela al completar** (`CostFreezer`, con los precios y ajustes de ese momento) y los pedidos importados traen el de la hoja, así que cambiar un €/kg o un margen no altera el beneficio histórico. Solo si un pedido cerrado no tuviera coste fijo se recalcularía (`OrderCosting`).
-- Gráfica de barras de facturado y beneficio por mes (con scroll si hay muchos meses y tooltips), anillo de pedidos por estado, **detalle mensual** (pedidos, facturado, beneficio, margen; el mes más reciente primero) y lista de **pendientes de cobro** con su antigüedad.
+- Gráfica de barras de facturado y beneficio por mes (con scroll si hay muchos meses y tooltips), reparto de pedidos por estado en una barra de proporciones con su leyenda (icono, número y %), **detalle mensual** (pedidos, facturado, beneficio, margen; el mes más reciente primero) y lista de **pendientes de cobro** con su antigüedad.
 - Las **mermas** no se restan del beneficio (ya van en los intentos); se muestran como nota informativa con su coste.
 
 ### 4.4 Inventario (`features/inventory`)
@@ -127,6 +127,8 @@ RECOMENDADO = SIN PINTAR + importe de pintura del nivel (si se pinta)
 - **Resina = tanque**: tarjeta con un tanque animado (nivel = gramos / capacidad; 5 kg o el siguiente kilo entero), kilos, gramos, precio medio y valor. **Añadir resina** pide gramos y precio de la remesa y promedia el precio por kilo con lo que había (`ResinBlend`, atómico en `MaterialRepository.addResin`; un stock ≤ 0 toma el precio nuevo). Solo la resina lleva el stock al día (`PrintMaterial.tracksStock`).
 - **Filamento = lista de colores con su precio** (€/kg), agrupados por nombre/marca, con una bobina del color deducido del texto; no se controlan gramos (el usuario sabe lo que le queda), así que no hay estados de stock ni avisos de falta (`StockCheck` solo mira la resina). Al completar un pedido se sigue restando del campo interno de stock, sin mostrarse.
 - **Añadir varios**: marca + precio por defecto + lista de colores (uno por línea; `Color: precio` para precio propio; sin vacíos ni repetidos) crea todos los filamentos de golpe (`BulkFilaments`).
+- **Color del filamento**: cada bobina tiene un color RGB (`materials.color_rgb`), que se elige con un selector (deslizadores R/G/B + hexadecimal) o se rellena al escribir un nombre de la **biblioteca de colores** (tabla `color_library`, editable desde el botón «Colores»: añadir, cambiar o borrar cualquiera, también los 16 básicos de serie; «Restaurar básicos» repone los que falten). Los colores nuevos que se dan de alta en un filamento se añaden solos a la biblioteca (sin pisar los ya editados). Sin RGB se deduce del texto («negro», «rojo»…).
+- **Añadir varios (rápido)**: marca y precio una vez; los colores se añaden como etiquetas escribiendo y pulsando Enter, pegando una lista, o tocando los colores de la biblioteca.
 - Buscador por nombre o color (solo filamento). Alta/edición con validación (nombre obligatorio, €/kg ≥ 0; en resina también los gramos).
 - **Borrar**: si alguna placa usa el material **no se borra** y se avisa de cuántas; si no, pide confirmación.
 - Las placas y mermas **pueden no tener material** (v8): así quedan las importadas del Excel, que conservan su coste congelado.
@@ -140,7 +142,7 @@ RECOMENDADO = SIN PINTAR + importe de pintura del nivel (si se pinta)
 
 ### 4.6 Clientes (`features/clients`)
 
-- Buscador (nombre, teléfono, email) y rejilla adaptable de tarjetas con avatar de iniciales, teléfono y email (con botón de copiar), «N pedidos · €X facturado» y, si debe dinero, «Debe €Y».
+- Franja resumen (clientes, facturado, por cobrar), buscador (nombre, teléfono, email) y filtros (Todos, Con pedidos, Con deuda). **Tarjetas de estructura fija** y mismo alto en rejilla (3 columnas en tablet) o lista: avatar de iniciales, nombre y nº de pedidos; dos líneas de contacto (teléfono y email con botón de copiar, o «Sin teléfono» / «Sin email» atenuado); pie con **Facturado** y **Por cobrar** («Al día» en verde si no debe nada).
 - Alta/edición con todos los campos opcionales: si todo está vacío no se guarda; sin nombre se usa el teléfono o el email. **Eliminar** un cliente (con confirmación) conserva sus pedidos, que quedan sin cliente.
 
 ### 4.7 Administración (`features/settings`)
@@ -178,7 +180,7 @@ Todo se hace en una transacción. Completar un pedido ya cerrado no hace nada; c
 ## 6. Base de datos
 
 - Archivo `nesher_erp_v6.db` (el «v6» es histórico); versión del esquema (`PRAGMA user_version`) = **8**. Esquema único en `lib/core/database/db_schema.dart`: `onCreate` crea tablas y ajustes; `onUpgrade` asegura todas las tablas y aplica migraciones `if (oldVersion < N)`; `onOpen` es una red de seguridad.
-- Migraciones: v2 clientes, placas y piezas; v3 intentos, horas de pintura, colores y coste fijo en pedidos; v4 detalle de pintura (ya no se usa; la columna `paint_detail` y `paint_colors` se conservan sin usar); **v6 pintura por detalle** (columna `paint_level`; las horas y la tarifa de pintura dejan de usarse); **v7 congela el coste** de los pedidos completados/enviados en `cost_override` (sin columnas nuevas; K1); **v8 retira los materiales «Histórico (Excel)»** de la importación (placas y mermas pasan a no tener material, material_id opcional; antes congela `cost_override` de los pedidos que los usaban); **v5 modelo de precios simple**: añade los ajustes nuevos y devuelve el margen a su valor por defecto (ahora es un % sobre el coste, no un multiplicador distinto).
+- Migraciones: v2 clientes, placas y piezas; v3 intentos, horas de pintura, colores y coste fijo en pedidos; v4 detalle de pintura (ya no se usa; la columna `paint_detail` y `paint_colors` se conservan sin usar); **v6 pintura por detalle** (columna `paint_level`; las horas y la tarifa de pintura dejan de usarse); **v7 congela el coste** de los pedidos completados/enviados en `cost_override` (sin columnas nuevas; K1); **v8 añade `materials.color_rgb` y la tabla `color_library` (con los básicos)**, y retira los materiales «Histórico (Excel)»** de la importación (placas y mermas pasan a no tener material, material_id opcional; antes congela `cost_override` de los pedidos que los usaban); **v5 modelo de precios simple**: añade los ajustes nuevos y devuelve el margen a su valor por defecto (ahora es un % sobre el coste, no un multiplicador distinto).
 - **Copia de seguridad**: antes de migrar a una versión nueva, `AppDatabase` copia el archivo junto al original (`<archivo>.bak-v<versión>-<fecha>`).
 - `PRAGMA foreign_keys` no está activado; el borrado de pedidos elimina explícitamente sus placas, mermas, piezas y consumos.
 
