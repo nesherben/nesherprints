@@ -405,8 +405,8 @@ class AppStrings {
   static String bulkAdded(int n) =>
       n == 1 ? '1 filamento añadido' : '$n filamentos añadidos';
   static String addResinTo(String name) => 'Añadir resina a "$name"';
-  static const resinGramsLabel = 'Cantidad a añadir';
-  static const resinBatchPriceLabel = 'Precio de esta remesa';
+  static const resinGramsLabel = 'Cantidad';
+  static const resinBatchPriceLabel = 'Precio remesa';
   static String resinNow(String stock, String price) =>
       'Ahora: $stock a $price/kg';
   static const resinPriceNow = 'Precio medio actual';

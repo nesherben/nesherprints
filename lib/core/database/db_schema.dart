@@ -469,8 +469,19 @@ class DbSchema {
   /// Red de seguridad en cada apertura: garantiza que existen todas las
   /// tablas (bases de datos antiguas o incompletas). No modifica datos.
   static Future<void> onOpen(Database db) async {
+    final hadLibrary = (await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+      [ColorLibraryTable.name],
+    )).isNotEmpty;
     for (final sql in _allTables) {
       await db.execute(sql);
     }
+    // Bases que ya estaban en v8 antes de añadir el color RGB y la biblioteca.
+    await _addColumnIfMissing(
+      db,
+      MaterialsTable.name,
+      '${MaterialsTable.colorRgb} INTEGER',
+    );
+    if (!hadLibrary) await seedColorLibrary(db);
   }
 }

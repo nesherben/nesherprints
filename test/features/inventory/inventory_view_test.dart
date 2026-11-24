@@ -132,8 +132,8 @@ void main() {
     await openView(t);
 
     await tapText(t, 'Añadir resina');
-    await enter(t, 'Cantidad a añadir', '300');
-    await enter(t, 'Precio de esta remesa', '55');
+    await enter(t, 'Cantidad', '300');
+    await enter(t, 'Precio remesa', '55');
     await tapText(t, 'Aplicar');
 
     // 100 g a 35 €/kg + 300 g a 55 €/kg = 400 g a 50 €/kg.

@@ -29,7 +29,10 @@ class AddResinDialog extends StatefulWidget {
 class _AddResinDialogState extends State<AddResinDialog> {
   final _gramsController = TextEditingController();
   late final TextEditingController _priceController = TextEditingController(
-    text: widget.material.costPerKg.toString(),
+    // Con el tanque vacío no hay precio que sugerir.
+    text: widget.material.costPerKg > 0
+        ? widget.material.costPerKg.toString()
+        : '',
   );
 
   double get _grams => parseDecimal(_gramsController.text);
@@ -88,6 +91,7 @@ class _AddResinDialogState extends State<AddResinDialog> {
               Expanded(
                 child: TextField(
                   controller: _gramsController,
+                  autofocus: true,
                   keyboardType: decimalKeyboard,
                   inputFormatters: decimalInputFormatters,
                   textInputAction: TextInputAction.next,
