@@ -5,9 +5,27 @@ import 'package:nesherprints/features/orders/domain/order_parts.dart';
 import 'package:nesherprints/features/orders/domain/stock_check.dart';
 
 void main() {
+  test('el filamento no lleva stock: nunca avisa', () {
+    final s = StockCheck.shortages(
+      plates: [OrderPlate(name: 'P', grams: 500, minutes: 60, materialId: 1)],
+      wasteByMaterial: const {},
+      materials: const [
+        PrintMaterial(
+          id: 1,
+          kind: MaterialKind.filament,
+          name: 'PLA',
+          color: 'Rojo',
+          costPerKg: 20,
+          stockGrams: 0,
+        ),
+      ],
+    );
+    expect(s, isEmpty);
+  });
+
   PrintMaterial material(int id, double stock) => PrintMaterial(
     id: id,
-    kind: MaterialKind.filament,
+    kind: MaterialKind.resin,
     name: 'Mat$id',
     color: 'Negro',
     costPerKg: 20,

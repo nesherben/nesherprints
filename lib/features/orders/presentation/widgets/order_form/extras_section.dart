@@ -35,6 +35,15 @@ class ExtrasSection extends StatelessWidget {
       for (final e in selected.entries) (unitPrices[e.key] ?? 0) * e.value,
     ].fold(0.0, (a, b) => a + b);
 
+    final chosen = [
+      for (final e in extras)
+        if ((selected[e.id] ?? 0) > 0) e,
+    ];
+    final available = [
+      for (final e in extras)
+        if ((selected[e.id] ?? 0) <= 0) e,
+    ];
+
     return SectionCard(
       title: AppStrings.extrasSectionTitle,
       subtitle: AppStrings.extrasSectionHint,
@@ -48,8 +57,17 @@ class ExtrasSection extends StatelessWidget {
       child: extras.isEmpty
           ? const Text(AppStrings.noExtrasDefined, style: AppTextStyles.muted)
           : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final (i, extra) in extras.indexed) ...[
+                if (chosen.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: Text(
+                      AppStrings.noExtrasSelected,
+                      style: AppTextStyles.muted,
+                    ),
+                  ),
+                for (final (i, extra) in chosen.indexed) ...[
                   if (i > 0) const Divider(),
                   _ExtraRow(
                     extra: extra,
@@ -59,8 +77,78 @@ class ExtrasSection extends StatelessWidget {
                     onChanged: (q) => onQuantityChanged(extra.id!, q),
                   ),
                 ],
+                if (!isLocked) ...[
+                  if (chosen.isNotEmpty) const SizedBox(height: AppSpacing.sm),
+                  _AddExtraButton(
+                    available: available,
+                    unitPrices: unitPrices,
+                    onPick: (extra) => onQuantityChanged(extra.id!, 1),
+                  ),
+                ],
               ],
             ),
+    );
+  }
+}
+
+/// Botón «Añadir pieza»: abre un menú con las piezas que aún no están en el
+/// pedido (con precio y stock).
+class _AddExtraButton extends StatelessWidget {
+  const _AddExtraButton({
+    required this.available,
+    required this.unitPrices,
+    required this.onPick,
+  });
+
+  final List<Extra> available;
+  final Map<int, double> unitPrices;
+  final ValueChanged<Extra> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    if (available.isEmpty) return const SizedBox.shrink();
+    return PopupMenuButton<Extra>(
+      tooltip: AppStrings.pickExtra,
+      position: PopupMenuPosition.under,
+      onSelected: onPick,
+      constraints: const BoxConstraints(maxHeight: 420, minWidth: 300),
+      itemBuilder: (_) => [
+        for (final e in available)
+          PopupMenuItem(
+            value: e,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    e.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Text(
+                  AppStrings.extraPriceStock(
+                    formatEuro(unitPrices[e.id] ?? e.unitPrice),
+                    e.stock,
+                  ),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: e.stock <= 0
+                        ? AppColors.danger
+                        : AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+      child: IgnorePointer(
+        child: OutlinedButton.icon(
+          onPressed: () {},
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text(AppStrings.pickExtra),
+        ),
+      ),
     );
   }
 }
@@ -137,6 +225,21 @@ class _ExtraRow extends StatelessWidget {
             icon: const Icon(Icons.add_circle_outline),
             color: AppColors.primary,
           ),
+          SizedBox(
+            width: 72,
+            child: Text(
+              formatEuro(unitPrice * quantity),
+              textAlign: TextAlign.end,
+              style: AppTextStyles.money.copyWith(fontSize: 14),
+            ),
+          ),
+          if (!isLocked)
+            IconButton(
+              tooltip: AppStrings.removeExtraLine,
+              onPressed: () => onChanged(0),
+              icon: const Icon(Icons.close, size: 18),
+              color: AppColors.textMuted,
+            ),
         ],
       ),
     );

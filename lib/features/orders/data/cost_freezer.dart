@@ -25,6 +25,22 @@ class CostFreezer {
     const ['Completed', 'Shipped'],
   );
 
+  /// Congela, sea cual sea su estado, los pedidos con placas de alguno de
+  /// [materialIds] (antes de borrar esos materiales; migración v8).
+  static Future<void> freezeUsingMaterials(
+    DatabaseExecutor db,
+    List<int> materialIds,
+  ) {
+    final marks = List.filled(materialIds.length, '?').join(', ');
+    return _freeze(
+      db,
+      '${OrdersTable.id} IN (SELECT ${OrderPlatesTable.orderId} '
+      'FROM ${OrderPlatesTable.name} '
+      'WHERE ${OrderPlatesTable.materialId} IN ($marks))',
+      materialIds,
+    );
+  }
+
   static Future<void> _freeze(
     DatabaseExecutor db,
     String where,

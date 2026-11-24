@@ -9,6 +9,7 @@ import 'package:nesherprints/features/inventory/presentation/inventory_view.dart
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_parts.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
+import '../../support/row_menu.dart';
 
 /// Pantalla de Inventario sobre una base de datos en memoria. Los accesos a la
 /// BD usan un hilo real, de ahí `runAsync` al esperar.
@@ -76,6 +77,14 @@ void main() {
     await settle(t);
   }
 
+  /// Abre el menú de la bobina «PLA Silk · Negro» y elige una opción.
+  Future<void> tapSlotMenu(WidgetTester t, String label) async {
+    await t.tap(find.byTooltip('PLA Silk · Negro'));
+    await t.pumpAndSettle();
+    await t.tap(find.text(label).last);
+    await settle(t);
+  }
+
   Future<void> tapText(WidgetTester t, String text) async {
     final finder = find.text(text).first;
     await t.ensureVisible(finder);
@@ -103,66 +112,109 @@ void main() {
     stockGrams: 100,
   );
 
-  testWidgets('muestra los materiales, el resumen y el stock bajo', (t) async {
+  testWidgets('muestra el tanque de resina y los colores con su precio', (
+    t,
+  ) async {
     await seed(t, [pla, resin]);
     await openView(t);
 
     expect(find.text('PLA Silk'), findsOneWidget);
-    expect(find.text('Resina Elegoo'), findsOneWidget);
-    expect(find.text('Negro · €20.00/kg'), findsOneWidget);
-    expect(find.text('1000 g'), findsOneWidget);
-    expect(find.text('Stock bajo'), findsOneWidget, reason: 'solo la resina');
-    expect(find.text('1.10 kg'), findsOneWidget, reason: 'stock total');
-    expect(find.byType(LinearProgressIndicator), findsNWidgets(2));
+    expect(find.text('Negro'), findsOneWidget);
+    expect(find.text('€20.00/kg'), findsOneWidget);
+    expect(find.text('Tanque de resina'), findsOneWidget);
+    expect(find.text('0.10 kg'), findsOneWidget, reason: 'nivel del tanque');
+    expect(find.text('Añadir resina'), findsOneWidget);
+    expect(find.text('1000 g'), findsNothing, reason: 'el filamento no cuenta');
+  });
+
+  testWidgets('añadir resina suma los gramos y promedia el precio', (t) async {
+    await seed(t, [resin]);
+    await openView(t);
+
+    await tapText(t, 'Añadir resina');
+    await enter(t, 'Cantidad a añadir', '300');
+    await enter(t, 'Precio de esta remesa', '55');
+    await tapText(t, 'Aplicar');
+
+    // 100 g a 35 €/kg + 300 g a 55 €/kg = 400 g a 50 €/kg.
+    final saved = (await stored(t)).single;
+    expect(saved.stockGrams, 400);
+    expect(saved.costPerKg, closeTo(50, 0.0001));
+    expect(find.text('0.40 kg'), findsOneWidget);
+  });
+
+  testWidgets('añadir varios crea todos los colores de golpe', (t) async {
+    await openView(t);
+    await tapText(t, 'Añadir varios');
+
+    await enter(t, 'Nombre/Marca', 'eSun PLA+');
+    await enter(t, 'Precio por defecto', '18');
+    // Enter convierte lo escrito en etiqueta; pegar una lista hace lo mismo.
+    await enter(t, 'Colores', 'Rojo\nAzul: 17,5\nrojo\n\nNegro');
+    expect(find.byType(InputChip), findsNWidgets(2), reason: 'Rojo y Azul');
+    // Un toque en la biblioteca también añade un color.
+    await t.tap(find.widgetWithText(ActionChip, 'Verde'));
+    await t.pump();
+    await tapText(t, 'Crear 4');
+
+    final all = await stored(t);
+    expect(all.map((m) => m.color).toSet(), {'Rojo', 'Azul', 'Negro', 'Verde'});
+    expect(all.every((m) => m.name == 'eSun PLA+'), isTrue);
+    expect(all.firstWhere((m) => m.color == 'Azul').costPerKg, 17.5);
+    expect(all.firstWhere((m) => m.color == 'Rojo').costPerKg, 18);
+    expect(all.every((m) => m.stockGrams == 0), isTrue);
   });
 
   testWidgets('sin materiales muestra el estado vacío con acción', (t) async {
     await openView(t);
 
-    expect(find.text('Aún no hay materiales'), findsOneWidget);
-    await tapText(t, 'Añadir Material');
+    expect(find.text('La estantería está vacía'), findsOneWidget);
+    await tapText(t, 'Nuevo material');
     expect(find.text('Nombre/Marca'), findsOneWidget);
   });
 
-  testWidgets('el buscador filtra por nombre, color y tipo', (t) async {
+  testWidgets('el buscador filtra los colores de filamento', (t) async {
     await seed(t, [pla, resin]);
     await openView(t);
 
-    await t.enterText(find.byType(TextField), 'gris');
-    await settle(t, rounds: 2);
-    expect(find.text('Resina Elegoo'), findsOneWidget);
-    expect(find.text('PLA Silk'), findsNothing);
-
-    await t.enterText(find.byType(TextField), 'filamento');
+    await t.enterText(find.byType(TextField), 'negro');
     await settle(t, rounds: 2);
     expect(find.text('PLA Silk'), findsOneWidget);
-    expect(find.text('Resina Elegoo'), findsNothing);
 
     await t.enterText(find.byType(TextField), 'zzz');
     await settle(t, rounds: 2);
     expect(find.text('Sin resultados'), findsOneWidget);
+    expect(find.text('PLA Silk'), findsNothing);
+    expect(
+      find.text('Tanque de resina'),
+      findsOneWidget,
+      reason: 'el tanque no se filtra',
+    );
 
     await t.tap(find.byTooltip('Borrar búsqueda'));
     await settle(t, rounds: 2);
     expect(find.text('PLA Silk'), findsOneWidget);
-    expect(find.text('Resina Elegoo'), findsOneWidget);
   });
 
   testWidgets('alta: valida los campos y guarda el material', (t) async {
     await openView(t);
-    await tapText(t, 'Añadir Material');
+    await tapText(t, 'Nuevo material');
 
     await tapText(t, 'Guardar');
     expect(find.text('Indica el nombre o la marca'), findsOneWidget);
     expect(find.text('Indica un coste válido (0 o más)'), findsOneWidget);
-    expect(find.text('Indica un stock válido (0 o más)'), findsOneWidget);
+    expect(
+      find.text('Indica un stock válido (0 o más)'),
+      findsNothing,
+      reason: 'el filamento no lleva stock',
+    );
     expect(await stored(t), isEmpty);
 
     await tapText(t, 'Resina');
     await enter(t, 'Nombre/Marca', 'Anycubic');
     await enter(t, 'Color', 'Verde');
     await enter(t, 'Coste por Kg (€)', '30,5');
-    await enter(t, 'Stock (gramos/ml)', '500');
+    await enter(t, 'Gramos en el tanque (ahora)', '500');
     await tapText(t, 'Guardar');
 
     final saved = (await stored(t)).single;
@@ -171,11 +223,7 @@ void main() {
     expect(saved.color, 'Verde');
     expect(saved.costPerKg, 30.5);
     expect(saved.stockGrams, 500);
-    expect(
-      find.text('Anycubic'),
-      findsOneWidget,
-      reason: 'aparece en la lista',
-    );
+    expect(find.text('0.50 kg'), findsOneWidget, reason: 'sale en el tanque');
   });
 
   testWidgets('edición: cambia el nombre y conserva el id', (t) async {
@@ -183,8 +231,7 @@ void main() {
     await openView(t);
     final id = (await stored(t)).single.id;
 
-    await t.tap(find.byTooltip('Editar'));
-    await settle(t);
+    await tapSlotMenu(t, 'Editar');
     await enter(t, 'Nombre/Marca', 'PLA Mate');
     await tapText(t, 'Guardar');
 
@@ -198,18 +245,16 @@ void main() {
     await seed(t, [pla]);
     await openView(t);
 
-    await t.tap(find.byTooltip('Eliminar'));
-    await settle(t);
+    await tapSlotMenu(t, 'Eliminar');
     expect(find.text('Confirmar eliminación'), findsOneWidget);
     await tapText(t, 'Cancelar');
     expect(await stored(t), hasLength(1));
 
-    await t.tap(find.byTooltip('Eliminar'));
-    await settle(t);
+    await tapSlotMenu(t, 'Eliminar');
     await t.tap(find.widgetWithText(ElevatedButton, 'Eliminar'));
     await settle(t);
     expect(await stored(t), isEmpty);
-    expect(find.text('Aún no hay materiales'), findsOneWidget);
+    expect(find.text('La estantería está vacía'), findsOneWidget);
   });
 
   testWidgets('un material usado en placas no se borra y se avisa', (t) async {
@@ -228,8 +273,7 @@ void main() {
     );
     await openView(t);
 
-    await t.tap(find.byTooltip('Eliminar'));
-    await settle(t);
+    await tapSlotMenu(t, 'Eliminar');
 
     expect(find.text('Confirmar eliminación'), findsNothing);
     expect(
@@ -259,7 +303,7 @@ void main() {
       await openView(t, size: size);
       expect(overflows, isEmpty, reason: 'lista');
 
-      await t.tap(find.byTooltip('Editar').first);
+      await tapRowMenu(t, 'Editar');
       await settle(t);
       await enter(t, 'Nombre/Marca', '');
       await tapText(t, 'Guardar');

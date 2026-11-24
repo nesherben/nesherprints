@@ -91,6 +91,7 @@ class _AddStockDialogState extends State<AddStockDialog> {
                   onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                     labelText: AppStrings.addUnits,
+                    prefixIcon: Icon(Icons.inventory_2_outlined, size: 20),
                   ),
                 ),
               ),
@@ -104,6 +105,7 @@ class _AddStockDialogState extends State<AddStockDialog> {
                   onSubmitted: (_) => _apply(),
                   decoration: const InputDecoration(
                     labelText: AppStrings.totalPriceOfUnits,
+                    prefixIcon: Icon(Icons.euro, size: 20),
                   ),
                 ),
               ),
@@ -125,7 +127,7 @@ class _AddStockDialogState extends State<AddStockDialog> {
                     Expanded(
                       child: _PriceColumn(
                         label: AppStrings.stockUnitPriceNow,
-                        value: formatEuro(extra.unitPrice, decimals: 4),
+                        value: formatEuro(extra.unitPrice, decimals: 3),
                         color: AppColors.textMuted,
                       ),
                     ),
@@ -139,7 +141,7 @@ class _AddStockDialogState extends State<AddStockDialog> {
                     Expanded(
                       child: _PriceColumn(
                         label: AppStrings.stockUnitPriceNew,
-                        value: formatEuro(_newUnitPrice, decimals: 4),
+                        value: formatEuro(_newUnitPrice, decimals: 3),
                         color: _canApply
                             ? AppColors.primary
                             : AppColors.textMuted,

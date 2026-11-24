@@ -23,16 +23,30 @@ class OrderRules {
       'Los intentos deben ser 1 o más.',
   ];
 
+  /// Tope de gramos por placa: por encima casi seguro es un error al teclear.
+  static const double maxPlateGrams = 5000;
+
+  /// Tope de tiempo por placa (10 días).
+  static const double maxPlateMinutes = 14400;
+
   /// Errores del formulario: el pedido y además sus placas.
   static List<String> validateForm(Order order, List<OrderPlate> plates) => [
     ...validateOrder(order),
+    if (_isFinite(order.price) &&
+        _isFinite(order.paidAmount) &&
+        order.paidAmount > order.price + 0.005)
+      'Lo cobrado no puede superar el precio final.',
     if (plates.isEmpty) 'Añade al menos una placa.',
     for (final (i, plate) in plates.indexed) ...[
       if (plate.materialId == null) 'La placa ${i + 1} no tiene material.',
       if (!_isFinite(plate.grams) || plate.grams <= 0)
         'La placa ${i + 1} necesita gramos (más de 0).',
+      if (_isFinite(plate.grams) && plate.grams > maxPlateGrams)
+        'La placa ${i + 1} supera ${maxPlateGrams ~/ 1000} kg: revisa los gramos.',
       if (!_isFinite(plate.minutes) || plate.minutes < 0)
         'La placa ${i + 1} tiene un tiempo negativo.',
+      if (_isFinite(plate.minutes) && plate.minutes > maxPlateMinutes)
+        'La placa ${i + 1} supera los 10 días: revisa el tiempo.',
     ],
   ];
 

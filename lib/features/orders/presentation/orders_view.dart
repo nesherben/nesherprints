@@ -204,9 +204,10 @@ class _OrdersViewState extends State<OrdersView> {
       final materials = await ServiceLocator.materials.getAll();
       final wasteByMaterial = <int, double>{};
       for (final w in waste) {
-        if (w.orderId != order.id) continue;
-        wasteByMaterial[w.materialId] =
-            (wasteByMaterial[w.materialId] ?? 0) + w.grams;
+        final materialId = w.materialId;
+        if (w.orderId != order.id || materialId == null) continue;
+        wasteByMaterial[materialId] =
+            (wasteByMaterial[materialId] ?? 0) + w.grams;
       }
       return StockCheck.shortages(
         plates: plates,
@@ -277,7 +278,12 @@ class _OrdersViewState extends State<OrdersView> {
             children: [
               PageHeader(
                 title: AppStrings.ordersTitle,
-                subtitle: AppStrings.ordersCount(widget.orders.length),
+                subtitle: visible.length == widget.orders.length
+                    ? AppStrings.ordersCount(widget.orders.length)
+                    : AppStrings.showingCount(
+                        visible.length,
+                        widget.orders.length,
+                      ),
                 action: ElevatedButton.icon(
                   onPressed: () => _openForm(),
                   icon: const Icon(Icons.add, size: 20),
@@ -290,13 +296,6 @@ class _OrdersViewState extends State<OrdersView> {
               _buildFilterChips(),
               const SizedBox(height: AppSpacing.md),
               Expanded(child: Card(child: _buildBody(visible))),
-              if (widget.orders.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  AppStrings.showingCount(visible.length, widget.orders.length),
-                  style: AppTextStyles.mutedSmall,
-                ),
-              ],
             ],
           ),
         ),

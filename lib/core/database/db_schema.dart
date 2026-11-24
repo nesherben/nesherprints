@@ -7,6 +7,7 @@ library;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:nesherprints/core/constants/app_constants.dart';
+import 'package:nesherprints/features/inventory/domain/color_library.dart';
 import 'package:nesherprints/features/orders/data/cost_freezer.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
@@ -29,6 +30,17 @@ class MaterialsTable {
   static const type = 'type';
   static const costPerKg = 'cost_per_kg';
   static const stockGrams = 'stock_g';
+
+  /// Color de la bobina como RGB (0xRRGGBB); `NULL` si no se ha elegido.
+  static const colorRgb = 'color_rgb';
+}
+
+/// Biblioteca de colores de filamento que mantiene el usuario.
+class ColorLibraryTable {
+  static const name = 'color_library';
+  static const id = 'id';
+  static const colorName = 'name';
+  static const rgb = 'rgb';
 }
 
 class ClientsTable {
@@ -120,7 +132,7 @@ class DbSchema {
   DbSchema._();
 
   /// Versión del esquema (PRAGMA user_version).
-  static const int version = 7;
+  static const int version = 8;
 
   static const String _createSettings =
       '''
@@ -138,7 +150,16 @@ class DbSchema {
       ${MaterialsTable.color} TEXT NOT NULL,
       ${MaterialsTable.type} TEXT NOT NULL,
       ${MaterialsTable.costPerKg} REAL NOT NULL,
-      ${MaterialsTable.stockGrams} REAL NOT NULL
+      ${MaterialsTable.stockGrams} REAL NOT NULL,
+      ${MaterialsTable.colorRgb} INTEGER
+    )''';
+
+  static const String _createColorLibrary =
+      '''
+    CREATE TABLE IF NOT EXISTS ${ColorLibraryTable.name} (
+      ${ColorLibraryTable.id} INTEGER PRIMARY KEY AUTOINCREMENT,
+      ${ColorLibraryTable.colorName} TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      ${ColorLibraryTable.rgb} INTEGER NOT NULL
     )''';
 
   static const String _createClients =
@@ -187,7 +208,7 @@ class DbSchema {
     CREATE TABLE IF NOT EXISTS ${OrderWasteTable.name} (
       ${OrderWasteTable.id} INTEGER PRIMARY KEY AUTOINCREMENT,
       ${OrderWasteTable.orderId} INTEGER NOT NULL,
-      ${OrderWasteTable.materialId} INTEGER NOT NULL,
+      ${OrderWasteTable.materialId} INTEGER,
       ${OrderWasteTable.gramsWasted} REAL NOT NULL,
       ${OrderWasteTable.reason} TEXT,
       ${OrderWasteTable.date} TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -203,7 +224,7 @@ class DbSchema {
       ${OrderPlatesTable.plateName} TEXT NOT NULL,
       ${OrderPlatesTable.grams} REAL NOT NULL,
       ${OrderPlatesTable.minutes} REAL NOT NULL,
-      ${OrderPlatesTable.materialId} INTEGER NOT NULL,
+      ${OrderPlatesTable.materialId} INTEGER,
       ${OrderPlatesTable.status} TEXT DEFAULT 'Pending',
       FOREIGN KEY (${OrderPlatesTable.orderId}) REFERENCES ${OrdersTable.name} (${OrdersTable.id}) ON DELETE CASCADE
     )''';
@@ -234,6 +255,7 @@ class DbSchema {
   static const List<String> _allTables = [
     _createSettings,
     _createMaterials,
+    _createColorLibrary,
     _createClients,
     _createOrders,
     _createOrderItems,
@@ -248,6 +270,7 @@ class DbSchema {
     for (final sql in _allTables) {
       await db.execute(sql);
     }
+    await seedColorLibrary(db);
     for (final entry in const PricingSettings().toMap().entries) {
       await db.insert(SettingsTable.name, {
         SettingsTable.key: entry.key,
@@ -321,6 +344,97 @@ class DbSchema {
       // (antes se recalculaba con los precios actuales). Sin cambio de columnas.
       await CostFreezer.freezeAllClosed(db);
     }
+
+    if (oldVersion < 8) {
+      // v8: placas y mermas pueden no tener material, y los materiales
+      // «Histórico (Excel)» de la importación desaparecen del inventario: el
+      // coste de los pedidos que los usaban queda congelado en cost_override.
+      await _addColumnIfMissing(
+        db,
+        MaterialsTable.name,
+        '${MaterialsTable.colorRgb} INTEGER',
+      );
+      await _rebuildTable(db, OrderPlatesTable.name, _createOrderPlates);
+      await _rebuildTable(db, OrderWasteTable.name, _createOrderWaste);
+      await _removeHistoricMaterials(db);
+      await seedColorLibrary(db);
+    }
+  }
+
+  /// Rellena la biblioteca de colores con los básicos si está vacía. El
+  /// usuario puede borrarlos y añadir los suyos después.
+  static Future<void> seedColorLibrary(DatabaseExecutor db) async {
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) AS n FROM ${ColorLibraryTable.name}',
+    );
+    if (((rows.first['n'] as int?) ?? 0) > 0) return;
+    for (final c in ColorLibrary.basics) {
+      await db.insert(ColorLibraryTable.name, {
+        ColorLibraryTable.colorName: c.name,
+        ColorLibraryTable.rgb: c.rgb,
+      });
+    }
+  }
+
+  /// Nombre de los materiales sintéticos que creó la importación del Excel.
+  static const String historicMaterialName = 'Histórico (Excel)';
+
+  /// Recrea [table] con el esquema [createSql] conservando sus filas (SQLite
+  /// no puede quitar un NOT NULL con ALTER).
+  static Future<void> _rebuildTable(
+    Database db,
+    String table,
+    String createSql,
+  ) async {
+    final temp = '${table}_v8';
+    await db.execute('DROP TABLE IF EXISTS $temp');
+    await db.execute(
+      createSql.replaceFirst('IF NOT EXISTS $table', 'IF NOT EXISTS $temp'),
+    );
+    final columns = (await db.rawQuery(
+      'PRAGMA table_info($temp)',
+    )).map((c) => c['name']).join(', ');
+    await db.execute(
+      'INSERT INTO $temp ($columns) SELECT $columns FROM $table',
+    );
+    await db.execute('DROP TABLE $table');
+    await db.execute('ALTER TABLE $temp RENAME TO $table');
+  }
+
+  /// Borra los materiales «Histórico (Excel)»: antes congela el coste de los
+  /// pedidos que los usan y después quita el material de sus placas y mermas.
+  static Future<void> _removeHistoricMaterials(Database db) async {
+    final ids = [
+      for (final r in await db.query(
+        MaterialsTable.name,
+        columns: [MaterialsTable.id],
+        where: '${MaterialsTable.materialName} = ?',
+        whereArgs: [historicMaterialName],
+      ))
+        r[MaterialsTable.id] as int,
+    ];
+    if (ids.isEmpty) return;
+    final marks = List.filled(ids.length, '?').join(', ');
+    await CostFreezer.freezeUsingMaterials(db, ids);
+    await db.rawUpdate(
+      'UPDATE ${OrderPlatesTable.name} SET ${OrderPlatesTable.materialId} = NULL '
+      'WHERE ${OrderPlatesTable.materialId} IN ($marks)',
+      ids,
+    );
+    await db.rawUpdate(
+      'UPDATE ${OrderWasteTable.name} SET ${OrderWasteTable.materialId} = NULL '
+      'WHERE ${OrderWasteTable.materialId} IN ($marks)',
+      ids,
+    );
+    await db.rawDelete(
+      'DELETE FROM ${OrderItemsTable.name} '
+      'WHERE ${OrderItemsTable.materialId} IN ($marks)',
+      ids,
+    );
+    await db.rawDelete(
+      'DELETE FROM ${MaterialsTable.name} WHERE ${MaterialsTable.id} IN ($marks)',
+      ids,
+    );
   }
 
   static Future<bool> _addColumnIfMissing(

@@ -9,6 +9,7 @@ import 'package:nesherprints/features/clients/domain/client.dart';
 import 'package:nesherprints/features/clients/presentation/clients_view.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
+import '../../support/row_menu.dart';
 
 /// Pantalla de Clientes sobre una base de datos en memoria. Los accesos a la
 /// BD usan un hilo real, de ahí `runAsync` al esperar.
@@ -133,16 +134,18 @@ void main() {
     expect(find.text('600111222'), findsOneWidget);
     expect(find.text('ana@correo.com'), findsOneWidget);
     expect(find.text('AL'), findsOneWidget, reason: 'iniciales');
-    expect(find.text('2 pedidos · €40.00 facturado'), findsOneWidget);
-    expect(find.text('Debe €30.00'), findsOneWidget);
-    expect(find.text('0 pedidos · €0.00 facturado'), findsOneWidget);
+    expect(find.text('2 pedidos'), findsOneWidget);
+    expect(find.text('€40.00'), findsNWidgets(2), reason: 'resumen y tarjeta');
+    expect(find.text('€30.00'), findsNWidgets(2), reason: 'resumen y tarjeta');
+    expect(find.text('0 pedidos'), findsOneWidget);
+    expect(find.text('Al día'), findsOneWidget);
   });
 
   testWidgets('sin clientes muestra el estado vacío con acción', (t) async {
     await openView(t);
 
     expect(find.text('Aún no tienes clientes registrados.'), findsOneWidget);
-    await tapText(t, 'Nuevo Cliente');
+    await tapText(t, 'Nuevo cliente');
     expect(find.text('Nombre / Alias'), findsOneWidget);
   });
 
@@ -178,11 +181,11 @@ void main() {
     t,
   ) async {
     await openView(t);
-    await tapText(t, 'Nuevo Cliente');
+    await tapText(t, 'Nuevo cliente');
     await tapText(t, 'Guardar');
     expect(await stored(t), isEmpty);
 
-    await tapText(t, 'Nuevo Cliente');
+    await tapText(t, 'Nuevo cliente');
     await enter(t, 'Teléfono (WhatsApp)', '622333444');
     await tapText(t, 'Guardar');
 
@@ -197,7 +200,7 @@ void main() {
     await openView(t);
     final id = (await stored(t)).single.id;
 
-    await t.tap(find.byTooltip('Editar Cliente'));
+    await tapRowMenu(t, 'Editar Cliente');
     await settle(t);
     await enter(t, 'Nombre / Alias', 'Ana Pérez');
     await tapText(t, 'Guardar');
@@ -254,7 +257,7 @@ void main() {
       await openView(t, size: size);
       expect(overflows, isEmpty, reason: 'lista');
 
-      await t.tap(find.byTooltip('Editar Cliente').first);
+      await tapRowMenu(t, 'Editar Cliente');
       await settle(t);
       expect(overflows, isEmpty, reason: 'diálogo');
     });

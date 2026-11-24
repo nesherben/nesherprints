@@ -15,6 +15,7 @@ Future<bool> showConfirmDialog(
   required String message,
   required String confirmText,
   Color? color,
+  String cancelText = AppStrings.cancel,
   IconData icon = Icons.help_outline,
 }) async {
   final tint = color ?? AppColors.primary;
@@ -28,7 +29,7 @@ Future<bool> showConfirmDialog(
       actions: [
         OutlinedButton(
           onPressed: () => Navigator.pop(ctx, false),
-          child: const Text(AppStrings.cancel),
+          child: Text(cancelText),
         ),
         ElevatedButton(
           style: color == null ? null : AppButtonStyles.filled(color),

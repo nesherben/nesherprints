@@ -14,7 +14,7 @@ import 'package:nesherprints/features/dashboard/presentation/widgets/kpi_card.da
 import 'package:nesherprints/features/dashboard/presentation/widgets/monthly_revenue_chart.dart';
 import 'package:nesherprints/features/dashboard/presentation/widgets/monthly_table.dart';
 import 'package:nesherprints/features/dashboard/presentation/widgets/pending_list.dart';
-import 'package:nesherprints/features/dashboard/presentation/widgets/status_pie_chart.dart';
+import 'package:nesherprints/features/dashboard/presentation/widgets/status_breakdown.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_costing.dart';
 
@@ -116,21 +116,21 @@ class _DashboardViewState extends State<DashboardView> {
             title: AppStrings.dashboardTitle,
             subtitle: AppStrings.dashboardSubtitle,
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
           _KpiGrid(summary: summary),
           const SizedBox(height: AppSpacing.lg),
           _Panels(
-            height: 340,
+            height: 360,
             left: MonthlyRevenueChart(monthly: summary.monthly),
-            right: StatusPieChart(
-              counts: summary.statusCounts,
-              total: summary.totalOrders,
-            ),
+            right: MonthlyTable(monthly: summary.monthly),
           ),
           const SizedBox(height: AppSpacing.lg),
           _Panels(
-            height: 340,
-            left: MonthlyTable(monthly: summary.monthly),
+            height: 150,
+            left: StatusBreakdown(
+              counts: summary.statusCounts,
+              total: summary.totalOrders,
+            ),
             right: PendingList(
               pending: summary.pendingOrders,
               total: summary.pendingCollection,
@@ -248,11 +248,13 @@ class _Panels extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 900) {
+          // Apilados necesitan más alto: la leyenda y las listas se envuelven.
+          final stackedHeight = height < 300 ? 300.0 : height;
           return Column(
             children: [
-              SizedBox(height: height, child: left),
+              SizedBox(height: stackedHeight, child: left),
               const SizedBox(height: AppSpacing.lg),
-              SizedBox(height: height, child: right),
+              SizedBox(height: stackedHeight, child: right),
             ],
           );
         }

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:nesherprints/app/service_locator.dart';
 import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/input_formatters.dart';
@@ -98,6 +99,10 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   final _priceController = TextEditingController();
   final _paidController = TextEditingController(text: '0');
   final _attemptsController = TextEditingController(text: '1');
+  final _notesController = TextEditingController();
+
+  /// Hay cambios sin guardar (para avisar al cerrar).
+  bool _dirty = false;
 
   PriceEstimate _estimate = PriceEstimate.zero;
 
@@ -119,6 +124,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     _priceController.dispose();
     _paidController.dispose();
     _attemptsController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -164,6 +170,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
               ? '0'
               : source.paidAmount.toStringAsFixed(2);
           _paintDetail = source.paintDetail;
+          if (!duplicating) _notesController.text = source.notes;
           _attemptsController.text = formatInputNumber(source.attempts);
           for (final line in lines) {
             if (line.quantity <= 0) continue;
@@ -176,6 +183,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
         _isLoading = false;
       });
       _recalculate();
+      _dirty = false;
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
@@ -202,16 +210,37 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
         paintDetail: _isPainted ? _paintDetail : null,
         settings: _settings,
       );
+      _dirty = true;
       if (_attempted) _errors = _validate();
     });
   }
 
   /// Refresca lo que depende de los campos de texto sin recalcular el precio.
   void _onFieldChanged() => setState(() {
+    _dirty = true;
     if (_attempted) _errors = _validate();
   });
 
   // ==================== ACCIONES ====================
+
+  bool get _needsDiscardConfirm => _dirty && !_saving && !_isLocked;
+
+  /// Cierra el diálogo; si hay cambios sin guardar, pregunta antes.
+  Future<void> _close() async {
+    if (_needsDiscardConfirm) {
+      final discard = await showConfirmDialog(
+        context,
+        title: AppStrings.discardTitle,
+        message: AppStrings.discardMessage,
+        confirmText: AppStrings.discard,
+        cancelText: AppStrings.keepEditing,
+        color: AppColors.danger,
+        icon: Icons.delete_outline,
+      );
+      if (!discard || !mounted) return;
+    }
+    Navigator.pop(context);
+  }
 
   void _addPlate() {
     _plates.add(
@@ -302,7 +331,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       date: initial?.date ?? todayIsoDate(),
       status: _status,
       isPainted: _isPainted,
-      notes: initial?.notes ?? '',
+      notes: _notesController.text.trim(),
       attempts: _attempts,
       paintDetail: _paintDetail,
       costOverride: initial?.costOverride,
@@ -363,88 +392,88 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     if (_isLoading) return const LoadingDialog();
 
     final initial = widget.initialOrder;
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyS, control: true): _save,
+    return PopScope(
+      canPop: !_needsDiscardConfirm,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _close();
       },
-      child: AppDialogFrame(
-        title: _title,
-        subtitle: initial == null
-            ? null
-            : AppStrings.orderSubtitle(initial.id!, initial.date),
-        icon: Icons.receipt_long_outlined,
-        width: 1040,
-        scrollable: false,
-        padding: EdgeInsets.zero,
-        headerTrailing: _isLocked
-            ? StatusPill(
-                label: _status.label,
-                color: statusColor(_status),
-                icon: statusIcon(_status),
-              )
-            : null,
-        footerLeading: _buildErrorSummary(),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(_isLocked ? AppStrings.close : AppStrings.cancel),
-          ),
-          if (!_isLocked)
-            ElevatedButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.check, size: 18),
-              label: Text(_saving ? AppStrings.saving : AppStrings.saveOrder),
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyS, control: true): _save,
+        },
+        child: AppDialogFrame(
+          title: _title,
+          subtitle: initial == null
+              ? null
+              : AppStrings.orderSubtitle(initial.id!, initial.date),
+          icon: Icons.receipt_long_outlined,
+          width: 1160,
+          scrollable: false,
+          padding: EdgeInsets.zero,
+          headerTrailing: _buildStatusHeader(),
+          footerLeading: _buildErrorSummary(),
+          actions: [
+            OutlinedButton(
+              onPressed: _close,
+              child: Text(_isLocked ? AppStrings.close : AppStrings.cancel),
             ),
-        ],
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final twoColumns = constraints.maxWidth >= 860;
-            if (twoColumns) {
-              final height = math.min(constraints.maxHeight, 760.0);
-              return SizedBox(
-                height: height,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+            if (!_isLocked)
+              ElevatedButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check, size: 18),
+                label: Text(_saving ? AppStrings.saving : AppStrings.saveOrder),
+              ),
+          ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final twoColumns = constraints.maxWidth >= 860;
+              if (twoColumns) {
+                final height = math.min(constraints.maxHeight, 760.0);
+                return SizedBox(
+                  height: height,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(AppSpacing.xl),
+                          child: _buildMain(),
+                        ),
+                      ),
+                      const VerticalDivider(),
+                      SizedBox(
+                        width: 340,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(AppSpacing.xl),
+                          child: _buildSummary(),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
                   children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(AppSpacing.xl),
-                        child: _buildMain(),
-                      ),
-                    ),
-                    const VerticalDivider(),
-                    SizedBox(
-                      width: 340,
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(AppSpacing.xl),
-                        child: _buildSummary(),
-                      ),
+                    _buildMain(),
+                    const SizedBox(height: AppSpacing.lg),
+                    SectionCard(
+                      title: AppStrings.summaryTitle,
+                      icon: Icons.calculate_outlined,
+                      child: _buildSummary(),
                     ),
                   ],
                 ),
               );
-            }
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                children: [
-                  _buildMain(),
-                  const SizedBox(height: AppSpacing.lg),
-                  SectionCard(
-                    title: AppStrings.summaryTitle,
-                    icon: Icons.calculate_outlined,
-                    child: _buildSummary(),
-                  ),
-                ],
-              ),
-            );
-          },
+            },
+          ),
         ),
       ),
     );
@@ -490,6 +519,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       priceController: _priceController,
       paidController: _paidController,
       isLocked: _isLocked,
+      frozenCost: widget.initialOrder?.costOverride,
       onPriceChanged: _onFieldChanged,
       onPaidChanged: _onFieldChanged,
       onApplySuggested: () {
@@ -560,10 +590,84 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     );
   }
 
+  /// Estado del pedido en la cabecera: pastilla fija si está cerrado, o menú
+  /// para cambiarlo.
+  Widget _buildStatusHeader() {
+    final pill = StatusPill(
+      label: _status.label,
+      color: statusColor(_status),
+      icon: statusIcon(_status),
+      trailing: _isLocked
+          ? null
+          : Icon(Icons.expand_more, size: 16, color: statusColor(_status)),
+    );
+    if (_isLocked) return pill;
+    final options = {...OrderStatus.manualChoices, _status}.toList();
+    return PopupMenuButton<OrderStatus>(
+      tooltip: AppStrings.status,
+      position: PopupMenuPosition.under,
+      onSelected: (v) => setState(() {
+        _status = v;
+        _dirty = true;
+      }),
+      itemBuilder: (_) => [
+        for (final s in options)
+          PopupMenuItem(
+            value: s,
+            child: Row(
+              children: [
+                Icon(statusIcon(s), size: 18, color: statusColor(s)),
+                const SizedBox(width: 10),
+                Text(s.label),
+              ],
+            ),
+          ),
+      ],
+      child: pill,
+    );
+  }
+
   Widget _buildDataCard() {
-    final statusOptions = _isLocked
-        ? [_status]
-        : {...OrderStatus.manualChoices, _status}.toList();
+    final clientField = Row(
+      children: [
+        Expanded(
+          child: DropdownButtonFormField<int>(
+            // La clave refleja el cliente recién creado desde aquí.
+            key: ValueKey(_clientId),
+            initialValue: _clientId,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: AppStrings.clientOptional,
+              prefixIcon: Icon(Icons.person_outline, size: 20),
+            ),
+            items: [
+              const DropdownMenuItem<int>(
+                value: null,
+                child: Text(AppStrings.unassigned),
+              ),
+              for (final c in _clients)
+                DropdownMenuItem<int>(
+                  value: c.id,
+                  child: Text(c.name, overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: _isLocked
+                ? null
+                : (v) => setState(() {
+                    _clientId = v;
+                    _dirty = true;
+                  }),
+          ),
+        ),
+        if (!_isLocked)
+          IconButton(
+            tooltip: AppStrings.createNewClient,
+            icon: const Icon(Icons.person_add_alt_1_outlined),
+            color: AppColors.primary,
+            onPressed: _addNewClient,
+          ),
+      ],
+    );
     return SectionCard(
       title: AppStrings.orderDataTitle,
       icon: Icons.assignment_outlined,
@@ -581,72 +685,21 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                   labelText: AppStrings.projectName,
                 ),
               ),
-              DropdownButtonFormField<OrderStatus>(
-                key: ValueKey(_status),
-                initialValue: _status,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: AppStrings.status),
-                items: [
-                  for (final s in statusOptions)
-                    DropdownMenuItem(
-                      value: s,
-                      child: Row(
-                        children: [
-                          Icon(statusIcon(s), size: 18, color: statusColor(s)),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              s.label,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-                onChanged: _isLocked
-                    ? null
-                    : (v) => setState(() => _status = v ?? _status),
-              ),
+              clientField,
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  // La clave refleja el cliente recién creado desde aquí.
-                  key: ValueKey(_clientId),
-                  initialValue: _clientId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: AppStrings.clientOptional,
-                    prefixIcon: Icon(Icons.person_outline, size: 20),
-                  ),
-                  items: [
-                    const DropdownMenuItem<int>(
-                      value: null,
-                      child: Text(AppStrings.unassigned),
-                    ),
-                    for (final c in _clients)
-                      DropdownMenuItem<int>(
-                        value: c.id,
-                        child: Text(c.name, overflow: TextOverflow.ellipsis),
-                      ),
-                  ],
-                  onChanged: _isLocked
-                      ? null
-                      : (v) => setState(() => _clientId = v),
-                ),
-              ),
-              if (!_isLocked)
-                IconButton(
-                  tooltip: AppStrings.createNewClient,
-                  icon: const Icon(Icons.person_add_alt_1_outlined),
-                  color: AppColors.primary,
-                  onPressed: _addNewClient,
-                ),
-            ],
+          TextField(
+            controller: _notesController,
+            enabled: !_isLocked,
+            minLines: 1,
+            maxLines: 4,
+            textInputAction: TextInputAction.newline,
+            onChanged: (_) => _onFieldChanged(),
+            decoration: const InputDecoration(
+              labelText: AppStrings.notesLabel,
+              prefixIcon: Icon(Icons.notes_outlined, size: 20),
+            ),
           ),
         ],
       ),
@@ -672,7 +725,6 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
                   labelText: AppStrings.attemptsLabel,
                   helperText: AppStrings.attemptsHelp,
                   helperMaxLines: 2,
-                  suffixText: '×',
                 ),
               ),
               SwitchListTile(

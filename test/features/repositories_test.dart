@@ -536,5 +536,105 @@ void main() {
       );
       await raw.close();
     });
+
+    test('v7 → v8 retira los materiales «Histórico (Excel)» conservando '
+        'el coste de los pedidos', () async {
+      final raw = await openOld(7, (db) async {
+        await db.execute(settingsTable);
+        await db.execute(
+          'CREATE TABLE materials (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'name TEXT NOT NULL, color TEXT NOT NULL, type TEXT NOT NULL, '
+          'cost_per_kg REAL NOT NULL, stock_g REAL NOT NULL)',
+        );
+        for (final (name, type, price) in [
+          ('Histórico (Excel)', 'filament', 10.0),
+          ('Histórico (Excel)', 'resin', 30.0),
+          ('PLA real', 'filament', 20.0),
+        ]) {
+          await db.insert('materials', {
+            'name': name,
+            'color': 'x',
+            'type': type,
+            'cost_per_kg': price,
+            'stock_g': 0.0,
+          });
+        }
+        await db.execute(
+          'CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'client_id INTEGER, name TEXT NOT NULL, price REAL NOT NULL, '
+          'paid_amount REAL DEFAULT 0.0, date TEXT NOT NULL, '
+          'status TEXT NOT NULL, is_painted INTEGER NOT NULL, notes TEXT, '
+          'attempts REAL NOT NULL DEFAULT 1, paint_hours REAL NOT NULL '
+          'DEFAULT 0, paint_colors REAL NOT NULL DEFAULT 0, cost_override '
+          'REAL, paint_level INTEGER NOT NULL DEFAULT 1)',
+        );
+        await db.execute(
+          'CREATE TABLE order_plates (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'order_id INTEGER NOT NULL, name TEXT NOT NULL, grams REAL NOT NULL, '
+          'minutes REAL NOT NULL, material_id INTEGER NOT NULL, '
+          "status TEXT DEFAULT 'Pending')",
+        );
+        await db.execute(
+          'CREATE TABLE order_waste (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'order_id INTEGER NOT NULL, material_id INTEGER NOT NULL, '
+          'grams_wasted REAL NOT NULL, reason TEXT, date TEXT)',
+        );
+        // 1: borrador importado (material histórico, sin coste fijo);
+        // 2: pedido con un material real.
+        for (final (name, material) in [('Importado', 1), ('Real', 3)]) {
+          final id = await db.insert('orders', {
+            'name': name,
+            'price': 30,
+            'date': '2026-01-01',
+            'status': 'Draft',
+            'is_painted': 0,
+          });
+          await db.insert('order_plates', {
+            'order_id': id,
+            'name': 'A',
+            'grams': 1000.0,
+            'minutes': 0.0,
+            'material_id': material,
+          });
+        }
+        await db.insert('order_waste', {
+          'order_id': 1,
+          'material_id': 2,
+          'grams_wasted': 50.0,
+        });
+      });
+      await DbSchema.onUpgrade(raw, 7, DbSchema.version);
+
+      final materials = await raw.query('materials');
+      expect(materials.map((m) => m['name']), ['PLA real']);
+
+      final orders = {
+        for (final r in await raw.query('orders'))
+          r['name']: r['cost_override'],
+      };
+      expect(
+        orders['Importado'],
+        isNotNull,
+        reason: 'el coste histórico se conserva',
+      );
+      expect(orders['Importado'] as num, greaterThan(0));
+      expect(orders['Real'], isNull);
+
+      final plates = {
+        for (final r in await raw.query('order_plates'))
+          r['order_id']: r['material_id'],
+      };
+      expect(plates, {1: null, 2: 3});
+      expect((await raw.query('order_waste')).single['material_id'], isNull);
+
+      // La columna ya admite NULL en tablas nuevas y reconstruidas.
+      await raw.insert('order_plates', {
+        'order_id': 2,
+        'name': 'B',
+        'grams': 1.0,
+        'minutes': 1.0,
+      });
+      await raw.close();
+    });
   });
 }

@@ -63,6 +63,7 @@ Flujo de datos: Vista → `ServiceLocator.<repo>` → `AppDatabase` → SQLite. 
 - **Errores**: las operaciones lanzan `AppException` (mensaje para el usuario); la UI las muestra con `AppFeedback.failure`. Nada de `try/catch` vacíos ni de cerrar un diálogo antes de saber si se guardó.
 - **UI**: textos solo en `AppStrings`; colores de `AppColors`; estilos de `AppTextStyles`/`AppSpacing`/`AppRadius`; diálogos con `AppDialogFrame` (nunca desbordan); campos sin bordes propios (los pone el tema). Todo `IconButton` lleva `tooltip`. Las pantallas se adaptan con `context.isCompact` / `isWide`.
 - **Imports** absolutos `package:nesherprints/...`, ordenados: `dart:`, paquetes, proyecto.
+- **Listas** (Pedidos, Inventario, Piezas, Clientes): barra con `ListToolbar` (buscador + chips de filtro en una línea), filas compactas con `RowActions` (una acción frecuente visible y el resto en el menú ⋮; **tocar la fila abre la edición**), rejilla con `AdaptiveSliverList` y cabeceras de bloque con `SectionHeader` (icono + título). El color va en los estados, no en las acciones. Botón principal en minúsculas: «Nuevo pedido/material/cliente», «Nueva pieza».
 - **Async en State**: `if (!mounted) return;` tras cada `await` antes de `setState`/`context`.
 - Identificadores en inglés, comentarios y UI en español.
 - Tests: lógica pura en `test/features/<feature>/`, repositorios con `AppDatabase.inMemory()` (nunca la BD real), pantallas con `ServiceLocator.useDatabase` y captura de desbordes (ver `test/app/order_flow_test.dart`).

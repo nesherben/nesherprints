@@ -46,6 +46,7 @@ class MonthlyTable extends StatelessWidget {
                       title: AppStrings.noData,
                     )
                   : ListView.separated(
+                      padding: EdgeInsets.zero,
                       itemCount: months.length,
                       separatorBuilder: (_, _) => const Divider(),
                       itemBuilder: (_, i) {
@@ -100,7 +101,12 @@ class _Row extends StatelessWidget {
         children: [
           for (final (i, text) in cells.indexed)
             Expanded(
-              flex: i == 0 ? 3 : 2,
+              flex: switch (i) {
+                0 => 5,
+                1 => 4,
+                4 => 4,
+                _ => 5,
+              },
               child: Text(
                 header ? text.toUpperCase() : text,
                 maxLines: 1,

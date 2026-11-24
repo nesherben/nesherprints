@@ -83,8 +83,9 @@ Se guardan en inglés (`dbValue`, no cambiar) y se muestran en español.
 - **Piezas extra**: contador −/+ por pieza con su precio y stock; avisa si se piden más de las que hay. Al editar se cargan las piezas del pedido con su **precio registrado**.
 - **Producción**: intentos (decimal, 1 = a la primera) y pintura con su detalle (simple, normal o detallada).
 - **Resumen**: nº de placas, tiempo y gramos; desglose (material, máquina, placas, pintura, piezas), nota de intentos y aviso si se aplica el precio mínimo; **coste real**; **precio recomendado** con «Aplicar»; precio final con valoración en texto (verde «Beneficio X (+Y % sobre el coste)», ámbar «Por debajo del recomendado», rojo «Pierdes X»); cobrado con atajos `0 € / 50 % / Todo` y «Falta por cobrar».
-- **Validación** (`OrderRules.validateForm`): nombre obligatorio, al menos una placa, cada placa con material y gramos > 0, tiempo ≥ 0, precio ≥ 0 (0 vale para regalos), cobrado ≥ 0, intentos > 0. Los errores se muestran en el pie y se actualizan al corregir.
+- **Validación** (`OrderRules.validateForm`): nombre obligatorio, al menos una placa, cada placa con material, gramos > 0 y ≤ 5000, tiempo entre 0 y 10 días, precio ≥ 0 (0 vale para regalos), cobrado entre 0 y el precio, intentos > 0. Los errores se muestran en el pie y se actualizan al corregir.
 - **Guardado**: asíncrono; el diálogo no se cierra hasta que se guarda. Si falla, se queda abierto con el error y sin perder lo escrito. `Ctrl+S` guarda.
+- **Notas** del pedido editables. Cerrar con cambios sin guardar (botón o «atrás») pide confirmación.
 - Si el pedido está cerrado: banner informativo, todo en solo lectura y sin botón de guardar.
 - **Duplicar**: pedido nuevo en Borrador, con las placas (sin ids) y piezas del original, nombre «… (copia)», fecha de hoy y cobrado 0.
 - Al **crear**: se guardan pedido, placas y piezas; se **resta el stock de las piezas** (no el del material). Al **editar**: las placas y piezas se reemplazan por las del formulario (lista vacía = borrar); las piezas anteriores se devuelven al stock y se aplican las nuevas, conservando el precio registrado de las que ya estaban.
@@ -123,10 +124,12 @@ RECOMENDADO = SIN PINTAR + importe de pintura del nivel (si se pinta)
 
 ### 4.4 Inventario (`features/inventory`)
 
-- Franja resumen (nº de materiales, kg totales, nº con stock bajo) y buscador por nombre, color o tipo.
-- Tarjetas con icono por tipo, color, €/kg, barra de stock (verde/ámbar/rojo; **bajo** si < 200 g) y acciones. Vacío: estado vacío con botón de alta.
-- Alta/edición con validación (nombre obligatorio, €/kg y stock obligatorios y ≥ 0).
+- **Resina = tanque**: tarjeta con un tanque animado (nivel = gramos / capacidad; 5 kg o el siguiente kilo entero), kilos, gramos, precio medio y valor. **Añadir resina** pide gramos y precio de la remesa y promedia el precio por kilo con lo que había (`ResinBlend`, atómico en `MaterialRepository.addResin`; un stock ≤ 0 toma el precio nuevo). Solo la resina lleva el stock al día (`PrintMaterial.tracksStock`).
+- **Filamento = lista de colores con su precio** (€/kg), agrupados por nombre/marca, con una bobina del color deducido del texto; no se controlan gramos (el usuario sabe lo que le queda), así que no hay estados de stock ni avisos de falta (`StockCheck` solo mira la resina). Al completar un pedido se sigue restando del campo interno de stock, sin mostrarse.
+- **Añadir varios**: marca + precio por defecto + lista de colores (uno por línea; `Color: precio` para precio propio; sin vacíos ni repetidos) crea todos los filamentos de golpe (`BulkFilaments`).
+- Buscador por nombre o color (solo filamento). Alta/edición con validación (nombre obligatorio, €/kg ≥ 0; en resina también los gramos).
 - **Borrar**: si alguna placa usa el material **no se borra** y se avisa de cuántas; si no, pide confirmación.
+- Las placas y mermas **pueden no tener material** (v8): así quedan las importadas del Excel, que conservan su coste congelado.
 
 ### 4.5 Piezas extra (`features/extras`)
 
@@ -174,8 +177,8 @@ Todo se hace en una transacción. Completar un pedido ya cerrado no hace nada; c
 
 ## 6. Base de datos
 
-- Archivo `nesher_erp_v6.db` (el «v6» es histórico); versión del esquema (`PRAGMA user_version`) = **7**. Esquema único en `lib/core/database/db_schema.dart`: `onCreate` crea tablas y ajustes; `onUpgrade` asegura todas las tablas y aplica migraciones `if (oldVersion < N)`; `onOpen` es una red de seguridad.
-- Migraciones: v2 clientes, placas y piezas; v3 intentos, horas de pintura, colores y coste fijo en pedidos; v4 detalle de pintura (ya no se usa; la columna `paint_detail` y `paint_colors` se conservan sin usar); **v6 pintura por detalle** (columna `paint_level`; las horas y la tarifa de pintura dejan de usarse); **v7 congela el coste** de los pedidos completados/enviados en `cost_override` (sin columnas nuevas; K1); **v5 modelo de precios simple**: añade los ajustes nuevos y devuelve el margen a su valor por defecto (ahora es un % sobre el coste, no un multiplicador distinto).
+- Archivo `nesher_erp_v6.db` (el «v6» es histórico); versión del esquema (`PRAGMA user_version`) = **8**. Esquema único en `lib/core/database/db_schema.dart`: `onCreate` crea tablas y ajustes; `onUpgrade` asegura todas las tablas y aplica migraciones `if (oldVersion < N)`; `onOpen` es una red de seguridad.
+- Migraciones: v2 clientes, placas y piezas; v3 intentos, horas de pintura, colores y coste fijo en pedidos; v4 detalle de pintura (ya no se usa; la columna `paint_detail` y `paint_colors` se conservan sin usar); **v6 pintura por detalle** (columna `paint_level`; las horas y la tarifa de pintura dejan de usarse); **v7 congela el coste** de los pedidos completados/enviados en `cost_override` (sin columnas nuevas; K1); **v8 retira los materiales «Histórico (Excel)»** de la importación (placas y mermas pasan a no tener material, material_id opcional; antes congela `cost_override` de los pedidos que los usaban); **v5 modelo de precios simple**: añade los ajustes nuevos y devuelve el margen a su valor por defecto (ahora es un % sobre el coste, no un multiplicador distinto).
 - **Copia de seguridad**: antes de migrar a una versión nueva, `AppDatabase` copia el archivo junto al original (`<archivo>.bak-v<versión>-<fecha>`).
 - `PRAGMA foreign_keys` no está activado; el borrado de pedidos elimina explícitamente sus placas, mermas, piezas y consumos.
 
@@ -183,7 +186,7 @@ Todo se hace en una transacción. Completar un pedido ya cerrado no hace nada; c
 
 Todas pasan, sin omitidas (`bash .claude/skills/verify/verify.sh`):
 - Reglas puras: calculadora (pedidos reales del Excel), estados, validación, panel, costes, clientes, piezas.
-- Repositorios con SQLite en memoria: `stock_invariants_test.dart` (cada test protege un fallo real ya corregido), `repositories_test.dart` (incluye migraciones v1→v7), copia de seguridad con archivos reales.
+- Repositorios con SQLite en memoria: `stock_invariants_test.dart` (cada test protege un fallo real ya corregido), `repositories_test.dart` (incluye migraciones v1→v8), copia de seguridad con archivos reales.
 - Pantallas con toques simulados: `test/app/order_flow_test.dart` (crear, completar, enviar, validación, duplicar, editar conservando piezas, eliminar, y **ningún desborde** en escritorio y móvil) y una prueba por pantalla.
 
 ## 8. Problemas conocidos

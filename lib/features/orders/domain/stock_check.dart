@@ -40,6 +40,8 @@ class StockCheck {
     }
     final result = <StockShortage>[];
     for (final m in materials) {
+      // El filamento no lleva el stock al día: no hay nada que avisar.
+      if (!m.tracksStock) continue;
       final toDeduct = math.max(
         0.0,
         (needed[m.id] ?? 0) - (wasteByMaterial[m.id] ?? 0),

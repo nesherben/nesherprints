@@ -6,6 +6,7 @@ import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/input_formatters.dart';
 import 'package:nesherprints/core/utils/number_utils.dart';
+import 'package:nesherprints/core/widgets/section_header.dart';
 import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
 
 /// Panel fijo del formulario de pedido: desglose del coste, precio
@@ -25,6 +26,7 @@ class PriceSummaryPanel extends StatelessWidget {
     required this.onPaidChanged,
     required this.onApplySuggested,
     required this.onSetPaid,
+    this.frozenCost,
   });
 
   final PriceEstimate estimate;
@@ -39,6 +41,9 @@ class PriceSummaryPanel extends StatelessWidget {
   final VoidCallback onPaidChanged;
   final VoidCallback onApplySuggested;
 
+  /// Coste congelado al completar el pedido (si ya está cerrado).
+  final double? frozenCost;
+
   /// Pone el importe cobrado (los atajos 0 / 50 % / todo).
   final ValueChanged<double> onSetPaid;
 
@@ -47,45 +52,59 @@ class PriceSummaryPanel extends StatelessWidget {
     final price = parseDecimal(priceController.text);
     final paid = parseDecimal(paidController.text);
     final health = PriceHealth.evaluate(price: price, estimate: estimate);
+    final cost = (isLocked ? frozenCost : null) ?? estimate.cost;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(AppStrings.summaryTitle, style: AppTextStyles.overline),
-        const SizedBox(height: 2),
-        Text(
-          AppStrings.summaryMeta(
+        SectionHeader(
+          title: AppStrings.sectionCost,
+          icon: Icons.calculate_outlined,
+          meta: AppStrings.summaryMeta(
             plateCount,
             formatDuration(totalMinutes),
             totalGrams,
           ),
-          style: AppTextStyles.mutedSmall,
         ),
         const SizedBox(height: AppSpacing.md),
-        _Breakdown(estimate: estimate, attempts: attempts),
-        const SizedBox(height: AppSpacing.lg),
-        _Recommended(
-          value: estimate.suggestedPrice,
-          minimumApplied: estimate.minimumApplied,
-          paintSurcharge: estimate.paintSurcharge,
-          showApply: !isLocked && estimate.suggestedPrice > 0,
-          onApply: onApplySuggested,
+        _Breakdown(estimate: estimate, attempts: attempts, cost: cost),
+        const SizedBox(height: AppSpacing.xl),
+        const SectionHeader(
+          title: AppStrings.sectionPrice,
+          icon: Icons.sell_outlined,
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.md),
         TextField(
           controller: priceController,
           readOnly: isLocked,
           keyboardType: decimalKeyboard,
           inputFormatters: decimalInputFormatters,
           onChanged: (_) => onPriceChanged(),
-          style: AppTextStyles.kpiValue.copyWith(fontSize: 22),
+          style: AppTextStyles.kpiValue.copyWith(fontSize: 24),
           decoration: const InputDecoration(
             labelText: AppStrings.finalPriceLabel,
             prefixText: '€ ',
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        _HealthMessage(health: health, price: price, estimate: estimate),
-        const SizedBox(height: AppSpacing.lg),
+        if (isLocked)
+          _ProfitLine(price: price, cost: cost)
+        else ...[
+          _HealthMessage(health: health, price: price, estimate: estimate),
+          const SizedBox(height: AppSpacing.sm),
+          _Recommended(
+            value: estimate.suggestedPrice,
+            minimumApplied: estimate.minimumApplied,
+            paintSurcharge: estimate.paintSurcharge,
+            showApply: estimate.suggestedPrice > 0,
+            onApply: onApplySuggested,
+          ),
+        ],
+        const SizedBox(height: AppSpacing.xl),
+        const SectionHeader(
+          title: AppStrings.sectionCollection,
+          icon: Icons.payments_outlined,
+        ),
+        const SizedBox(height: AppSpacing.md),
         TextField(
           controller: paidController,
           readOnly: isLocked,
@@ -125,10 +144,17 @@ class PriceSummaryPanel extends StatelessWidget {
 }
 
 class _Breakdown extends StatelessWidget {
-  const _Breakdown({required this.estimate, required this.attempts});
+  const _Breakdown({
+    required this.estimate,
+    required this.attempts,
+    required this.cost,
+  });
 
   final PriceEstimate estimate;
   final double attempts;
+
+  /// Coste total mostrado (el congelado si el pedido ya está cerrado).
+  final double cost;
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +210,7 @@ class _Breakdown extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
-              Text(formatEuro(estimate.cost), style: AppTextStyles.money),
+              Text(formatEuro(cost), style: AppTextStyles.money),
             ],
           ),
         ],
@@ -213,11 +239,14 @@ class _Recommended extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.10),
+        color: AppColors.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.30)),
       ),
       child: Row(
         children: [
@@ -225,16 +254,22 @@ class _Recommended extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  AppStrings.suggestedPrice,
-                  style: AppTextStyles.mutedSmall,
-                ),
-                Text(
-                  formatEuro(value),
-                  style: AppTextStyles.kpiValue.copyWith(
-                    fontSize: 26,
-                    color: AppColors.primary,
-                  ),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: AppSpacing.sm,
+                  children: [
+                    const Text(
+                      AppStrings.suggestedPrice,
+                      style: AppTextStyles.mutedSmall,
+                    ),
+                    Text(
+                      formatEuro(value),
+                      style: AppTextStyles.kpiValue.copyWith(
+                        fontSize: 18,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
                 ),
                 if (minimumApplied)
                   const Text(
@@ -253,7 +288,7 @@ class _Recommended extends StatelessWidget {
             FilledButton.tonal(
               onPressed: onApply,
               style: FilledButton.styleFrom(
-                minimumSize: const Size(0, 38),
+                minimumSize: const Size(0, 34),
                 backgroundColor: AppColors.primary.withValues(alpha: 0.2),
                 foregroundColor: AppColors.primary,
               ),
@@ -261,6 +296,42 @@ class _Recommended extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Beneficio real de un pedido cerrado: precio − coste congelado.
+class _ProfitLine extends StatelessWidget {
+  const _ProfitLine({required this.price, required this.cost});
+
+  final double price;
+  final double cost;
+
+  @override
+  Widget build(BuildContext context) {
+    final profit = price - cost;
+    final color = profit >= 0 ? AppColors.success : AppColors.danger;
+    return Row(
+      children: [
+        Icon(
+          profit >= 0 ? Icons.trending_up : Icons.trending_down,
+          size: 16,
+          color: color,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            AppStrings.realProfit(
+              profit < 0 ? '-${formatEuro(-profit)}' : formatEuro(profit),
+            ),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -338,23 +409,32 @@ class _PendingLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final pending = price - paid;
     final settled = price > 0 && pending <= 0;
+    final overpaid = pending < -0.005;
     return Row(
       children: [
         Icon(
-          settled ? Icons.check_circle : Icons.hourglass_top,
+          overpaid
+              ? Icons.error_outline
+              : (settled ? Icons.check_circle : Icons.hourglass_top),
           size: 16,
-          color: settled ? AppColors.success : AppColors.warning,
+          color: overpaid
+              ? AppColors.danger
+              : (settled ? AppColors.success : AppColors.warning),
         ),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
-            settled
-                ? AppStrings.fullyPaid
-                : AppStrings.pendingToCollect(formatEuro(pending)),
+            overpaid
+                ? AppStrings.overpaid(formatEuro(-pending))
+                : (settled
+                      ? AppStrings.fullyPaid
+                      : AppStrings.pendingToCollect(formatEuro(pending))),
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: settled ? AppColors.success : AppColors.warning,
+              color: overpaid
+                  ? AppColors.danger
+                  : (settled ? AppColors.success : AppColors.warning),
             ),
           ),
         ),

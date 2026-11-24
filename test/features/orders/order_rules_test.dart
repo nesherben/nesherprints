@@ -27,6 +27,38 @@ void main() {
       );
     });
 
+    test('rechaza cobrar más que el precio', () {
+      final errors = OrderRules.validateForm(_order.copyWith(paidAmount: 40), [
+        _plate,
+      ]);
+      expect(errors, ['Lo cobrado no puede superar el precio final.']);
+      expect(
+        OrderRules.validateForm(_order.copyWith(paidAmount: 30), [_plate]),
+        isEmpty,
+        reason: 'cobrar justo el precio vale',
+      );
+    });
+
+    test('rechaza gramos y tiempos absurdos en una placa', () {
+      const huge = OrderPlate(
+        name: 'A',
+        grams: 100000,
+        minutes: 60,
+        materialId: 1,
+      );
+      const endless = OrderPlate(
+        name: 'A',
+        grams: 100,
+        minutes: 20000,
+        materialId: 1,
+      );
+      expect(OrderRules.validateForm(_order, [huge]).single, contains('kg'));
+      expect(
+        OrderRules.validateForm(_order, [endless]).single,
+        contains('10 días'),
+      );
+    });
+
     test('pide nombre, placas y material', () {
       final errors = OrderRules.validateForm(_order.copyWith(name: ' '), []);
       expect(errors, contains('Escribe el nombre del proyecto.'));

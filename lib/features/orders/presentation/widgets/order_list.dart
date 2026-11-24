@@ -4,9 +4,11 @@ import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
+import 'package:nesherprints/core/widgets/section_header.dart';
 import 'package:nesherprints/core/widgets/status_pill.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
+import 'package:nesherprints/features/orders/presentation/status_style.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/status_badge.dart';
 
 /// Columnas por las que se puede ordenar el listado.
@@ -51,31 +53,82 @@ class OrderList extends StatelessWidget {
   final ValueChanged<OrderSortColumn> onSort;
   final OrderListActions actions;
 
+  /// Los pedidos con una cabecera de mes delante de cada grupo (solo cuando se
+  /// ordena por ID o fecha; con otro orden los meses saldrían mezclados).
+  List<Object> _entries() {
+    final byMonth =
+        sortColumn == OrderSortColumn.id || sortColumn == OrderSortColumn.date;
+    if (!byMonth) return orders;
+    final entries = <Object>[];
+    _MonthGroup? current;
+    for (final summary in orders) {
+      final date = summary.order.date;
+      final key = date.length >= 7 ? date.substring(0, 7) : '';
+      if (current == null || current.key != key) {
+        current = _MonthGroup(key);
+        entries.add(current);
+      }
+      current.count++;
+      if (summary.order.status.countsAsRevenue) {
+        current.billed += summary.order.price;
+      }
+      entries.add(summary);
+    }
+    return entries;
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= wideBreakpoint;
+        final roomy = constraints.maxWidth >= _WideRow.roomyBreakpoint;
         return Column(
           children: [
             if (wide)
               _HeaderRow(
+                roomy: roomy,
                 sortColumn: sortColumn,
                 ascending: ascending,
                 onSort: onSort,
               ),
             Expanded(
-              child: ListView.separated(
-                padding: wide
-                    ? EdgeInsets.zero
-                    : const EdgeInsets.all(AppSpacing.md),
-                itemCount: orders.length,
-                separatorBuilder: (_, _) => wide
-                    ? const Divider()
-                    : const SizedBox(height: AppSpacing.md),
-                itemBuilder: (_, i) => wide
-                    ? _WideRow(order: orders[i], actions: actions)
-                    : _CompactCard(order: orders[i], actions: actions),
+              child: Builder(
+                builder: (context) {
+                  final entries = _entries();
+                  return ListView.builder(
+                    padding: wide
+                        ? EdgeInsets.zero
+                        : const EdgeInsets.all(AppSpacing.md),
+                    itemCount: entries.length,
+                    itemBuilder: (_, i) {
+                      final entry = entries[i];
+                      if (entry is _MonthGroup) {
+                        return _MonthHeader(group: entry, wide: wide);
+                      }
+                      final order = entry as OrderSummary;
+                      if (wide) {
+                        // Línea divisoria salvo bajo una cabecera de mes.
+                        final first = i > 0 && entries[i - 1] is _MonthGroup;
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (i > 0 && !first) const Divider(),
+                            _WideRow(
+                              order: order,
+                              actions: actions,
+                              roomy: roomy,
+                            ),
+                          ],
+                        );
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: _CompactCard(order: order, actions: actions),
+                      );
+                    },
+                  );
+                },
               ),
             ),
           ],
@@ -85,101 +138,165 @@ class OrderList extends StatelessWidget {
   }
 }
 
+// ==================== Cabeceras de mes ====================
+
+/// Pedidos de un mes: clave `yyyy-MM`, cuántos son y cuánto se facturó.
+class _MonthGroup {
+  _MonthGroup(this.key);
+
+  final String key;
+  int count = 0;
+  double billed = 0;
+}
+
+class _MonthHeader extends StatelessWidget {
+  const _MonthHeader({required this.group, required this.wide});
+
+  final _MonthGroup group;
+  final bool wide;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = group.key.isEmpty
+        ? AppStrings.noDate
+        : formatMonth(group.key);
+    final meta = group.billed > 0
+        ? AppStrings.monthGroupMeta(group.count, formatEuro(group.billed))
+        : AppStrings.ordersCount(group.count);
+    return Container(
+      color: AppColors.surfaceHigh.withValues(alpha: 0.35),
+      padding: EdgeInsets.fromLTRB(
+        wide ? AppSpacing.lg : AppSpacing.md,
+        AppSpacing.sm,
+        wide ? AppSpacing.lg : AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      margin: wide ? null : const EdgeInsets.only(bottom: AppSpacing.md),
+      child: SectionHeader(
+        title: title,
+        icon: Icons.calendar_month_outlined,
+        meta: meta,
+      ),
+    );
+  }
+}
+
 // ==================== Cabecera ====================
 
 class _HeaderRow extends StatelessWidget {
   const _HeaderRow({
+    required this.roomy,
     required this.sortColumn,
     required this.ascending,
     required this.onSort,
   });
 
+  final bool roomy;
   final OrderSortColumn sortColumn;
   final bool ascending;
   final ValueChanged<OrderSortColumn> onSort;
 
   Widget _label(
     String text,
-    OrderSortColumn column, {
+    OrderSortColumn? column, {
     TextAlign align = TextAlign.start,
   }) {
-    final active = column == sortColumn;
+    final active = column != null && column == sortColumn;
+    final label = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: align == TextAlign.end
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        children: [
+          Flexible(
+            child: Text(
+              text.toUpperCase(),
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.overline.copyWith(
+                color: active ? AppColors.primary : AppColors.textMuted,
+              ),
+            ),
+          ),
+          if (active)
+            Icon(
+              ascending ? Icons.arrow_upward : Icons.arrow_downward,
+              size: 13,
+              color: AppColors.primary,
+            ),
+        ],
+      ),
+    );
+    if (column == null) return label;
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadius.sm),
       onTap: () => onSort(column),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: align == TextAlign.end
-              ? MainAxisAlignment.end
-              : MainAxisAlignment.start,
-          children: [
-            Flexible(
-              child: Text(
-                text.toUpperCase(),
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.overline.copyWith(
-                  color: active ? AppColors.primary : AppColors.textMuted,
-                ),
-              ),
-            ),
-            if (active)
-              Icon(
-                ascending ? Icons.arrow_upward : Icons.arrow_downward,
-                size: 13,
-                color: AppColors.primary,
-              ),
-          ],
-        ),
-      ),
+      child: label,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    const gap = SizedBox(width: _WideRow.gap);
     return Container(
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.xs,
+      padding: const EdgeInsets.only(
+        left: AppSpacing.lg + _WideRow.accentWidth,
+        right: AppSpacing.md,
+        top: AppSpacing.xs,
+        bottom: AppSpacing.xs,
       ),
       child: Row(
         children: [
+          const SizedBox(width: AppSpacing.lg - AppSpacing.lg),
           SizedBox(
             width: _WideRow.idWidth,
-            child: _label(AppStrings.colIdDate, OrderSortColumn.id),
+            child: _label(AppStrings.colId, OrderSortColumn.id),
           ),
-          const SizedBox(width: _WideRow.gap),
-          Expanded(
-            flex: 3,
-            child: _label(AppStrings.colProject, OrderSortColumn.name),
+          gap,
+          SizedBox(
+            width: _WideRow.dateWidth,
+            child: _label(AppStrings.colDate, OrderSortColumn.date),
           ),
-          const SizedBox(width: _WideRow.gap),
+          gap,
+          Expanded(child: _label(AppStrings.colProject, OrderSortColumn.name)),
+          if (roomy) ...[
+            gap,
+            SizedBox(
+              width: _WideRow.clientWidth,
+              child: _label(AppStrings.colClient, null),
+            ),
+          ],
+          gap,
           SizedBox(
             width: _WideRow.statusWidth,
             child: _label(AppStrings.colStatus, OrderSortColumn.status),
           ),
-          const SizedBox(width: _WideRow.gap),
+          gap,
           SizedBox(
-            width: _WideRow.financeWidth,
+            width: _WideRow.priceWidth,
             child: _label(
-              AppStrings.colFinances,
+              AppStrings.colPrice,
               OrderSortColumn.price,
               align: TextAlign.end,
             ),
           ),
-          const SizedBox(width: _WideRow.gap),
-          const Expanded(
-            flex: 2,
-            child: Text(
-              AppStrings.colDetailsUpper,
-              style: AppTextStyles.overline,
-            ),
+          gap,
+          SizedBox(
+            width: _WideRow.collectWidth,
+            child: _label(AppStrings.colCollection, OrderSortColumn.pending),
           ),
-          const SizedBox(width: _WideRow.gap),
+          if (roomy) ...[
+            gap,
+            SizedBox(
+              width: _WideRow.profitWidth,
+              child: _label(AppStrings.colProfit, null, align: TextAlign.end),
+            ),
+          ],
+          gap,
           const SizedBox(width: _WideRow.actionsWidth),
         ],
       ),
@@ -190,57 +307,106 @@ class _HeaderRow extends StatelessWidget {
 // ==================== Fila ancha ====================
 
 class _WideRow extends StatelessWidget {
-  const _WideRow({required this.order, required this.actions});
+  const _WideRow({
+    required this.order,
+    required this.actions,
+    required this.roomy,
+  });
 
-  static const double idWidth = 84;
-  static const double statusWidth = 140;
-  static const double financeWidth = 168;
-  static const double actionsWidth = 152;
+  static const double accentWidth = 3;
+  static const double idWidth = 48;
+  static const double dateWidth = 84;
+  static const double clientWidth = 150;
+  static const double statusWidth = 150;
+  static const double priceWidth = 96;
+  static const double collectWidth = 120;
+  static const double profitWidth = 92;
+  static const double actionsWidth = 96;
   static const double gap = AppSpacing.md;
+
+  /// Anchura del listado a partir de la cual caben cliente y beneficio.
+  static const double roomyBreakpoint = 1120;
 
   final OrderSummary order;
   final OrderListActions actions;
+  final bool roomy;
 
   @override
   Widget build(BuildContext context) {
+    const gapBox = SizedBox(width: gap);
+    final o = order.order;
     return InkWell(
       onTap: () => actions.onOpen(order),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
+      child: IntrinsicHeight(
         child: Row(
           children: [
+            // Franja con el color del estado: se ve de un vistazo.
+            Container(width: accentWidth, color: statusColor(o.status)),
+            const SizedBox(width: AppSpacing.lg),
             SizedBox(
               width: idWidth,
-              child: _IdDate(order: order),
+              child: Text(
+                '#${order.id}',
+                style: AppTextStyles.money.copyWith(color: AppColors.textMuted),
+              ),
             ),
-            const SizedBox(width: gap),
-            Expanded(flex: 3, child: _Project(order: order)),
-            const SizedBox(width: gap),
+            gapBox,
+            SizedBox(
+              width: dateWidth,
+              child: Text(
+                o.date.isEmpty ? '—' : o.date,
+                style: AppTextStyles.mutedSmall,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            gapBox,
+            Expanded(child: _ProjectInline(order: order)),
+            if (roomy) ...[
+              gapBox,
+              SizedBox(
+                width: clientWidth,
+                child: Text(
+                  order.clientName ?? '—',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.muted,
+                ),
+              ),
+            ],
+            gapBox,
             SizedBox(
               width: statusWidth,
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: StatusBadge(
-                  status: order.order.status,
+                  status: o.status,
                   onChanged: (s) => actions.onStatusChange(order, s),
                 ),
               ),
             ),
-            const SizedBox(width: gap),
+            gapBox,
             SizedBox(
-              width: financeWidth,
-              child: _Finance(order: order.order, alignEnd: true),
+              width: priceWidth,
+              child: _Price(order: o),
             ),
-            const SizedBox(width: gap),
-            Expanded(flex: 2, child: _Details(order: order)),
-            const SizedBox(width: gap),
+            gapBox,
+            SizedBox(
+              width: collectWidth,
+              child: _Collection(order: o),
+            ),
+            if (roomy) ...[
+              gapBox,
+              SizedBox(
+                width: profitWidth,
+                child: _ProfitText(order: order, alignEnd: true),
+              ),
+            ],
+            gapBox,
             SizedBox(
               width: actionsWidth,
               child: _Actions(order: order, actions: actions),
             ),
+            const SizedBox(width: AppSpacing.md),
           ],
         ),
       ),
@@ -374,23 +540,174 @@ class _Project extends StatelessWidget {
   }
 }
 
-class _Finance extends StatelessWidget {
-  const _Finance({required this.order, this.alignEnd = false});
+/// Nombre del proyecto con sus datos (placas, pintura, merma) en la misma
+/// línea; así la fila mide una sola línea.
+class _ProjectInline extends StatelessWidget {
+  const _ProjectInline({required this.order});
+
+  final OrderSummary order;
+
+  @override
+  Widget build(BuildContext context) {
+    final imported = order.plateNames?.startsWith('Importado') ?? false;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      child: Row(
+        children: [
+          Flexible(
+            child: Text(
+              order.order.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+            ),
+          ),
+          if (!imported && order.platesCount > 0) ...[
+            const SizedBox(width: AppSpacing.md),
+            _Mini(
+              icon: Icons.layers_outlined,
+              text: AppStrings.platesCount(order.platesCount),
+            ),
+          ],
+          if (order.order.isPainted) ...[
+            const SizedBox(width: AppSpacing.sm),
+            const _Mini(
+              icon: Icons.brush_outlined,
+              text: AppStrings.painted,
+              color: AppColors.info,
+            ),
+          ],
+          if (order.wastedGrams > 0) ...[
+            const SizedBox(width: AppSpacing.sm),
+            StatusPill(
+              label: AppStrings.wastePercent(order.wasteRatePercent),
+              color: _Details._wasteColor(order.wasteSeverity),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Price extends StatelessWidget {
+  const _Price({required this.order});
 
   final Order order;
-  final bool alignEnd;
 
   @override
   Widget build(BuildContext context) {
     final settled = order.isSettled;
-    final align = alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final rowAlign = alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        if (settled) ...[
+          const Icon(Icons.check_circle, size: 15, color: AppColors.success),
+          const SizedBox(width: 4),
+        ],
+        Flexible(
+          child: Text(
+            formatEuro(order.price),
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.money.copyWith(
+              fontSize: 15,
+              color: settled ? AppColors.success : AppColors.textMain,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Collection extends StatelessWidget {
+  const _Collection({required this.order});
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context) {
+    if (order.isSettled) {
+      return const Text(
+        AppStrings.collected,
+        style: TextStyle(fontSize: 12, color: AppColors.success),
+      );
+    }
+    return Tooltip(
+      message: AppStrings.paidOfPending(
+        formatEuro(order.paidAmount),
+        formatEuro(order.pendingAmount),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.hourglass_bottom,
+            size: 14,
+            color: AppColors.warning,
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              AppStrings.pendingShort(formatEuro(order.pendingAmount)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.warning,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Beneficio de un pedido cerrado (precio − coste congelado); «—» si no hay.
+class _ProfitText extends StatelessWidget {
+  const _ProfitText({required this.order, this.alignEnd = false});
+
+  final OrderSummary order;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final o = order.order;
+    final cost = o.costOverride;
+    if (!o.status.countsAsRevenue || cost == null) {
+      return Text(
+        '—',
+        textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+        style: AppTextStyles.mutedSmall,
+      );
+    }
+    final profit = o.price - cost;
+    return Text(
+      profit < 0 ? '-${formatEuro(-profit)}' : formatEuro(profit),
+      textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+      style: AppTextStyles.money.copyWith(
+        fontSize: 14,
+        color: profit >= 0 ? AppColors.success : AppColors.danger,
+      ),
+    );
+  }
+}
+
+class _Finance extends StatelessWidget {
+  const _Finance({required this.order});
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context) {
+    final settled = order.isSettled;
     return Column(
-      crossAxisAlignment: align,
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
-          mainAxisAlignment: rowAlign,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (settled) ...[
@@ -450,7 +767,9 @@ class _Details extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final names = order.plateNames;
+    // Los pedidos importados tienen una placa «Importado»: no aporta nada.
+    final imported = order.plateNames?.startsWith('Importado') ?? false;
+    final names = imported ? null : order.plateNames;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -460,10 +779,25 @@ class _Details extends StatelessWidget {
           runSpacing: 4,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            _Mini(
-              icon: Icons.layers_outlined,
-              text: AppStrings.platesCount(order.platesCount),
-            ),
+            if (!imported)
+              _Mini(
+                icon: Icons.layers_outlined,
+                text: AppStrings.platesCount(order.platesCount),
+              ),
+            if (order.order.status.countsAsRevenue &&
+                order.order.costOverride != null)
+              _Mini(
+                icon: Icons.trending_up,
+                text: AppStrings.profitOf(() {
+                  final profit = order.order.price - order.order.costOverride!;
+                  return profit < 0
+                      ? '-${formatEuro(-profit)}'
+                      : formatEuro(profit);
+                }()),
+                color: order.order.price >= order.order.costOverride!
+                    ? AppColors.success
+                    : AppColors.danger,
+              ),
             if (order.order.isPainted)
               const _Mini(
                 icon: Icons.brush_outlined,
@@ -532,25 +866,13 @@ class _Actions extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         if (status.canComplete)
-          IconButton.filledTonal(
+          IconButton(
             tooltip: AppStrings.completeTooltip,
-            icon: const Icon(Icons.check, size: 18),
-            style: IconButton.styleFrom(
-              foregroundColor: AppColors.success,
-              backgroundColor: AppColors.success.withValues(alpha: 0.14),
-            ),
+            icon: const Icon(Icons.check_circle_outline, size: 22),
+            color: AppColors.success,
+            visualDensity: VisualDensity.compact,
             onPressed: () => actions.onComplete(order),
           ),
-        IconButton(
-          tooltip: status.isLocked
-              ? AppStrings.viewAction
-              : AppStrings.editAction,
-          icon: Icon(
-            status.isLocked ? Icons.visibility_outlined : Icons.edit_outlined,
-            size: 20,
-          ),
-          onPressed: () => actions.onOpen(order),
-        ),
         PopupMenuButton<OrderMenuAction>(
           tooltip: AppStrings.moreActions,
           icon: const Icon(Icons.more_vert, size: 20),

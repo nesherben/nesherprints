@@ -6,6 +6,7 @@ import 'package:nesherprints/core/database/app_database.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/features/extras/domain/extra.dart';
 import 'package:nesherprints/features/extras/presentation/extras_view.dart';
+import '../../support/row_menu.dart';
 
 /// Pantalla de Piezas sobre una base de datos en memoria. Los accesos a la BD
 /// usan un hilo real, de ahí `runAsync` al esperar.
@@ -100,9 +101,9 @@ void main() {
       expect(find.text(name), findsOneWidget);
     }
     expect(find.text('20 uds'), findsOneWidget);
-    expect(find.text('Pocas unidades'), findsOneWidget);
-    expect(find.text('Agotado'), findsOneWidget);
-    expect(find.text('Stock negativo'), findsOneWidget);
+    expect(find.textContaining('Pocas unidades'), findsOneWidget);
+    expect(find.textContaining('Agotado'), findsOneWidget);
+    expect(find.textContaining('Stock negativo'), findsOneWidget);
     // Valor = 0,5 × 20 + 2 × 3 = 16 (los stocks ≤ 0 no cuentan).
     expect(find.text('€16.00'), findsOneWidget);
   });
@@ -111,7 +112,7 @@ void main() {
     await openView(t);
 
     expect(find.text('Aún no hay piezas'), findsOneWidget);
-    await tapText(t, 'Añadir Piezas');
+    await tapText(t, 'Nueva pieza');
     expect(find.text('Añadir Pieza'), findsOneWidget);
   });
 
@@ -138,7 +139,7 @@ void main() {
     t,
   ) async {
     await openView(t);
-    await tapText(t, 'Añadir Piezas');
+    await tapText(t, 'Nueva pieza');
 
     await tapText(t, 'Guardar');
     expect(find.text('Indica el nombre de la pieza'), findsOneWidget);
@@ -163,7 +164,7 @@ void main() {
     await openView(t);
     final id = (await stored(t)).single.id;
 
-    await t.tap(find.byTooltip('Editar'));
+    await tapRowMenu(t, 'Editar');
     await settle(t);
     await enter(t, 'Nombre', 'Llavero XL');
     await tapText(t, 'Guardar');
@@ -194,7 +195,7 @@ void main() {
     await enter(t, 'Precio total de estas unidades (€)', '30');
     expect(t.widget<ElevatedButton>(apply).onPressed, isNotNull);
     // (0,5 × 20 + 30) / 40 = 1 €/ud
-    expect(find.text('€1.0000'), findsOneWidget);
+    expect(find.text('€1.000'), findsOneWidget);
 
     await tapText(t, 'Aplicar');
     final saved = (await stored(t)).single;
@@ -206,13 +207,13 @@ void main() {
     await seed(t, [keychain]);
     await openView(t);
 
-    await t.tap(find.byTooltip('Eliminar'));
+    await tapRowMenu(t, 'Eliminar');
     await settle(t);
     expect(find.text('Confirmar eliminación'), findsOneWidget);
     await tapText(t, 'Cancelar');
     expect(await stored(t), hasLength(1));
 
-    await t.tap(find.byTooltip('Eliminar'));
+    await tapRowMenu(t, 'Eliminar');
     await settle(t);
     await t.tap(find.widgetWithText(ElevatedButton, 'Eliminar'));
     await settle(t);
@@ -244,7 +245,7 @@ void main() {
       expect(overflows, isEmpty, reason: 'diálogo de sumar unidades');
       await tapText(t, 'Cancelar');
 
-      await t.tap(find.byTooltip('Editar').first);
+      await tapRowMenu(t, 'Editar');
       await settle(t);
       await enter(t, 'Nombre', '');
       await tapText(t, 'Guardar');

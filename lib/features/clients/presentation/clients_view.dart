@@ -4,16 +4,23 @@ import 'package:nesherprints/app/service_locator.dart';
 import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
+import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/responsive.dart';
+import 'package:nesherprints/core/widgets/adaptive_sliver_list.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
+import 'package:nesherprints/core/widgets/list_toolbar.dart';
 import 'package:nesherprints/core/widgets/search_field.dart';
+import 'package:nesherprints/core/widgets/summary_strip.dart';
 import 'package:nesherprints/features/clients/domain/client.dart';
 import 'package:nesherprints/features/clients/domain/client_stats.dart';
 import 'package:nesherprints/features/clients/presentation/widgets/client_card.dart';
 import 'package:nesherprints/features/clients/presentation/widgets/client_form_dialog.dart';
+
+/// Filtro del listado de clientes.
+enum _ClientFilter { all, withOrders, owes }
 
 /// Agenda de clientes en rejilla de tarjetas.
 class ClientsView extends StatefulWidget {
@@ -28,6 +35,7 @@ class _ClientsViewState extends State<ClientsView> {
   Map<int, ClientStats> _stats = {};
   bool _isLoading = true;
   String _query = '';
+  _ClientFilter _filter = _ClientFilter.all;
 
   @override
   void initState() {
@@ -91,14 +99,43 @@ class _ClientsViewState extends State<ClientsView> {
     );
   }
 
+  bool _matchesFilter(Client c, _ClientFilter f) {
+    final stats = _stats[c.id] ?? const ClientStats();
+    return switch (f) {
+      _ClientFilter.all => true,
+      _ClientFilter.withOrders => stats.orderCount > 0,
+      _ClientFilter.owes => stats.owes,
+    };
+  }
+
+  Widget _buildFilters() => Wrap(
+    spacing: AppSpacing.sm,
+    runSpacing: AppSpacing.sm,
+    children: [
+      for (final f in _ClientFilter.values)
+        ChoiceChip(
+          label: Text(
+            '${switch (f) {
+              _ClientFilter.all => AppStrings.filterAll,
+              _ClientFilter.withOrders => AppStrings.filterWithOrders,
+              _ClientFilter.owes => AppStrings.filterOwes,
+            }} (${_clients.where((c) => _matchesFilter(c, f)).length})',
+          ),
+          selected: _filter == f,
+          onSelected: (_) => setState(() => _filter = f),
+        ),
+    ],
+  );
+
   List<Client> get _filtered {
     final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return _clients;
     return [
       for (final c in _clients)
-        if (c.name.toLowerCase().contains(q) ||
-            c.phone.toLowerCase().contains(q) ||
-            c.email.toLowerCase().contains(q))
+        if (_matchesFilter(c, _filter) &&
+            (q.isEmpty ||
+                c.name.toLowerCase().contains(q) ||
+                c.phone.toLowerCase().contains(q) ||
+                c.email.toLowerCase().contains(q)))
           c,
     ];
   }
@@ -109,6 +146,8 @@ class _ClientsViewState extends State<ClientsView> {
 
     final padding = context.isCompact ? AppSpacing.lg : AppSpacing.xxl;
     final visible = _filtered;
+    final billed = _stats.values.fold(0.0, (a, st) => a + st.billed);
+    final owed = _stats.values.fold(0.0, (a, st) => a + st.pending);
 
     final addButton = ElevatedButton.icon(
       onPressed: _openDialog,
@@ -140,12 +179,36 @@ class _ClientsViewState extends State<ClientsView> {
           else ...[
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
             SliverToBoxAdapter(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SearchField(
+              child: SummaryStrip(
+                items: [
+                  SummaryItem(
+                    label: AppStrings.clientsSummaryCount,
+                    value: '${_clients.length}',
+                    icon: Icons.people_outline,
+                  ),
+                  SummaryItem(
+                    label: AppStrings.clientsSummaryBilled,
+                    value: formatEuro(billed),
+                    icon: Icons.receipt_long_outlined,
+                    color: AppColors.info,
+                  ),
+                  SummaryItem(
+                    label: AppStrings.clientsSummaryOwed,
+                    value: formatEuro(owed),
+                    icon: Icons.schedule,
+                    color: owed > 0 ? AppColors.warning : AppColors.success,
+                  ),
+                ],
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+            SliverToBoxAdapter(
+              child: ListToolbar(
+                search: SearchField(
                   hint: AppStrings.clientsSearchHint,
                   onChanged: (v) => setState(() => _query = v),
                 ),
+                filters: _buildFilters(),
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
@@ -159,25 +222,19 @@ class _ClientsViewState extends State<ClientsView> {
                 ),
               )
             else
-              SliverGrid(
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 340,
-                  mainAxisExtent: ClientCard.height,
-                  crossAxisSpacing: AppSpacing.lg,
-                  mainAxisSpacing: AppSpacing.lg,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  childCount: visible.length,
-                  (_, index) {
-                    final client = visible[index];
-                    return ClientCard(
-                      client: client,
-                      stats: _stats[client.id] ?? const ClientStats(),
-                      onEdit: () => _openDialog(client),
-                      onDelete: () => _delete(client),
-                    );
-                  },
-                ),
+              AdaptiveSliverList(
+                itemCount: visible.length,
+                rowHeight: ClientCard.height,
+                columnWidth: 440,
+                itemBuilder: (_, index) {
+                  final client = visible[index];
+                  return ClientCard(
+                    client: client,
+                    stats: _stats[client.id] ?? const ClientStats(),
+                    onEdit: () => _openDialog(client),
+                    onDelete: () => _delete(client),
+                  );
+                },
               ),
           ],
         ],

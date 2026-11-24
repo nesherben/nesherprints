@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:nesherprints/core/strings/app_strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
+import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/input_formatters.dart';
 import 'package:nesherprints/core/utils/number_utils.dart';
 import 'package:nesherprints/core/widgets/app_dialog_frame.dart';
@@ -34,7 +36,7 @@ class _ExtraDialogState extends State<ExtraDialog> {
     _nameController = TextEditingController(text: extra?.name ?? '');
     _unitsController = TextEditingController();
     _totalPriceController = TextEditingController(
-      text: extra == null ? '' : extra.unitPrice.toStringAsFixed(4),
+      text: extra == null ? '' : formatInputNumber(extra.unitPrice),
     );
   }
 
@@ -78,6 +80,14 @@ class _ExtraDialogState extends State<ExtraDialog> {
     Navigator.pop(context);
   }
 
+  /// Precio por unidad que saldría con los datos escritos (solo al crear).
+  double? get _previewUnitPrice {
+    final units = parseInt(_unitsController.text);
+    final total = parseDecimal(_totalPriceController.text);
+    if (units <= 0 || total <= 0) return null;
+    return ExtraPricing.unitPriceFromPackage(totalPrice: total, units: units);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isNew = widget.initial == null;
@@ -101,7 +111,10 @@ class _ExtraDialogState extends State<ExtraDialog> {
               controller: _nameController,
               validator: _validateName,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(labelText: AppStrings.name),
+              decoration: const InputDecoration(
+                labelText: AppStrings.name,
+                prefixIcon: Icon(Icons.label_outline, size: 20),
+              ),
             ),
             if (isNew) ...[
               const SizedBox(height: AppSpacing.lg),
@@ -111,8 +124,11 @@ class _ExtraDialogState extends State<ExtraDialog> {
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(
                   labelText: AppStrings.unitsPerPackage,
+                  prefixIcon: Icon(Icons.inventory_2_outlined, size: 20),
+                  suffixText: 'uds',
                 ),
               ),
             ],
@@ -123,12 +139,37 @@ class _ExtraDialogState extends State<ExtraDialog> {
               keyboardType: decimalKeyboard,
               inputFormatters: decimalInputFormatters,
               onFieldSubmitted: (_) => _save(),
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 labelText: isNew
                     ? AppStrings.totalPricePackage
                     : AppStrings.unitPriceLabel,
+                prefixIcon: const Icon(Icons.euro, size: 20),
               ),
             ),
+            if (isNew && _previewUnitPrice != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.calculate_outlined,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    AppStrings.unitPricePreview(
+                      formatEuro(_previewUnitPrice!, decimals: 3),
+                    ),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

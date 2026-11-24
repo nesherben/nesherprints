@@ -8,15 +8,22 @@ import 'package:nesherprints/core/utils/responsive.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
+import 'package:nesherprints/core/widgets/list_toolbar.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
 import 'package:nesherprints/core/widgets/search_field.dart';
-import 'package:nesherprints/core/widgets/summary_strip.dart';
+import 'package:nesherprints/core/widgets/section_header.dart';
+import 'package:nesherprints/features/inventory/domain/color_library.dart';
+import 'package:nesherprints/features/inventory/domain/material_group.dart';
 import 'package:nesherprints/features/inventory/domain/print_material.dart';
-import 'package:nesherprints/features/inventory/presentation/widgets/material_card.dart';
+import 'package:nesherprints/features/inventory/presentation/widgets/add_resin_dialog.dart';
+import 'package:nesherprints/features/inventory/presentation/widgets/bulk_filament_dialog.dart';
+import 'package:nesherprints/features/inventory/presentation/widgets/color_library_dialog.dart';
+import 'package:nesherprints/features/inventory/presentation/widgets/filament_shelf.dart';
 import 'package:nesherprints/features/inventory/presentation/widgets/material_dialog.dart';
-import 'package:nesherprints/features/inventory/presentation/widgets/material_kind_chip.dart';
+import 'package:nesherprints/features/inventory/presentation/widgets/resin_card.dart';
 
-/// Inventario de materiales (filamento y resina).
+/// Inventario: el tanque de resina (con su nivel y precio medio) y la lista de
+/// colores de filamento con su precio, agrupados por nombre.
 class InventoryView extends StatefulWidget {
   const InventoryView({super.key});
 
@@ -26,8 +33,13 @@ class InventoryView extends StatefulWidget {
 
 class _InventoryViewState extends State<InventoryView> {
   List<PrintMaterial> _materials = [];
+  ColorLibrary _library = ColorLibrary.defaults();
   bool _isLoading = true;
   String _query = '';
+
+  /// Filamentos recién añadidos o cambiados: su bobina gira una vez.
+  Set<int> _spinning = {};
+  int _spinCounter = 0;
 
   @override
   void initState() {
@@ -37,9 +49,15 @@ class _InventoryViewState extends State<InventoryView> {
 
   Future<void> _load() async {
     try {
+      // Una sola resina: si hubiera varias se funden en un único tanque.
+      await ServiceLocator.materials.mergeResins();
       final data = await ServiceLocator.materials.getAll();
+      final library = await ServiceLocator.colors.load();
       if (!mounted) return;
-      setState(() => _materials = data);
+      setState(() {
+        _materials = data;
+        _library = library;
+      });
     } catch (e) {
       if (!mounted) return;
       AppFeedback.failure(context, e);
@@ -48,9 +66,50 @@ class _InventoryViewState extends State<InventoryView> {
     setState(() => _isLoading = false);
   }
 
-  Future<void> _save(PrintMaterial material) async {
+  /// Guarda uno o varios materiales y hace girar las bobinas de filamento.
+  Future<void> _saveAll(List<PrintMaterial> materials) async {
+    final ids = <int>{};
     try {
-      await ServiceLocator.materials.save(material);
+      for (final m in materials) {
+        final id = await ServiceLocator.materials.save(m);
+        if (m.kind == MaterialKind.filament) {
+          ids.add(id);
+          // La biblioteca aprende los colores que se van dando de alta.
+          final rgb = m.colorRgb;
+          if (rgb != null && m.color.trim().isNotEmpty) {
+            await ServiceLocator.colors.addIfMissing(m.color, rgb);
+          }
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      AppFeedback.failure(context, e);
+      await _load();
+      return;
+    }
+    if (!mounted) return;
+    _spinCounter++;
+    _spinning = ids;
+    await _load();
+    if (!mounted) return;
+    if (materials.length > 1) {
+      AppFeedback.success(context, AppStrings.bulkAdded(materials.length));
+    }
+  }
+
+  Future<void> _addResin(
+    PrintMaterial material,
+    double grams,
+    double price,
+  ) async {
+    try {
+      // Primera vez: el tanque aún no existe en la base de datos.
+      final id = material.id ?? await ServiceLocator.materials.save(material);
+      await ServiceLocator.materials.addResin(
+        id,
+        grams: grams,
+        pricePerKg: price,
+      );
     } catch (e) {
       if (!mounted) return;
       AppFeedback.failure(context, e);
@@ -91,20 +150,38 @@ class _InventoryViewState extends State<InventoryView> {
   void _openDialog([PrintMaterial? material]) {
     showDialog<void>(
       context: context,
-      builder: (_) => MaterialDialog(initialMaterial: material, onSave: _save),
+      builder: (_) => MaterialDialog(
+        initialMaterial: material,
+        library: _library,
+        onSave: (m) => _saveAll([m]),
+      ),
     );
   }
 
-  List<PrintMaterial> get _filtered {
-    final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return _materials;
-    return [
-      for (final m in _materials)
-        if (m.name.toLowerCase().contains(q) ||
-            m.color.toLowerCase().contains(q) ||
-            m.kind.shortLabel.toLowerCase().contains(q))
-          m,
-    ];
+  void _openBulk() {
+    showDialog<void>(
+      context: context,
+      builder: (_) => BulkFilamentDialog(library: _library, onSave: _saveAll),
+    );
+  }
+
+  Future<void> _openColors() async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => ColorLibraryDialog(initial: _library),
+    );
+    if (!mounted) return;
+    await _load();
+  }
+
+  void _openAddResin(PrintMaterial material) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AddResinDialog(
+        material: material,
+        onConfirm: (grams, price) => _addResin(material, grams, price),
+      ),
+    );
   }
 
   @override
@@ -112,14 +189,49 @@ class _InventoryViewState extends State<InventoryView> {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
 
     final padding = context.isCompact ? AppSpacing.lg : AppSpacing.xxl;
-    final visible = _filtered;
-    final totalGrams = _materials.fold<double>(0, (a, m) => a + m.stockGrams);
-    final lowCount = _materials.where((m) => m.isLowStock).length;
+    final resins = [
+      for (final m in _materials)
+        if (m.kind == MaterialKind.resin) m,
+    ];
+    final allFilaments = [
+      for (final m in _materials)
+        if (m.kind == MaterialKind.filament) m,
+    ];
+    final q = _query.trim().toLowerCase();
+    final filaments = [
+      for (final m in allFilaments)
+        if (q.isEmpty ||
+            m.name.toLowerCase().contains(q) ||
+            m.color.toLowerCase().contains(q))
+          m,
+    ];
+    final groups = MaterialGroup.group(filaments);
+    // Un único tanque; si aún no hay resina se muestra vacío.
+    final tank =
+        resins.firstOrNull ??
+        const PrintMaterial(
+          kind: MaterialKind.resin,
+          name: AppStrings.defaultResinName,
+          color: '',
+          costPerKg: 0,
+          stockGrams: 0,
+        );
 
     final addButton = ElevatedButton.icon(
       onPressed: _openDialog,
       icon: const Icon(Icons.add),
       label: const Text(AppStrings.addMaterial),
+    );
+    final bulkButton = OutlinedButton.icon(
+      onPressed: _openBulk,
+      icon: const Icon(Icons.playlist_add),
+      label: const Text(AppStrings.addSeveral),
+    );
+
+    final colorsButton = OutlinedButton.icon(
+      onPressed: _openColors,
+      icon: const Icon(Icons.palette_outlined),
+      label: const Text(AppStrings.colorsButton),
     );
 
     return Padding(
@@ -130,58 +242,64 @@ class _InventoryViewState extends State<InventoryView> {
             child: PageHeader(
               title: AppStrings.inventoryTitle,
               subtitle: AppStrings.inventorySubtitle,
-              action: addButton,
+              action: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [colorsButton, bulkButton, addButton],
+              ),
             ),
           ),
-          if (_materials.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: EmptyState(
-                icon: Icons.inventory_2_outlined,
-                title: AppStrings.inventoryEmptyTitle,
-                message: AppStrings.inventoryEmpty,
-                action: addButton,
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+          const SliverToBoxAdapter(
+            child: SectionHeader(
+              title: AppStrings.resinSection,
+              icon: Icons.water_drop_outlined,
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+          SliverToBoxAdapter(
+            child: ResinCard(
+              material: tank,
+              onAdd: () => _openAddResin(tank),
+              onEdit: tank.id == null ? null : () => _openDialog(tank),
+              onDelete: tank.id == null ? null : () => _delete(tank),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+          SliverToBoxAdapter(
+            child: SectionHeader(
+              title: AppStrings.filamentSection,
+              icon: Icons.donut_large,
+              meta: allFilaments.isEmpty
+                  ? null
+                  : AppStrings.filamentColorsMeta(allFilaments.length),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+          if (allFilaments.isEmpty)
+            SliverToBoxAdapter(
+              child: EmptyShelf(
+                actions: Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  alignment: WrapAlignment.center,
+                  children: [bulkButton, addButton],
+                ),
               ),
             )
           else ...[
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
             SliverToBoxAdapter(
-              child: SummaryStrip(
-                items: [
-                  SummaryItem(
-                    label: AppStrings.inventorySummaryMaterials,
-                    value: '${_materials.length}',
-                    icon: Icons.inventory_2_outlined,
-                  ),
-                  SummaryItem(
-                    label: AppStrings.inventorySummaryStock,
-                    value: AppStrings.kilos(totalGrams),
-                    icon: Icons.scale_outlined,
-                    color: AppColors.info,
-                  ),
-                  SummaryItem(
-                    label: AppStrings.inventorySummaryLow,
-                    value: '$lowCount',
-                    icon: Icons.warning_amber_rounded,
-                    color: lowCount > 0 ? AppColors.warning : AppColors.success,
-                  ),
-                ],
-              ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-            SliverToBoxAdapter(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SearchField(
+              child: ListToolbar(
+                search: SearchField(
                   hint: AppStrings.inventorySearchHint,
                   onChanged: (v) => setState(() => _query = v),
                 ),
+                filters: const SizedBox.shrink(),
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-            if (visible.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
+            if (filaments.isEmpty)
+              const SliverToBoxAdapter(
                 child: EmptyState(
                   icon: Icons.search_off,
                   title: AppStrings.listNoResultsTitle,
@@ -189,23 +307,13 @@ class _InventoryViewState extends State<InventoryView> {
                 ),
               )
             else
-              SliverGrid(
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 420,
-                  mainAxisExtent: MaterialCard.height,
-                  crossAxisSpacing: AppSpacing.lg,
-                  mainAxisSpacing: AppSpacing.lg,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  childCount: visible.length,
-                  (_, index) {
-                    final material = visible[index];
-                    return MaterialCard(
-                      material: material,
-                      onEdit: () => _openDialog(material),
-                      onDelete: () => _delete(material),
-                    );
-                  },
+              SliverToBoxAdapter(
+                child: FilamentShelf(
+                  groups: groups,
+                  spinning: _spinning,
+                  spinToken: _spinCounter,
+                  onEdit: _openDialog,
+                  onDelete: _delete,
                 ),
               ),
           ],

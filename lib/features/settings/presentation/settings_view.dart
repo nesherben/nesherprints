@@ -156,7 +156,7 @@ class _SettingsViewState extends State<SettingsView> {
     child: Column(
       children: [
         for (final (i, f) in group.fields.indexed) ...[
-          if (i > 0) const Divider(height: AppSpacing.lg * 2),
+          if (i > 0) const Divider(height: AppSpacing.lg + AppSpacing.sm),
           _SettingRow(
             field: f,
             controller: _controllers[f]!,
@@ -292,12 +292,8 @@ class _SettingRow extends StatelessWidget {
       children: [
         Text(field.label, style: AppTextStyles.cardTitle),
         const SizedBox(height: 2),
-        Text(field.hint, style: AppTextStyles.mutedSmall),
-        const SizedBox(height: 2),
         Text(
-          AppStrings.settingsDefaultValue(
-            '${formatSettingValue(field.defaultValue)} ${field.suffix}',
-          ),
+          '${field.hint} · ${AppStrings.settingsDefaultValue('${formatSettingValue(field.defaultValue)} ${field.suffix}')}',
           style: AppTextStyles.mutedSmall,
         ),
       ],

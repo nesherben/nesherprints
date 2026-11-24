@@ -34,7 +34,7 @@ class OrderRepository {
         c.${ClientsTable.clientName} AS client_name,
         (SELECT SUM((p.${OrderPlatesTable.grams} / 1000) * m.${MaterialsTable.costPerKg})
            FROM ${OrderPlatesTable.name} p
-           JOIN ${MaterialsTable.name} m ON p.${OrderPlatesTable.materialId} = m.${MaterialsTable.id}
+           LEFT JOIN ${MaterialsTable.name} m ON p.${OrderPlatesTable.materialId} = m.${MaterialsTable.id}
           WHERE p.${OrderPlatesTable.orderId} = o.${OrdersTable.id}) AS material_cost,
         (SELECT SUM(p.${OrderPlatesTable.grams})
            FROM ${OrderPlatesTable.name} p
@@ -241,8 +241,10 @@ class OrderRepository {
         whereArgs: [orderId],
       )) {
         final plate = OrderPlate.fromMap(row);
-        planned[plate.materialId!] =
-            (planned[plate.materialId!] ?? 0) + plate.grams;
+        final materialId = plate.materialId;
+        // Las placas sin material (importadas) no descuentan nada.
+        if (materialId == null) continue;
+        planned[materialId] = (planned[materialId] ?? 0) + plate.grams;
       }
       final wasted = <int, double>{
         for (final row in await txn.rawQuery(
@@ -253,7 +255,8 @@ class OrderRepository {
           'GROUP BY ${OrderWasteTable.materialId}',
           [orderId],
         ))
-          row['material'] as int: (row['grams'] as num).toDouble(),
+          if (row['material'] != null)
+            row['material'] as int: (row['grams'] as num).toDouble(),
       };
       for (final entry in planned.entries) {
         final remaining = math.max(0.0, entry.value - (wasted[entry.key] ?? 0));

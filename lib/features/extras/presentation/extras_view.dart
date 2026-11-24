@@ -6,16 +6,21 @@ import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/responsive.dart';
+import 'package:nesherprints/core/widgets/adaptive_sliver_list.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
+import 'package:nesherprints/core/widgets/list_toolbar.dart';
 import 'package:nesherprints/core/widgets/search_field.dart';
 import 'package:nesherprints/core/widgets/summary_strip.dart';
 import 'package:nesherprints/features/extras/domain/extra.dart';
 import 'package:nesherprints/features/extras/presentation/widgets/add_stock_dialog.dart';
-import 'package:nesherprints/features/extras/presentation/widgets/extra_card.dart';
+import 'package:nesherprints/features/extras/presentation/widgets/extra_row.dart';
 import 'package:nesherprints/features/extras/presentation/widgets/extra_dialog.dart';
+
+/// Filtro de stock del listado de piezas.
+enum _ExtraFilter { all, inStock, soldOut }
 
 /// Inventario de piezas extra (llaveros, clickers…).
 class ExtrasView extends StatefulWidget {
@@ -29,6 +34,7 @@ class _ExtrasViewState extends State<ExtrasView> {
   List<Extra> _extras = [];
   bool _isLoading = true;
   String _query = '';
+  _ExtraFilter _filter = _ExtraFilter.all;
 
   @override
   void initState() {
@@ -100,13 +106,45 @@ class _ExtrasViewState extends State<ExtrasView> {
     await _write(() => ServiceLocator.extras.delete(extra.id!));
   }
 
+  static bool _matchesFilter(Extra e, _ExtraFilter f) => switch (f) {
+    _ExtraFilter.all => true,
+    _ExtraFilter.inStock => e.stock > 0,
+    _ExtraFilter.soldOut => e.stock <= 0,
+  };
+
+  Widget _buildFilters() => Wrap(
+    spacing: AppSpacing.sm,
+    runSpacing: AppSpacing.sm,
+    children: [
+      for (final f in _ExtraFilter.values)
+        ChoiceChip(
+          label: Text(
+            '${switch (f) {
+              _ExtraFilter.all => AppStrings.filterAll,
+              _ExtraFilter.inStock => AppStrings.filterInStock,
+              _ExtraFilter.soldOut => AppStrings.filterSoldOutExtras,
+            }} (${_extras.where((e) => _matchesFilter(e, f)).length})',
+          ),
+          selected: _filter == f,
+          onSelected: (_) => setState(() => _filter = f),
+        ),
+    ],
+  );
+
   List<Extra> get _filtered {
     final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return _extras;
-    return [
+    final matches = [
       for (final e in _extras)
-        if (e.name.toLowerCase().contains(q)) e,
+        if ((q.isEmpty || e.name.toLowerCase().contains(q)) &&
+            _matchesFilter(e, _filter))
+          e,
     ];
+    // Con stock primero y los agotados al final; cada bloque por nombre.
+    matches.sort((a, b) {
+      if ((a.stock > 0) != (b.stock > 0)) return a.stock > 0 ? -1 : 1;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return matches;
   }
 
   @override
@@ -171,12 +209,12 @@ class _ExtrasViewState extends State<ExtrasView> {
             ),
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
             SliverToBoxAdapter(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SearchField(
+              child: ListToolbar(
+                search: SearchField(
                   hint: AppStrings.extrasSearchHint,
                   onChanged: (v) => setState(() => _query = v),
                 ),
+                filters: _buildFilters(),
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
@@ -190,25 +228,19 @@ class _ExtrasViewState extends State<ExtrasView> {
                 ),
               )
             else
-              SliverGrid(
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 520,
-                  mainAxisExtent: ExtraCard.height,
-                  crossAxisSpacing: AppSpacing.lg,
-                  mainAxisSpacing: AppSpacing.lg,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  childCount: visible.length,
-                  (_, index) {
-                    final extra = visible[index];
-                    return ExtraCard(
-                      extra: extra,
-                      onEdit: () => _openDialog(extra),
-                      onAddStock: () => _addStock(extra),
-                      onDelete: () => _delete(extra),
-                    );
-                  },
-                ),
+              AdaptiveSliverList(
+                itemCount: visible.length,
+                rowHeight: 68,
+                columnWidth: 380,
+                itemBuilder: (_, index) {
+                  final extra = visible[index];
+                  return ExtraRow(
+                    extra: extra,
+                    onEdit: () => _openDialog(extra),
+                    onAddStock: () => _addStock(extra),
+                    onDelete: () => _delete(extra),
+                  );
+                },
               ),
           ],
         ],

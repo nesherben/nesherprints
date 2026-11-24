@@ -18,13 +18,17 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = statusColor(status);
     final targets = status.quickChangeTargets;
+    final Widget label = StatusPill(
+      label: status.label,
+      color: color,
+      icon: statusIcon(status),
+      trailing: targets.isEmpty
+          ? null
+          : Icon(Icons.expand_more, size: 16, color: color),
+    );
 
     if (targets.isEmpty) {
-      return StatusPill(
-        label: status.label,
-        color: color,
-        icon: statusIcon(status),
-      );
+      return label;
     }
 
     return PopupMenuButton<OrderStatus>(
@@ -44,12 +48,7 @@ class StatusBadge extends StatelessWidget {
             ),
           ),
       ],
-      child: StatusPill(
-        label: status.label,
-        color: color,
-        icon: statusIcon(status),
-        trailing: Icon(Icons.expand_more, size: 16, color: color),
-      ),
+      child: label,
     );
   }
 }

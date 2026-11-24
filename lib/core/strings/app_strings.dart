@@ -73,14 +73,14 @@ class AppStrings {
   static const kpiPendingCollection = 'Pendiente de Cobro';
   static const grossLabel = 'Facturado';
   static const netLabel = 'Beneficio';
-  static const distributionTitle = 'Distribución de Pedidos';
+  static const distributionTitle = 'Pedidos por estado';
   static const completeFirstOrderHint =
       'Completa tu primer pedido para ver el gráfico.';
   static String statusLegend(String status, int count) => '$status ($count)';
 
   // ==================== INVENTARIO (MATERIALES) ====================
-  static const inventoryTitle = 'Gestor de Inventario';
-  static const addMaterial = 'Añadir Material';
+  static const inventoryTitle = 'Inventario';
+  static const addMaterial = 'Nuevo material';
   static const editMaterial = 'Editar Material';
   static const inventoryEmpty =
       'No hay materiales en el inventario. Añade tu primera bobina o tanque de resina.';
@@ -102,7 +102,9 @@ class AppStrings {
 
   // ==================== PIEZAS (EXTRAS) ====================
   static const extrasTitle = 'Piezas';
-  static const addPieces = 'Añadir Piezas';
+  static const addPieces = 'Nueva pieza';
+  static String unitPricePreview(String amount) => '≈ $amount por unidad';
+  static const filterSoldOutExtras = 'Agotadas';
   static const addExtra = 'Añadir Pieza';
   static const editExtra = 'Editar Pieza';
   static const unitsPerPackage = 'Unidades por paquete';
@@ -118,13 +120,22 @@ class AppStrings {
       'Nuevo precio unitario estimado: $price';
 
   // ==================== PEDIDOS: LISTADO ====================
-  static const ordersTitle = 'Registro de Pedidos';
+  static const ordersTitle = 'Pedidos';
   static const searchProject = 'Buscar proyecto...';
   static const filterByStatus = 'Filtrar por Estado';
   static const clearFilters = 'Limpiar Filtros';
   static const noOrdersForFilters =
       'No se encontraron pedidos con estos filtros.';
   static const colIdDate = 'ID / Fecha';
+  static const colId = 'ID';
+  static const noDate = 'Sin fecha';
+  static String monthGroupMeta(int count, String billed) =>
+      '${ordersCount(count)} · $billed facturado';
+  static const colDate = 'Fecha';
+  static const colClient = 'Cliente';
+  static const colPrice = 'Precio';
+  static const colCollection = 'Cobro';
+  static String pendingShort(String amount) => 'Falta $amount';
   static const colProject = 'Proyecto';
   static const colStatus = 'Estado';
   static const colFinances = 'Finanzas';
@@ -133,6 +144,7 @@ class AppStrings {
   static String orderPaid(String amount) => 'Pagado: $amount';
   static String orderPending(String amount) => 'Falta: $amount';
   static const painted = 'Pintado';
+  static String profitOf(String amount) => 'Beneficio $amount';
   static String platesCount(int count) =>
       '$count Placa${count != 1 ? 's' : ''}';
   static String wastePercent(double percent) =>
@@ -159,12 +171,12 @@ class AppStrings {
   static const addPlate = 'Añadir Placa';
   static const noPlates = 'No hay placas. Añade una para empezar a calcular.';
   static String defaultPlateName(int number) => 'Placa $number';
-  static const plateNameLabel = 'Nombre de la Placa (ej. Base)';
+  static const plateNameLabel = 'Nombre';
   static const materialLabel = 'Material';
   static const newMaterialTooltip = 'Nuevo material';
   static String materialOption(String name, String color, String costPerKg) =>
       '$name ($color) - $costPerKg/kg';
-  static const gramsLabel = 'Gramos (g)';
+  static const gramsLabel = 'Gramos';
   static const timeLabel = 'Tiempo';
   static const extrasSectionTitle = 'Extras (llaveros, clickers, etc.)';
   static const noExtrasDefined = 'No hay extras definidos.';
@@ -242,6 +254,13 @@ class AppStrings {
   static String extraPriceStock(String price, int stock) =>
       '$price/ud · quedan $stock';
   static const removeOne = 'Quitar una';
+  static const sectionCost = 'Coste';
+  static const sectionPrice = 'Precio';
+  static const sectionCollection = 'Cobro';
+  static String realProfit(String amount) => 'Beneficio real $amount';
+  static const pickExtra = 'Añadir pieza';
+  static const removeExtraLine = 'Quitar pieza';
+  static const noExtrasSelected = 'Sin piezas extra en este pedido.';
   static const addOne = 'Añadir una';
   static const summaryTitle = 'RESUMEN';
   static String summaryMeta(int plates, String time, double grams) =>
@@ -264,6 +283,13 @@ class AppStrings {
       'Pierdes $loss: el precio no cubre el coste';
   static const healthHint = 'Escribe el precio final para ver tu margen';
   static const fullyPaid = 'Cobrado por completo';
+  static String overpaid(String amount) => 'Cobras $amount más que el precio';
+  static const notesLabel = 'Notas';
+  static const discardTitle = '¿Descartar los cambios?';
+  static const discardMessage =
+      'Has modificado el pedido y todavía no lo has guardado.';
+  static const discard = 'Descartar';
+  static const keepEditing = 'Seguir editando';
   static String pendingToCollect(String amount) => 'Falta por cobrar: $amount';
   static const copySuffix = ' (copia)';
   static const viewOrder = 'Pedido';
@@ -298,11 +324,16 @@ class AppStrings {
       'Fallo al ${percent.toInt()}% en $plateName';
 
   // ==================== CLIENTES ====================
-  static const clientsTitle = 'Agenda de Clientes';
+  static const clientsTitle = 'Clientes';
   static const clientsSubtitle =
       'Gestiona tus contactos y compradores recurrentes';
   static const clientsEmpty = 'Aún no tienes clientes registrados.';
-  static const newClient = 'Nuevo Cliente';
+  static const newClient = 'Nuevo cliente';
+  static const clientsSummaryCount = 'Clientes';
+  static const clientsSummaryBilled = 'Facturado';
+  static const clientsSummaryOwed = 'Por cobrar';
+  static const filterWithOrders = 'Con pedidos';
+  static const filterOwes = 'Con deuda';
   static const editClient = 'Editar Cliente';
   static const optionalFields =
       'Todos los campos son opcionales. Rellena solo lo que sepas.';
@@ -320,12 +351,82 @@ class AppStrings {
   static const copied = 'Copiado';
 
   // Inventario
-  static const inventorySubtitle = 'Bobinas de filamento y botes de resina';
+  static const inventorySubtitle =
+      'Tus colores de filamento y el tanque de resina';
+  static const resinSection = 'Resina';
+  static const filamentSection = 'Estantería de filamento';
+  static String filamentColorsMeta(int n) => n == 1 ? '1 color' : '$n colores';
+  static String filamentGroupSubtitle(int n) =>
+      n == 1 ? '1 color' : '$n colores';
+  static const addResin = 'Añadir resina';
+  static const colorsButton = 'Colores';
+  static const libraryManageTitle = 'Biblioteca de colores';
+  static const libraryManageSubtitle =
+      'Los colores que se sugieren al dar de alta un filamento. Puedes cambiar o borrar cualquiera.';
+  static const libraryEmpty =
+      'La biblioteca está vacía. Añade colores o restaura los básicos.';
+  static const restoreBasics = 'Restaurar básicos';
+  static const newColor = 'Nuevo color';
+  static const editColor = 'Editar color';
+  static const colorNameLabel = 'Nombre del color';
+  static String deleteColorTooltip(String name) => 'Quitar "$name"';
+  static const resinStatAmount = 'En el tanque';
+  static const resinStatValue = 'Valor';
+  static const resinStatValueHint = 'de lo que hay ahora';
+  static const perKg = 'por kilo (medio)';
+  static const shelfEmptyTitle = 'La estantería está vacía';
+  static const shelfEmptyMessage =
+      'Añade tus filamentos de uno en uno o pega la lista de colores de una marca.';
+  static const pickColorTitle = 'Elegir color';
+  static const hexLabel = 'Código hexadecimal';
+  static const libraryTitle = 'Tu biblioteca de colores';
+  static const pickColorTooltip = 'Elegir color (RGB)';
+  static const colorFromLibrary = 'En tu biblioteca';
+  static const resinTankTitle = 'Tanque de resina';
+  static const resinTankSubtitle =
+      'Total acumulado, con el precio medio de todo lo que has echado';
+  static const defaultResinName = 'Resina';
+  static String shelfBrandMeta(int n) => n == 1 ? '1 bobina' : '$n bobinas';
+  static const addSeveral = 'Añadir varios';
+  static const bulkTitle = 'Añadir varios filamentos';
+  static const bulkSubtitle =
+      'Marca y precio una vez; luego los colores, uno tras otro';
+  static const bulkDefaultPrice = 'Precio por defecto';
+  static const bulkColorsLabel = 'Colores';
+  static const bulkColorsHint =
+      'Escribe un color y pulsa Enter (o pega una lista)';
+  static const bulkLibraryHint = 'O toca los de tu biblioteca';
+  static String bulkRemoveTooltip(String color) => 'Quitar "$color"';
+  static const bulkEmptyHint =
+      'Un color por línea. Con «Color: precio» se usa un precio propio.';
+  static String bulkReady(int n) =>
+      n == 1 ? '1 color listo' : '$n colores listos';
+  static String bulkCreate(int n) => n == 0 ? 'Crear' : 'Crear $n';
+  static String bulkAdded(int n) =>
+      n == 1 ? '1 filamento añadido' : '$n filamentos añadidos';
+  static String addResinTo(String name) => 'Añadir resina a "$name"';
+  static const resinGramsLabel = 'Cantidad a añadir';
+  static const resinBatchPriceLabel = 'Precio de esta remesa';
+  static String resinNow(String stock, String price) =>
+      'Ahora: $stock a $price/kg';
+  static const resinPriceNow = 'Precio medio actual';
+  static const resinPriceNew = 'Nuevo precio medio';
+  static String resinAfter(String stock) => 'En el tanque quedarán $stock';
+  static const resinApplyHint =
+      'Indica los gramos para ver el nuevo precio medio';
+  static String resinValue(String value) => '$value en el tanque';
+  static const resinGramsInvalid = 'Indica los gramos (más de 0)';
+  static const resinCurrentStock = 'Gramos en el tanque (ahora)';
   static const inventorySearchHint = 'Buscar por nombre, color o tipo...';
   static const inventoryEmptyTitle = 'Aún no hay materiales';
   static const inventorySummaryMaterials = 'Materiales';
   static const inventorySummaryStock = 'Stock total';
   static const inventorySummaryLow = 'Con stock bajo';
+  static const inventorySummaryOut = 'Agotados';
+  static const outOfStock = 'Agotado';
+  static const filterInStock = 'Con stock';
+  static String materialGroupSubtitle(int variants, String stock) =>
+      '$variants variantes · $stock';
   static String kilos(double grams) =>
       '${(grams / 1000).toStringAsFixed(2)} kg';
   static String pricePerKg(String price) => '$price/kg';
@@ -373,9 +474,11 @@ class AppStrings {
   static const copyEmail = 'Copiar email';
   static String clientOrders(int count) =>
       count == 1 ? '1 pedido' : '$count pedidos';
-  static String clientStats(int count, String billed) =>
-      '${clientOrders(count)} · $billed facturado';
-  static String clientOwes(String amount) => 'Debe $amount';
+  static const noPhone = 'Sin teléfono';
+  static const noEmail = 'Sin email';
+  static const clientBilled = 'Facturado';
+  static const clientPending = 'Por cobrar';
+  static const clientUpToDate = 'Al día';
 
   // ==================== MODELO DE PRECIOS SIMPLE ====================
   static const lineMachine = 'Máquina';

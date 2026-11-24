@@ -62,7 +62,7 @@ class WasteRecord {
   const WasteRecord({
     this.id,
     required this.orderId,
-    required this.materialId,
+    this.materialId,
     required this.grams,
     this.reason = '',
     this.date,
@@ -70,7 +70,9 @@ class WasteRecord {
 
   final int? id;
   final int orderId;
-  final int materialId;
+
+  /// `null` si la merma era de un material histórico ya retirado.
+  final int? materialId;
   final double grams;
   final String reason;
   final String? date;
@@ -78,7 +80,7 @@ class WasteRecord {
   factory WasteRecord.fromMap(Map<String, Object?> map) => WasteRecord(
     id: map[OrderWasteTable.id] as int?,
     orderId: map[OrderWasteTable.orderId] as int,
-    materialId: map[OrderWasteTable.materialId] as int,
+    materialId: map[OrderWasteTable.materialId] as int?,
     grams: asDouble(map[OrderWasteTable.gramsWasted]),
     reason: map[OrderWasteTable.reason] as String? ?? '',
     date: map[OrderWasteTable.date] as String?,

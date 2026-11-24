@@ -114,7 +114,7 @@ void main() {
   Future<void> fillOrderForm(WidgetTester t) async {
     await enter(t, 'Nombre del Proyecto', 'Figura de prueba');
     await tapText(t, 'Añadir Placa');
-    await enter(t, 'Gramos (g)', '100');
+    await enter(t, 'Gramos', '100');
     await enter(t, 'Tiempo', '480');
     await settle(t, rounds: 2);
   }
@@ -262,7 +262,7 @@ void main() {
     );
 
     await tapText(t, 'Pedidos');
-    await tapTooltip(t, 'Editar pedido');
+    await tapText(t, 'Figura');
     await settle(t);
     await tapText(t, 'Guardar pedido');
 
@@ -305,6 +305,9 @@ void main() {
     await tapText(t, 'Eliminar');
     expect(find.text('Eliminar pedido'), findsOneWidget);
     await tapText(t, 'Cancelar');
+    if (find.text('Descartar').evaluate().isNotEmpty) {
+      await tapText(t, 'Descartar'); // había cambios sin guardar
+    }
     expect(await allOrders(t), hasLength(1));
 
     await tapTooltip(t, 'Más acciones');
@@ -349,6 +352,9 @@ void main() {
     await tapText(t, 'Servicio de Pintura');
     await settle(t, rounds: 2);
     await tapText(t, 'Cancelar');
+    if (find.text('Descartar').evaluate().isNotEmpty) {
+      await tapText(t, 'Descartar'); // había cambios sin guardar
+    }
 
     for (final section in [
       'Inventario',

@@ -27,6 +27,7 @@ class PrintMaterial {
     required this.color,
     required this.costPerKg,
     required this.stockGrams,
+    this.colorRgb,
   });
 
   final int? id;
@@ -40,7 +41,19 @@ class PrintMaterial {
   /// Stock restante en gramos (o ml).
   final double stockGrams;
 
-  bool get isLowStock => stockGrams < InventoryRules.lowStockGrams;
+  /// Color de la bobina (0xRRGGBB); `null` si no se ha elegido.
+  final int? colorRgb;
+
+  /// Solo la resina lleva el stock al día; en filamento el usuario sabe lo que
+  /// le queda y la app solo guarda el color y su precio.
+  bool get tracksStock => kind == MaterialKind.resin;
+
+  /// Sin stock (o en negativo).
+  bool get isOutOfStock => stockGrams <= 0;
+
+  /// Queda poco pero no se ha agotado.
+  bool get isLowStock =>
+      stockGrams > 0 && stockGrams < InventoryRules.lowStockGrams;
 
   factory PrintMaterial.fromMap(Map<String, Object?> map) => PrintMaterial(
     id: map[MaterialsTable.id] as int?,
@@ -49,6 +62,7 @@ class PrintMaterial {
     color: map[MaterialsTable.color] as String? ?? '',
     costPerKg: asDouble(map[MaterialsTable.costPerKg]),
     stockGrams: asDouble(map[MaterialsTable.stockGrams]),
+    colorRgb: (map[MaterialsTable.colorRgb] as num?)?.toInt(),
   );
 
   Map<String, Object?> toMap() => {
@@ -58,5 +72,6 @@ class PrintMaterial {
     MaterialsTable.color: color,
     MaterialsTable.costPerKg: costPerKg,
     MaterialsTable.stockGrams: stockGrams,
+    MaterialsTable.colorRgb: colorRgb,
   };
 }
