@@ -9,19 +9,6 @@ void main() {
       expect(ExtraPricing.unitPriceFromPackage(totalPrice: 10, units: 0), 10);
     });
 
-    test('total del paquete al editar', () {
-      expect(
-        ExtraPricing.packageTotal(
-          const Extra(name: 'x', unitPrice: 2, stock: 5),
-        ),
-        10,
-      );
-      expect(
-        ExtraPricing.packageTotal(const Extra(name: 'x', unitPrice: 2)),
-        2,
-      );
-    });
-
     test('media ponderada al sumar stock', () {
       // 10 uds a 1 € + 10 uds por 30 € → 40 € / 20 uds = 2 €
       expect(

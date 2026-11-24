@@ -7,6 +7,7 @@ library;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:nesherprints/core/constants/app_constants.dart';
+import 'package:nesherprints/features/orders/data/cost_freezer.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
 /// Nombre del archivo de base de datos (histórico: el "v6" no es la versión
@@ -119,7 +120,7 @@ class DbSchema {
   DbSchema._();
 
   /// Versión del esquema (PRAGMA user_version).
-  static const int version = 6;
+  static const int version = 7;
 
   static const String _createSettings =
       '''
@@ -313,6 +314,12 @@ class DbSchema {
       for (final entry in const PricingSettings().toMap().entries) {
         await _insertSettingIfMissing(db, entry.key, entry.value);
       }
+    }
+
+    if (oldVersion < 7) {
+      // v7: el coste de los pedidos cerrados queda congelado en cost_override
+      // (antes se recalculaba con los precios actuales). Sin cambio de columnas.
+      await CostFreezer.freezeAllClosed(db);
     }
   }
 

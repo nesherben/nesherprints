@@ -16,6 +16,7 @@ class ClientCard extends StatelessWidget {
     super.key,
     required this.client,
     required this.onEdit,
+    this.onDelete,
     this.stats = const ClientStats(),
   });
 
@@ -35,6 +36,7 @@ class ClientCard extends StatelessWidget {
   final Client client;
   final ClientStats stats;
   final VoidCallback onEdit;
+  final VoidCallback? onDelete;
 
   /// Color del avatar derivado del nombre (siempre el mismo para un nombre).
   static Color avatarColorFor(String name) {
@@ -90,11 +92,20 @@ class ClientCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
+                  visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.edit_outlined),
                   color: AppColors.info,
                   tooltip: AppStrings.editClient,
                   onPressed: onEdit,
                 ),
+                if (onDelete != null)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.delete_outline),
+                    color: AppColors.danger,
+                    tooltip: AppStrings.deleteClient,
+                    onPressed: onDelete,
+                  ),
               ],
             ),
             if (stats.owes) ...[

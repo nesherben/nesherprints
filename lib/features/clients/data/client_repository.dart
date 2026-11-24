@@ -31,4 +31,22 @@ class ClientRepository {
     );
     return client.id!;
   }
+
+  /// Borra el cliente. Sus pedidos se conservan, sin cliente asignado.
+  Future<void> delete(int id) async {
+    final db = await _db.database;
+    await db.transaction((txn) async {
+      await txn.update(
+        OrdersTable.name,
+        {OrdersTable.clientId: null},
+        where: '${OrdersTable.clientId} = ?',
+        whereArgs: [id],
+      );
+      await txn.delete(
+        ClientsTable.name,
+        where: '${ClientsTable.id} = ?',
+        whereArgs: [id],
+      );
+    });
+  }
 }

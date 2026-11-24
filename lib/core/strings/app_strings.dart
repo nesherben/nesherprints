@@ -352,8 +352,13 @@ class AppStrings {
   static const extraNameRequired = 'Indica el nombre de la pieza';
   static const extraUnitsInvalid = 'Indica unidades válidas (0 o más)';
   static const extraPriceInvalid = 'Indica un precio válido (0 o más)';
-  static const extraPackageHint =
-      'Al editar, las unidades sustituyen al stock actual.';
+  static const extraEditHint =
+      'El stock no cambia al editar: usa «Sumar unidades» para añadir.';
+  static const unitPriceLabel = 'Precio por unidad (€)';
+  static const deleteClient = 'Eliminar cliente';
+  static String deleteClientMessage(String name, int orders) => orders == 0
+      ? '¿Eliminar a «$name»?'
+      : '¿Eliminar a «$name»? Sus $orders pedidos se conservan, sin cliente.';
   static const stockUnitPriceNow = 'Precio unitario actual';
   static const stockUnitPriceNew = 'Nuevo precio unitario';
   static const stockApplyHint =

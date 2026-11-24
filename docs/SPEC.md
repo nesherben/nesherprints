@@ -117,7 +117,7 @@ RECOMENDADO = SIN PINTAR + importe de pintura del nivel (si se pinta)
 ### 4.3 Panel (`features/dashboard`)
 
 - **Indicadores**: Facturado (suma de pedidos completados o enviados), **Beneficio** (facturado − coste real; con su margen %), **Pendiente de cobro** (deuda de pedidos que no son borrador ni cancelados) y **Objetivo** (beneficio / objetivo configurable, con barra de progreso).
-- **Coste real** de cada pedido cerrado: su coste fijo si lo tiene (`costOverride`, pedidos importados); si no, se **recalcula** con sus placas, piezas (a su precio registrado), intentos y pintura, con los ajustes y precios de material **actuales**.
+- **Coste real** de cada pedido cerrado: su coste fijo (`costOverride`). Se **congela al completar** (`CostFreezer`, con los precios y ajustes de ese momento) y los pedidos importados traen el de la hoja, así que cambiar un €/kg o un margen no altera el beneficio histórico. Solo si un pedido cerrado no tuviera coste fijo se recalcularía (`OrderCosting`).
 - Gráfica de barras de facturado y beneficio por mes (con scroll si hay muchos meses y tooltips), anillo de pedidos por estado, **detalle mensual** (pedidos, facturado, beneficio, margen; el mes más reciente primero) y lista de **pendientes de cobro** con su antigüedad.
 - Las **mermas** no se restan del beneficio (ya van en los intentos); se muestran como nota informativa con su coste.
 
@@ -131,14 +131,14 @@ RECOMENDADO = SIN PINTAR + importe de pintura del nivel (si se pinta)
 ### 4.5 Piezas extra (`features/extras`)
 
 - Franja resumen (nº de piezas, valor del stock = Σ precio × stock con stock > 0, agotadas) y tarjetas con precio unitario, stock grande y etiqueta (Agotado, Stock negativo, Pocas unidades 1–5).
-- **Alta/edición por paquete**: unidades y precio total; precio unitario = total / unidades (o el total si no hay unidades). Al editar, las unidades **sustituyen** al stock.
+- **Alta por paquete**: unidades y precio total; precio unitario = total / unidades (o el total si no hay unidades). **Editar** cambia solo el nombre y el precio unitario: el stock no se toca (se usa «Sumar unidades»).
 - **Sumar unidades**: unidades y precio pagado; el precio unitario pasa a la **media ponderada** `(precio × stock + total) / (stock + unidades)` (un stock negativo cuenta como 0). Muestra el precio antes → después. La operación lee stock y precio actuales de la base de datos dentro de una transacción.
 - Borrar con confirmación.
 
 ### 4.6 Clientes (`features/clients`)
 
 - Buscador (nombre, teléfono, email) y rejilla adaptable de tarjetas con avatar de iniciales, teléfono y email (con botón de copiar), «N pedidos · €X facturado» y, si debe dinero, «Debe €Y».
-- Alta/edición con todos los campos opcionales: si todo está vacío no se guarda; sin nombre se usa el teléfono o el email. No se pueden borrar clientes.
+- Alta/edición con todos los campos opcionales: si todo está vacío no se guarda; sin nombre se usa el teléfono o el email. **Eliminar** un cliente (con confirmación) conserva sus pedidos, que quedan sin cliente.
 
 ### 4.7 Administración (`features/settings`)
 
@@ -174,29 +174,35 @@ Todo se hace en una transacción. Completar un pedido ya cerrado no hace nada; c
 
 ## 6. Base de datos
 
-- Archivo `nesher_erp_v6.db` (el «v6» es histórico); versión del esquema (`PRAGMA user_version`) = **6**. Esquema único en `lib/core/database/db_schema.dart`: `onCreate` crea tablas y ajustes; `onUpgrade` asegura todas las tablas y aplica migraciones `if (oldVersion < N)`; `onOpen` es una red de seguridad.
-- Migraciones: v2 clientes, placas y piezas; v3 intentos, horas de pintura, colores y coste fijo en pedidos; v4 detalle de pintura (ya no se usa; la columna `paint_detail` y `paint_colors` se conservan sin usar); **v6 pintura por detalle** (columna `paint_level`; las horas y la tarifa de pintura dejan de usarse); **v5 modelo de precios simple**: añade los ajustes nuevos y devuelve el margen a su valor por defecto (ahora es un % sobre el coste, no un multiplicador distinto).
+- Archivo `nesher_erp_v6.db` (el «v6» es histórico); versión del esquema (`PRAGMA user_version`) = **7**. Esquema único en `lib/core/database/db_schema.dart`: `onCreate` crea tablas y ajustes; `onUpgrade` asegura todas las tablas y aplica migraciones `if (oldVersion < N)`; `onOpen` es una red de seguridad.
+- Migraciones: v2 clientes, placas y piezas; v3 intentos, horas de pintura, colores y coste fijo en pedidos; v4 detalle de pintura (ya no se usa; la columna `paint_detail` y `paint_colors` se conservan sin usar); **v6 pintura por detalle** (columna `paint_level`; las horas y la tarifa de pintura dejan de usarse); **v7 congela el coste** de los pedidos completados/enviados en `cost_override` (sin columnas nuevas; K1); **v5 modelo de precios simple**: añade los ajustes nuevos y devuelve el margen a su valor por defecto (ahora es un % sobre el coste, no un multiplicador distinto).
 - **Copia de seguridad**: antes de migrar a una versión nueva, `AppDatabase` copia el archivo junto al original (`<archivo>.bak-v<versión>-<fecha>`).
 - `PRAGMA foreign_keys` no está activado; el borrado de pedidos elimina explícitamente sus placas, mermas, piezas y consumos.
 
 ## 7. Pruebas
 
-139 pruebas, sin omitidas (`bash .claude/skills/verify/verify.sh`):
+Todas pasan, sin omitidas (`bash .claude/skills/verify/verify.sh`):
 - Reglas puras: calculadora (pedidos reales del Excel), estados, validación, panel, costes, clientes, piezas.
-- Repositorios con SQLite en memoria: `stock_invariants_test.dart` (cada test protege un fallo real ya corregido), `repositories_test.dart` (incluye migraciones v1→v4), copia de seguridad con archivos reales.
+- Repositorios con SQLite en memoria: `stock_invariants_test.dart` (cada test protege un fallo real ya corregido), `repositories_test.dart` (incluye migraciones v1→v7), copia de seguridad con archivos reales.
 - Pantallas con toques simulados: `test/app/order_flow_test.dart` (crear, completar, enviar, validación, duplicar, editar conservando piezas, eliminar, y **ningún desborde** en escritorio y móvil) y una prueba por pantalla.
 
 ## 8. Problemas conocidos
 
 Resueltos en nov-2026 (con test): recargo de placas acumulativo; horas de pintura sin guardar; editar pedidos perdía las piezas; borrar dejaba placas y mermas huérfanas; completar dos veces, o tras una merma, descontaba material de más; Enviado sin completar; guardado sin validar ni avisar de errores; stock de piezas pisado por datos de pantalla viejos; precio de piezas re-registrado al editar; neto del panel sin coste de material; estados en inglés; borrar material sin confirmar ni comprobar uso; ajustes con valores inválidos sustituidos en silencio.
 
+Resueltos después: **K1** (coste congelado al completar, esquema v7), **K2** (editar una pieza ya no pisa su stock), **K4** (una pieza eliminada del catálogo se conserva en los pedidos que ya la tenían) y **K6** (se pueden eliminar clientes; sus pedidos se conservan).
+
 Vigentes:
 
 | # | Qué pasa | Impacto |
 |---|---|---|
-| K1 | El panel **recalcula** el coste de los pedidos cerrados con los precios de material y ajustes actuales: si cambias un €/kg o un margen, cambia el beneficio histórico. | Cifras históricas inestables. Mejora prevista: congelar el coste al completar. |
-| K2 | Editar una pieza sobrescribe su stock con las «unidades por paquete». | Se pierde el stock real si se usa mal. |
 | K3 | El stock de material puede quedar negativo al completar o registrar mermas. Al completar, el diálogo de confirmación avisa de qué material no alcanza (`StockCheck`), pero se permite seguir. | Inventario negativo si se ignora el aviso. |
-| K4 | Si una pieza se elimina del catálogo, desaparece de los pedidos que la tenían al editarlos. | Pérdida silenciosa en casos raros. |
-| K5 | No hay forma de reabrir un pedido completado por error (decisión deliberada: el material ya se descontó). | Hay que borrarlo y recrearlo. |
-| K6 | Los clientes no se pueden borrar; un cliente con pedidos no tiene restricción. | — |
+| K5 | No hay forma de reabrir un pedido completado por error (decisión deliberada: el material ya se descontó y los pedidos importados nunca lo descontaron, así que no se puede saber qué devolver). | Hay que borrarlo y recrearlo. |
+
+## 9. Importación del histórico del Excel
+
+`tool/import_finanza.py <Finanza.ods> <base.db> [--apply]` (una sola vez, con la app cerrada). Sin `--apply` simula y muestra el cuadre; con `--apply` hace antes una copia `.bak-import-<fecha>`.
+- Un pedido por fila con nombre: precio cobrado (I), coste de la hoja (Z) como `cost_override` (en curso y completados), estados 0/1/2 → Borrador/En curso/Completado (cobrado = precio en los completados; el adelanto en los demás). No toca el stock.
+- Una placa «Importado» por pedido (gramos y horas totales de la hoja) con un material «Histórico (Excel)» por cada €/kg distinto, con stock 0. Las 11 piezas de la tabla de materiales de la hoja, con stock 0.
+- Fechas: la hoja solo tenía fecha en 32 de 141 filas; el resto usa la última fecha conocida de las filas anteriores y lo dice en las notas.
+- Cuadre: aborta si los completados no suman la celda G3 (5485 €). Importación real (24-nov-2026): 141 pedidos (40 borrador, 5 en curso, 96 completados), 5485 € facturados, coste de la hoja 2287,26 €.

@@ -13,6 +13,7 @@ bash .claude/skills/code-map/code_map.sh lib/features/orders   # esquema de clas
 bash .claude/skills/code-map/usages.sh OrderRepository          # dónde se usa algo
 flutter run -d windows
 dart format lib test
+python tool/import_finanza.py <Finanza.ods> <base.db> [--apply]   # importación única del histórico (ya hecha)
 ```
 
 No lances dos `flutter test` a la vez (se bloquean en `build/native_assets`).
@@ -44,7 +45,7 @@ lib/
 
 | Feature | Domain | Data | Presentation |
 |---|---|---|---|
-| `orders` | `Order`, `OrderSummary`, `OrderStatus` (reglas de estado) / `PlateStatus`, `OrderPlate`, `OrderExtraLine`, `WasteRecord`, `OrderRules` (validación), `PricingCalculator`/`PriceHealth`, `OrderCosting` | `OrderRepository` (crear/editar/completar/borrar/merma; todo el stock en transacción) | `OrdersView`, `order_list.dart` (filas/tarjetas virtualizadas), `StatusBadge`, `WasteDialog`, `order_form/` (diálogo + placas, piezas, panel de resumen del precio) |
+| `orders` | `Order`, `OrderSummary`, `OrderStatus` (reglas de estado) / `PlateStatus`, `OrderPlate`, `OrderExtraLine`, `WasteRecord`, `OrderRules` (validación), `PricingCalculator`/`PriceHealth`, `OrderCosting` | `OrderRepository` (crear/editar/completar/borrar/merma; todo el stock en transacción), `CostFreezer` (congela el coste al completar y en la migración v7) | `OrdersView`, `order_list.dart` (filas/tarjetas virtualizadas), `StatusBadge`, `WasteDialog`, `order_form/` (diálogo + placas, piezas, panel de resumen del precio) |
 | `dashboard` | `FinanceSummary.compute` (beneficio, objetivo, mensual, pendientes) | — (usa repos de orders/inventory/settings) | `DashboardView`, `KpiCard`, `MonthlyRevenueChart`, `StatusPieChart`, `MonthlyTable`, `PendingList` |
 | `inventory` | `PrintMaterial`, `MaterialKind` | `MaterialRepository` | `InventoryView`, `MaterialDialog`, tarjetas de material |
 | `extras` | `Extra`, `ExtraPricing` | `ExtrasRepository` (incl. `addStock` atómico) | `ExtrasView`, `ExtraCard`, `ExtraDialog`, `AddStockDialog` |

@@ -401,4 +401,57 @@ void main() {
       expect(await extraStock(ex), 10, reason: 'las piezas vuelven al stock');
     });
   });
+
+  test('K1: completar congela el coste y no cambia si sube el €/kg', () async {
+    final mat = await pla();
+    final id = await orderWithPlate(mat, grams: 100);
+    await orders.complete(id);
+
+    Future<double?> frozen() async => (await orders.getAllWithDetails())
+        .firstWhere((o) => o.id == id)
+        .order
+        .costOverride;
+
+    final cost = await frozen();
+    // 100 g × 20 €/kg = 2 € de material + máquina (1 h) + 1 placa.
+    expect(cost, closeTo(2 + 0.1375 + 1, 0.001));
+
+    final material = (await materials.getAll()).single;
+    await materials.save(
+      PrintMaterial(
+        id: material.id,
+        kind: material.kind,
+        name: material.name,
+        color: material.color,
+        costPerKg: 99,
+        stockGrams: material.stockGrams,
+      ),
+    );
+    expect(await frozen(), cost);
+  });
+
+  test('K4: una pieza eliminada del catálogo se conserva al editar', () async {
+    final mat = await pla();
+    final piece = await keychain(stock: 10);
+    final id = await orders.create(
+      const Order(
+        name: 'Con pieza',
+        price: 30,
+        date: '2026-11-23',
+        status: OrderStatus.inProgress,
+      ),
+      plates: [OrderPlate(name: 'A', grams: 50, minutes: 60, materialId: mat)],
+      extras: [OrderExtraLine(extraId: piece, quantity: 2)],
+    );
+    await extras.delete(piece);
+
+    await orders.update(
+      (await orders.getAllWithDetails()).firstWhere((o) => o.id == id).order,
+      extras: [OrderExtraLine(extraId: piece, quantity: 2)],
+    );
+
+    final lines = await orders.getExtras(id);
+    expect(lines.single.extraId, piece);
+    expect(lines.single.unitPrice, 0.5);
+  });
 }

@@ -2,7 +2,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import 'package:nesherprints/core/strings/app_strings.dart';
-import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
@@ -47,13 +46,8 @@ class StatusPieChart extends StatelessWidget {
                                 PieChartSectionData(
                                   color: statusColor(e.key),
                                   value: e.value.toDouble(),
-                                  title: '${e.value}',
+                                  showTitle: false,
                                   radius: 22,
-                                  titleStyle: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.onPrimary,
-                                  ),
                                 ),
                             ],
                           ),

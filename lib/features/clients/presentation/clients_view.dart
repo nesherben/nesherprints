@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:nesherprints/app/service_locator.dart';
 import 'package:nesherprints/core/strings/app_strings.dart';
+import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/responsive.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
+import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
 import 'package:nesherprints/core/widgets/search_field.dart';
@@ -53,6 +55,27 @@ class _ClientsViewState extends State<ClientsView> {
   Future<void> _save(Client client) async {
     try {
       await ServiceLocator.clients.save(client);
+    } catch (e) {
+      if (!mounted) return;
+      AppFeedback.failure(context, e);
+      return;
+    }
+    await _load();
+  }
+
+  Future<void> _delete(Client client) async {
+    final orders = _stats[client.id]?.orderCount ?? 0;
+    final ok = await showConfirmDialog(
+      context,
+      title: AppStrings.confirmDeletionTitle,
+      message: AppStrings.deleteClientMessage(client.name, orders),
+      confirmText: AppStrings.delete,
+      color: AppColors.danger,
+      icon: Icons.delete_outline,
+    );
+    if (!ok || !mounted) return;
+    try {
+      await ServiceLocator.clients.delete(client.id!);
     } catch (e) {
       if (!mounted) return;
       AppFeedback.failure(context, e);
@@ -138,7 +161,7 @@ class _ClientsViewState extends State<ClientsView> {
             else
               SliverGrid(
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 380,
+                  maxCrossAxisExtent: 340,
                   mainAxisExtent: ClientCard.height,
                   crossAxisSpacing: AppSpacing.lg,
                   mainAxisSpacing: AppSpacing.lg,
@@ -151,6 +174,7 @@ class _ClientsViewState extends State<ClientsView> {
                       client: client,
                       stats: _stats[client.id] ?? const ClientStats(),
                       onEdit: () => _openDialog(client),
+                      onDelete: () => _delete(client),
                     );
                   },
                 ),

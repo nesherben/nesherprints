@@ -66,11 +66,6 @@ class ExtraPricing {
     required int units,
   }) => units > 0 ? totalPrice / units : totalPrice;
 
-  /// Total del paquete mostrado al editar: precio unitario × stock (o × 1 si
-  /// no hay stock).
-  static double packageTotal(Extra extra) =>
-      extra.unitPrice * (extra.stock > 0 ? extra.stock : 1);
-
   /// Nuevo precio unitario al sumar stock: media ponderada entre el valor
   /// actual del stock y lo comprado. Un stock negativo cuenta como 0 y, si el
   /// stock resultante es ≤ 0, se mantiene el precio actual.

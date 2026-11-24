@@ -106,6 +106,26 @@ void main() {
     });
   });
 
+  group('Clientes', () {
+    test('K6: borrar un cliente conserva sus pedidos sin cliente', () async {
+      final matId = await pla();
+      final clientId = await clients.save(const Client(name: 'Ana'));
+      await orders.create(
+        newOrder(clientId: clientId),
+        plates: [
+          OrderPlate(name: 'A', grams: 10, minutes: 5, materialId: matId),
+        ],
+      );
+
+      await clients.delete(clientId);
+
+      expect(await clients.getAll(), isEmpty);
+      final order = (await orders.getAllWithDetails()).single;
+      expect(order.order.clientId, isNull);
+      expect(order.clientName, isNull);
+    });
+  });
+
   group('Pedidos', () {
     test('crear guarda placas y descuenta piezas extra', () async {
       final matId = await pla();
@@ -390,7 +410,11 @@ void main() {
         expect(order['attempts'], 1);
         expect(order['paint_hours'], 0);
         expect(order['paint_level'], 1, reason: 'pedidos antiguos: normal');
-        expect(order['cost_override'], isNull);
+        expect(
+          order['cost_override'],
+          0,
+          reason: 'cerrado sin placas: coste 0 congelado',
+        );
 
         // Reaplicar la migración no falla ni duplica nada.
         final before = (await settingsOf(raw)).length;
@@ -447,5 +471,70 @@ void main() {
         await raw.close();
       },
     );
+
+    test('v6 → v7 congela el coste de los pedidos cerrados', () async {
+      final raw = await openOld(6, (db) async {
+        await db.execute(settingsTable);
+        await db.execute(
+          'CREATE TABLE materials (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'name TEXT NOT NULL, color TEXT NOT NULL, type TEXT NOT NULL, '
+          'cost_per_kg REAL NOT NULL, stock_g REAL NOT NULL)',
+        );
+        await db.insert('materials', {
+          'name': 'PLA',
+          'color': 'Negro',
+          'type': 'filament',
+          'cost_per_kg': 20.0,
+          'stock_g': 500.0,
+        });
+        await db.execute(
+          'CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'client_id INTEGER, name TEXT NOT NULL, price REAL NOT NULL, '
+          'paid_amount REAL DEFAULT 0.0, date TEXT NOT NULL, '
+          'status TEXT NOT NULL, is_painted INTEGER NOT NULL, notes TEXT, '
+          'attempts REAL NOT NULL DEFAULT 1, paint_hours REAL NOT NULL '
+          'DEFAULT 0, paint_colors REAL NOT NULL DEFAULT 0, cost_override '
+          'REAL, paint_level INTEGER NOT NULL DEFAULT 1)',
+        );
+        await db.execute(
+          'CREATE TABLE order_plates (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'order_id INTEGER NOT NULL, name TEXT NOT NULL, grams REAL NOT NULL, '
+          'minutes REAL NOT NULL, material_id INTEGER NOT NULL, '
+          "status TEXT DEFAULT 'Pending')",
+        );
+        for (final (name, status) in [
+          ('Hecho', 'Completed'),
+          ('Abierto', 'Draft'),
+        ]) {
+          final id = await db.insert('orders', {
+            'name': name,
+            'price': 30,
+            'date': '2026-01-01',
+            'status': status,
+            'is_painted': 0,
+          });
+          await db.insert('order_plates', {
+            'order_id': id,
+            'name': 'A',
+            'grams': 100.0,
+            'minutes': 60.0,
+            'material_id': 1,
+          });
+        }
+      });
+      await DbSchema.onUpgrade(raw, 6, DbSchema.version);
+
+      final rows = {
+        for (final r in await raw.query('orders'))
+          r['name']: r['cost_override'],
+      };
+      expect(rows['Hecho'], closeTo(3.1375, 0.001));
+      expect(
+        rows['Abierto'],
+        isNull,
+        reason: 'los abiertos se siguen calculando',
+      );
+      await raw.close();
+    });
   });
 }

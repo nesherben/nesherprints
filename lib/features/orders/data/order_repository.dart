@@ -4,6 +4,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:nesherprints/core/database/app_database.dart';
 import 'package:nesherprints/core/database/db_schema.dart';
+import 'package:nesherprints/features/orders/data/cost_freezer.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_parts.dart';
 import 'package:nesherprints/features/orders/domain/order_rules.dart';
@@ -258,6 +259,8 @@ class OrderRepository {
         final remaining = math.max(0.0, entry.value - (wasted[entry.key] ?? 0));
         if (remaining > 0) await _consumeMaterial(txn, entry.key, remaining);
       }
+      // Congela el coste con los precios de hoy (SPEC §9, K1).
+      await CostFreezer.freeze(txn, orderId);
     });
   }
 
@@ -348,7 +351,8 @@ class OrderRepository {
 
   /// Vincula piezas al pedido y resta stock. El precio unitario es el que ya
   /// tenía la pieza en el pedido ([keepPrices]) o, si es nueva, el actual.
-  /// Las piezas que ya no existen se ignoran.
+  /// Las piezas que ya no existen en el catálogo solo se conservan si el pedido
+  /// ya las tenía.
   Future<void> _addExtras(
     Transaction txn,
     int orderId,
@@ -363,7 +367,20 @@ class OrderRepository {
         where: '${ExtrasTable.id} = ?',
         whereArgs: [line.extraId],
       );
-      if (rows.isEmpty) continue;
+      if (rows.isEmpty) {
+        // La pieza ya no está en el catálogo: si el pedido ya la tenía, se
+        // conserva su línea (con el precio registrado) sin tocar stock.
+        final kept = keepPrices[line.extraId];
+        if (kept != null) {
+          await txn.insert(OrderExtrasTable.name, {
+            OrderExtrasTable.orderId: orderId,
+            OrderExtrasTable.extraId: line.extraId,
+            OrderExtrasTable.quantity: line.quantity,
+            OrderExtrasTable.unitPrice: kept,
+          });
+        }
+        continue;
+      }
       final currentPrice = (rows.first[ExtrasTable.price] as num).toDouble();
       await txn.insert(OrderExtrasTable.name, {
         OrderExtrasTable.orderId: orderId,

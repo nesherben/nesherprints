@@ -8,9 +8,9 @@ import 'package:nesherprints/core/utils/number_utils.dart';
 import 'package:nesherprints/core/widgets/app_dialog_frame.dart';
 import 'package:nesherprints/features/extras/domain/extra.dart';
 
-/// Alta/edición de una pieza a partir de un paquete (unidades + precio total).
-///
-/// Al editar, las unidades sustituyen al stock actual.
+/// Alta de una pieza a partir de un paquete (unidades + precio total) y edición
+/// de su nombre y precio unitario. Editar **no toca el stock** (para eso está
+/// «Sumar unidades»).
 class ExtraDialog extends StatefulWidget {
   const ExtraDialog({super.key, required this.onSave, this.initial});
 
@@ -32,13 +32,9 @@ class _ExtraDialogState extends State<ExtraDialog> {
     super.initState();
     final extra = widget.initial;
     _nameController = TextEditingController(text: extra?.name ?? '');
-    _unitsController = TextEditingController(
-      text: (extra != null && extra.stock > 0) ? '${extra.stock}' : '',
-    );
+    _unitsController = TextEditingController();
     _totalPriceController = TextEditingController(
-      text: extra == null
-          ? ''
-          : ExtraPricing.packageTotal(extra).toStringAsFixed(2),
+      text: extra == null ? '' : extra.unitPrice.toStringAsFixed(4),
     );
   }
 
@@ -62,17 +58,21 @@ class _ExtraDialogState extends State<ExtraDialog> {
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;
+    final initial = widget.initial;
     final units = parseInt(_unitsController.text);
+    final price = parseDecimal(_totalPriceController.text);
     widget.onSave(
       Extra(
-        id: widget.initial?.id,
+        id: initial?.id,
         name: _nameController.text.trim(),
-        unitPrice: ExtraPricing.unitPriceFromPackage(
-          totalPrice: parseDecimal(_totalPriceController.text),
-          units: units,
-        ),
-        stock: units,
-        unit: widget.initial?.unit ?? '',
+        unitPrice: initial != null
+            ? price
+            : ExtraPricing.unitPriceFromPackage(
+                totalPrice: price,
+                units: units,
+              ),
+        stock: initial?.stock ?? units,
+        unit: initial?.unit ?? '',
       ),
     );
     Navigator.pop(context);
@@ -83,7 +83,7 @@ class _ExtraDialogState extends State<ExtraDialog> {
     final isNew = widget.initial == null;
     return AppDialogFrame(
       title: isNew ? AppStrings.addExtra : AppStrings.editExtra,
-      subtitle: isNew ? null : AppStrings.extraPackageHint,
+      subtitle: isNew ? null : AppStrings.extraEditHint,
       icon: Icons.category_outlined,
       width: 460,
       actions: [
@@ -103,17 +103,19 @@ class _ExtraDialogState extends State<ExtraDialog> {
               textInputAction: TextInputAction.next,
               decoration: const InputDecoration(labelText: AppStrings.name),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            TextFormField(
-              controller: _unitsController,
-              validator: _validateUnits,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: AppStrings.unitsPerPackage,
+            if (isNew) ...[
+              const SizedBox(height: AppSpacing.lg),
+              TextFormField(
+                controller: _unitsController,
+                validator: _validateUnits,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  labelText: AppStrings.unitsPerPackage,
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             TextFormField(
               controller: _totalPriceController,
@@ -121,8 +123,10 @@ class _ExtraDialogState extends State<ExtraDialog> {
               keyboardType: decimalKeyboard,
               inputFormatters: decimalInputFormatters,
               onFieldSubmitted: (_) => _save(),
-              decoration: const InputDecoration(
-                labelText: AppStrings.totalPricePackage,
+              decoration: InputDecoration(
+                labelText: isNew
+                    ? AppStrings.totalPricePackage
+                    : AppStrings.unitPriceLabel,
               ),
             ),
           ],
