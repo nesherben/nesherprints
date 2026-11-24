@@ -56,8 +56,7 @@ class AppStrings {
       : 'Pedido #$id · hace $days días';
   static String completedOrdersCount(int n) =>
       n == 1 ? '1 pedido completado' : '$n pedidos completados';
-  static String marginOnRevenue(String pct) =>
-      'Margen del $pct sobre lo facturado';
+  static String marginOnRevenue(String pct) => 'Margen del $pct';
   static String pendingOrdersCount(int n) => n == 0
       ? 'Nada pendiente'
       : (n == 1 ? '1 pedido por cobrar' : '$n pedidos por cobrar');

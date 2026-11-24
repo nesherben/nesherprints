@@ -34,6 +34,7 @@ class KpiCard extends StatelessWidget {
           vertical: AppSpacing.md,
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               width: 44,
