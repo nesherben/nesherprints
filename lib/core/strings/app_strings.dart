@@ -103,8 +103,8 @@ class AppStrings {
   // ==================== PIEZAS (EXTRAS) ====================
   static const extrasTitle = 'Piezas';
   static const addPieces = 'Añadir Piezas';
-  static const addExtra = 'Añadir Extra';
-  static const editExtra = 'Editar Extra';
+  static const addExtra = 'Añadir Pieza';
+  static const editExtra = 'Editar Pieza';
   static const unitsPerPackage = 'Unidades por paquete';
   static const totalPricePackage = 'Precio total del paquete (€)';
   static const addStock = 'Sumar unidades';
@@ -171,7 +171,6 @@ class AppStrings {
   static const financesTitle = 'Finanzas y Tiempos Extra';
   static const totalPlatesAuto = 'Total Placas (Automático)';
   static const paintServiceTitle = 'Servicio de Pintura';
-  static const paintHoursLabel = 'Horas Pintura';
   static const attemptsLabel = 'Intentos (1 = a la primera)';
   static const costManufacture = 'Coste Fabricación';
   static const suggestedPrice = 'Precio recomendado';
@@ -210,6 +209,11 @@ class AppStrings {
       'El pedido pasará a «Completado» y «Cobrado» y se descontarán '
       'unos ${grams.toStringAsFixed(0)} g de material del inventario. '
       'No se puede deshacer.';
+  static String stockShortageLine(String name, double need, double have) =>
+      '• $name: hacen falta ${need.toStringAsFixed(0)} g y hay '
+      '${(have < 0 ? 0 : have).toStringAsFixed(0)} g.';
+  static const stockShortageIntro =
+      '\n\nOjo: no hay stock suficiente y el inventario quedará en negativo:\n';
   static String deleteOrderMessage(String name) =>
       'Se eliminará «$name» con sus placas y mermas. Las piezas extra '
       'vuelven al stock; el material ya gastado no se repone.';
@@ -372,8 +376,10 @@ class AppStrings {
   static const lineMachine = 'Máquina';
   static const linePlates = 'Placas';
   static const minimumNote = 'Se aplica el precio mínimo';
-  static const paintServiceHint = 'Horas de trabajo × tarifa de pintura';
-  static const paintHoursHelp = 'La tarifa ya incluye el material';
+  static const paintServiceHint =
+      'Se suma un importe según el detalle de la figura';
+  static String paintSurchargeNote(String amount) =>
+      'Incluye +$amount de pintura';
   static const settingsGroupProduction = 'Producción';
   static const settingsGroupProductionHint =
       'Máquina y preparación de cada placa.';
@@ -393,9 +399,19 @@ class AppStrings {
   static const plateCostLabel = 'Coste por placa';
   static const plateCostHint =
       'Preparar, laminar y retirar cada placa. Se cobra por cada placa.';
-  static const paintingCostHint =
-      'Euros por hora de pintura, con el material incluido.';
   static const unitEuroPerHour = '€/h';
+  static const paintSimpleLabel = 'Pintura simple';
+  static const paintSimpleHint =
+      'Figura lisa o con pocos detalles. Se suma al precio de la pieza.';
+  static const paintNormalLabel = 'Pintura normal';
+  static const paintNormalHint = 'Figura con detalle medio.';
+  static const paintDetailedLabel = 'Pintura detallada';
+  static const paintDetailedHint =
+      'Figura con muchos detalles o zonas pequeñas.';
+  static const paintDetailLabel = 'Detalle de la figura';
+  static const paintDetailSimple = 'Simple';
+  static const paintDetailNormal = 'Normal';
+  static const paintDetailDetailed = 'Detallada';
   static const unitEuroPerKwh = '€/kWh';
   static const settingsExampleHint =
       '1 placa de 100 g a 20 €/kg, 8 h de impresión, sin pintura ni piezas.';
@@ -420,17 +436,18 @@ class AppStrings {
   static const settingsErrorRequired = 'Obligatorio';
   static const settingsErrorInvalid = 'Número no válido';
   static const settingsErrorNegative = 'Debe ser 0 o más';
-  static const settingsErrorTooBig = 'Máximo 1000';
+  static String settingsErrorTooBig(double max) =>
+      'Máximo ${max.toStringAsFixed(0)}';
 
   static const settingsGroupPrice = 'Precio';
   static const settingsGroupPriceHint = 'Cuánto ganas sobre el coste.';
   static const settingsGroupPaint = 'Pintura';
-  static const settingsGroupPaintHint = 'Tarifa por hora de pintura.';
+  static const settingsGroupPaintHint =
+      'Lo que se suma al precio de la pieza según el detalle de la figura.';
   static const settingsGroupGoals = 'Objetivos';
   static const settingsGroupGoalsHint = 'Meta que se muestra en el panel.';
 
   static const profitMarginLabel = 'Margen de beneficio';
-  static const paintingCostLabel = 'Coste de pintado';
   static const profitGoalLabel = 'Objetivo de beneficio';
   static const profitGoalHint =
       'Beneficio acumulado al que aspiras; el panel mide tu avance.';

@@ -53,7 +53,12 @@ class OrdersTable {
 
   /// Multiplicador de material y luz por fallos (1 = a la primera). Desde v3.
   static const attempts = 'attempts';
+
+  /// Obsoleta: horas de pintura de v3-v5 (la columna se conserva sin usar).
   static const paintHours = 'paint_hours';
+
+  /// Detalle de la pintura: 0 simple, 1 normal, 2 detallada. Desde v6.
+  static const paintLevel = 'paint_level';
 
   /// Obsoleta: ya no se usa (la columna se conserva).
   static const legacyPaintColors = 'paint_colors';
@@ -114,7 +119,7 @@ class DbSchema {
   DbSchema._();
 
   /// Versión del esquema (PRAGMA user_version).
-  static const int version = 5;
+  static const int version = 6;
 
   static const String _createSettings =
       '''
@@ -161,6 +166,7 @@ class DbSchema {
       ${OrdersTable.paintHours} REAL NOT NULL DEFAULT 0,
       ${OrdersTable.legacyPaintColors} REAL NOT NULL DEFAULT 0,
       ${OrdersTable.costOverride} REAL,
+      ${OrdersTable.paintLevel} INTEGER NOT NULL DEFAULT 1,
       FOREIGN KEY (${OrdersTable.clientId}) REFERENCES ${ClientsTable.name} (${ClientsTable.id})
     )''';
 
@@ -292,6 +298,21 @@ class DbSchema {
         where: '${SettingsTable.key} = ?',
         whereArgs: [SettingKeys.profitMargin],
       );
+    }
+
+    if (oldVersion < 6) {
+      // v6: la pintura multiplica el precio sin pintar según el detalle
+      // (simple/normal/detallada) en vez de cobrarse por horas. Los pedidos
+      // ya pintados quedan como «normal»; las horas y la tarifa antiguas se
+      // conservan sin usar.
+      await _addColumnIfMissing(
+        db,
+        OrdersTable.name,
+        '${OrdersTable.paintLevel} INTEGER NOT NULL DEFAULT 1',
+      );
+      for (final entry in const PricingSettings().toMap().entries) {
+        await _insertSettingIfMissing(db, entry.key, entry.value);
+      }
     }
   }
 

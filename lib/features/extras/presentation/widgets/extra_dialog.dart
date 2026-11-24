@@ -104,35 +104,26 @@ class _ExtraDialogState extends State<ExtraDialog> {
               decoration: const InputDecoration(labelText: AppStrings.name),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _unitsController,
-                    validator: _validateUnits,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: AppStrings.unitsPerPackage,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.lg),
-                Expanded(
-                  child: TextFormField(
-                    controller: _totalPriceController,
-                    validator: _validatePrice,
-                    keyboardType: decimalKeyboard,
-                    inputFormatters: decimalInputFormatters,
-                    onFieldSubmitted: (_) => _save(),
-                    decoration: const InputDecoration(
-                      labelText: AppStrings.totalPricePackage,
-                    ),
-                  ),
-                ),
-              ],
+            TextFormField(
+              controller: _unitsController,
+              validator: _validateUnits,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: AppStrings.unitsPerPackage,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            TextFormField(
+              controller: _totalPriceController,
+              validator: _validatePrice,
+              keyboardType: decimalKeyboard,
+              inputFormatters: decimalInputFormatters,
+              onFieldSubmitted: (_) => _save(),
+              decoration: const InputDecoration(
+                labelText: AppStrings.totalPricePackage,
+              ),
             ),
           ],
         ),

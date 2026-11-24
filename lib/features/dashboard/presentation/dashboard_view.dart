@@ -202,12 +202,28 @@ class _KpiGrid extends StatelessWidget {
             ? 2
             : 1;
         const gap = AppSpacing.lg;
-        final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
-        return Wrap(
-          spacing: gap,
-          runSpacing: gap,
+        // Filas de [columns] tarjetas con la misma altura (la del texto más
+        // largo), para que no queden desiguales.
+        return Column(
           children: [
-            for (final card in cards) SizedBox(width: width, child: card),
+            for (var start = 0; start < cards.length; start += columns) ...[
+              if (start > 0) const SizedBox(height: gap),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < columns; i++) ...[
+                      if (i > 0) const SizedBox(width: gap),
+                      Expanded(
+                        child: start + i < cards.length
+                            ? cards[start + i]
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ],
         );
       },

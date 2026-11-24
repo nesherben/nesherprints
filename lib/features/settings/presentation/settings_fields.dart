@@ -87,13 +87,32 @@ enum SettingField {
     AppStrings.unitEuro,
     FinanceDefaults.plateCost,
   ),
-  paintingCost(
+  paintSimple(
     SettingGroup.paint,
-    SettingKeys.paintingCostPerHour,
-    AppStrings.paintingCostLabel,
-    AppStrings.paintingCostHint,
-    AppStrings.unitEuroPerHour,
-    FinanceDefaults.paintingCostPerHour,
+    SettingKeys.paintPriceSimple,
+    AppStrings.paintSimpleLabel,
+    AppStrings.paintSimpleHint,
+    AppStrings.unitEuro,
+    FinanceDefaults.paintPriceSimple,
+    max: _maxPaint,
+  ),
+  paintNormal(
+    SettingGroup.paint,
+    SettingKeys.paintPriceNormal,
+    AppStrings.paintNormalLabel,
+    AppStrings.paintNormalHint,
+    AppStrings.unitEuro,
+    FinanceDefaults.paintPriceNormal,
+    max: _maxPaint,
+  ),
+  paintDetailed(
+    SettingGroup.paint,
+    SettingKeys.paintPriceDetailed,
+    AppStrings.paintDetailedLabel,
+    AppStrings.paintDetailedHint,
+    AppStrings.unitEuro,
+    FinanceDefaults.paintPriceDetailed,
+    max: _maxPaint,
   ),
   profitGoal(
     SettingGroup.goals,
@@ -115,6 +134,7 @@ enum SettingField {
   });
 
   static const double _maxMargin = 1000;
+  static const double _maxPaint = 1000;
 
   /// Dos números iguales a la precisión con la que se muestran.
   static const double _tolerance = 5e-7;
@@ -128,7 +148,7 @@ enum SettingField {
   final String suffix;
   final double defaultValue;
 
-  /// Tope opcional (el margen).
+  /// Tope opcional (el margen y los importes de pintura).
   final double? max;
 
   double valueOf(PricingSettings s) => s.toMap()[key]!;
@@ -145,7 +165,7 @@ enum SettingField {
     final v = parse(text);
     if (v == null) return AppStrings.settingsErrorInvalid;
     if (v < 0) return AppStrings.settingsErrorNegative;
-    if (max != null && v > max!) return AppStrings.settingsErrorTooBig;
+    if (max != null && v > max!) return AppStrings.settingsErrorTooBig(max!);
     return null;
   }
 

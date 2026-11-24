@@ -1,10 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
 /// Con los ajustes por defecto: máquina = 0,25 kW × 0,15 €/kWh + 0,10 €/h =
-/// 0,1375 €/h; 1 € por placa; pintura 10 €/h; margen 150 %; mínimo 5 €.
+/// 0,1375 €/h; 1 € por placa; margen 150 %; mínimo 5 €; pintura +20 / +60 / +100 €.
 void main() {
   const settings = PricingSettings();
 
@@ -14,8 +15,7 @@ void main() {
     double hours = 8,
     double costPerKg = 20,
     double attempts = 1,
-    bool isPainted = false,
-    double paintHours = 0,
+    PaintDetail? paint,
     Map<int, int> extras = const {},
     PricingSettings s = settings,
   }) {
@@ -33,8 +33,7 @@ void main() {
       extraUnitPrices: {7: 0.5},
       selectedExtras: extras,
       attempts: attempts,
-      isPainted: isPainted,
-      paintHours: paintHours,
+      paintDetail: paint,
       settings: s,
     );
   }
@@ -49,8 +48,7 @@ void main() {
           extraUnitPrices: const {},
           selectedExtras: const {},
           attempts: 1,
-          isPainted: false,
-          paintHours: 0,
+          paintDetail: null,
           settings: settings,
         );
         expect(e.cost, 0);
@@ -73,20 +71,18 @@ void main() {
       expect(estimate(plateCount: 7).platesCost, 7);
     });
 
-    test(
-      'los intentos multiplican material y máquina, no placas ni pintura',
-      () {
-        final e = estimate(attempts: 1.5, isPainted: true, paintHours: 1);
-        expect(e.materialCost, closeTo(2 * 1.5, 1e-9));
-        expect(e.machineCost, closeTo(1.1 * 1.5, 1e-9));
-        expect(e.platesCost, 1);
-        expect(e.paintCost, 10);
-      },
-    );
+    test('los intentos multiplican material y máquina, no las placas', () {
+      final e = estimate(attempts: 1.5);
+      expect(e.materialCost, closeTo(2 * 1.5, 1e-9));
+      expect(e.machineCost, closeTo(1.1 * 1.5, 1e-9));
+      expect(e.platesCost, 1);
+    });
 
-    test('la pintura son horas × tarifa, y solo si está marcada', () {
-      expect(estimate(isPainted: true, paintHours: 2).paintCost, 20);
-      expect(estimate(paintHours: 5).paintCost, 0);
+    test('pintar no cambia el coste, solo el precio recomendado', () {
+      expect(
+        estimate(paint: PaintDetail.detailed).cost,
+        closeTo(estimate().cost, 1e-9),
+      );
     });
 
     test('las piezas suman a su precio', () {
@@ -106,8 +102,7 @@ void main() {
         extraUnitPrices: const {},
         selectedExtras: const {},
         attempts: 1,
-        isPainted: false,
-        paintHours: 0,
+        paintDetail: null,
         settings: settings,
       );
       expect(e.materialCost, 0);
@@ -127,13 +122,9 @@ void main() {
       expect(e.suggestedPrice, closeTo(4.1 * 2, 1e-9));
     });
 
-    test('las piezas y la pintura también llevan margen', () {
-      final e = estimate(
-        extras: {7: 4},
-        isPainted: true,
-        paintHours: 1,
-      ); // 4,10 + 2 + 10
-      expect(e.suggestedPrice, closeTo(16.1 * 2.5, 1e-9));
+    test('las piezas también llevan margen', () {
+      final e = estimate(extras: {7: 4}); // 4,10 + 2
+      expect(e.suggestedPrice, closeTo(6.1 * 2.5, 1e-9));
     });
 
     test('nunca baja del precio mínimo', () {
@@ -165,12 +156,58 @@ void main() {
     });
   });
 
+  group('Pintura', () {
+    test('suma el importe del nivel al precio sin pintar', () {
+      final base = estimate().suggestedPrice; // 10,25
+      expect(
+        estimate(paint: PaintDetail.simple).suggestedPrice,
+        closeTo(base + 20, 1e-9),
+      );
+      expect(
+        estimate(paint: PaintDetail.normal).suggestedPrice,
+        closeTo(base + 60, 1e-9),
+      );
+      expect(
+        estimate(paint: PaintDetail.detailed).suggestedPrice,
+        closeTo(base + 100, 1e-9),
+      );
+    });
+
+    test('el recargo es el importe del nivel; sin pintar es 0', () {
+      expect(estimate(paint: PaintDetail.normal).paintSurcharge, 60);
+      expect(estimate().paintSurcharge, 0);
+    });
+
+    test('no depende del peso ni de las piezas extra', () {
+      final light = estimate(grams: 50, paint: PaintDetail.normal);
+      final heavy = estimate(grams: 500, paint: PaintDetail.normal);
+      expect(light.paintSurcharge, heavy.paintSurcharge);
+      final withExtras = estimate(extras: {7: 4}, paint: PaintDetail.normal);
+      expect(withExtras.paintSurcharge, 60);
+      expect(
+        withExtras.suggestedPrice - estimate(extras: {7: 4}).suggestedPrice,
+        closeTo(60, 1e-9),
+      );
+    });
+
+    test('una pieza diminuta paga la pintura sobre el precio mínimo', () {
+      final e = estimate(grams: 10, hours: 0.5, paint: PaintDetail.normal);
+      expect(e.suggestedPrice, closeTo(5 + 60, 1e-9));
+    });
+
+    test('los importes se configuran', () {
+      const s = PricingSettings(paintPriceNormal: 45);
+      final e = estimate(paint: PaintDetail.normal, s: s);
+      expect(e.suggestedPrice, closeTo(10.25 + 45, 1e-9));
+    });
+  });
+
   group('PriceHealth', () {
     const est = PriceEstimate(
       materialCost: 10,
       machineCost: 0,
       platesCost: 0,
-      paintCost: 0,
+      paintSurcharge: 0,
       extrasCost: 0,
       suggestedPrice: 25,
       minimumApplied: false,

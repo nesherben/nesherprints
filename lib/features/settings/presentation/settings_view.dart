@@ -381,8 +381,7 @@ class _LiveExample extends StatelessWidget {
       extraUnitPrices: const {},
       selectedExtras: const {},
       attempts: 1,
-      isPainted: false,
-      paintHours: 0,
+      paintDetail: null,
       settings: s,
     );
   }

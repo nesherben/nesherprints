@@ -16,8 +16,12 @@ class FinanceDefaults {
   /// Preparación y retirada de cada placa (laminado, cama, quitar soportes).
   static const double plateCost = 1.0;
 
-  /// Pintura: mano de obra y material, por hora de trabajo.
-  static const double paintingCostPerHour = 10.0;
+  /// Pintura: importe (€) que se suma al precio de la pieza según el detalle
+  /// de la figura. Calibrado con lo cobrado de más en las piezas pintadas del
+  /// histórico (simple ~20 €, normal ~65 €, detallada ~110 €).
+  static const double paintPriceSimple = 20.0;
+  static const double paintPriceNormal = 60.0;
+  static const double paintPriceDetailed = 100.0;
 
   /// El precio recomendado nunca baja de esto.
   static const double minimumPrice = 5.0;
@@ -44,13 +48,20 @@ class SettingKeys {
   static const String kwhPrice = 'precio_kwh';
   static const String machineCostPerHour = 'coste_maquina_hora';
   static const String plateCost = 'coste_placa';
-  static const String paintingCostPerHour = 'coste_hora_pintado';
+  static const String paintPriceSimple = 'precio_pintura_simple';
+  static const String paintPriceNormal = 'precio_pintura_normal';
+  static const String paintPriceDetailed = 'precio_pintura_detallada';
   static const String minimumPrice = 'precio_minimo';
   static const String profitGoal = 'objetivo_beneficio';
 
   // Obsoletas: de versiones anteriores del modelo de precios. Se conservan
   // las filas pero no se usan.
   static const List<String> obsolete = [
+    'coste_hora_pintado',
+    'factor_pintura_simple',
+    'factor_pintura_normal',
+    'factor_pintura_detallada',
+    'horas_pintura_100g',
     'coste_placa_extra',
     'margen_seguridad',
     'coste_unidad_color',

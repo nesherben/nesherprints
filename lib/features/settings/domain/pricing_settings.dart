@@ -7,7 +7,9 @@ class PricingSettings {
     this.kwhPrice = FinanceDefaults.kwhPrice,
     this.machineCostPerHour = FinanceDefaults.machineCostPerHour,
     this.plateCost = FinanceDefaults.plateCost,
-    this.paintingCostPerHour = FinanceDefaults.paintingCostPerHour,
+    this.paintPriceSimple = FinanceDefaults.paintPriceSimple,
+    this.paintPriceNormal = FinanceDefaults.paintPriceNormal,
+    this.paintPriceDetailed = FinanceDefaults.paintPriceDetailed,
     this.minimumPrice = FinanceDefaults.minimumPrice,
     this.profitGoal = FinanceDefaults.profitGoal,
   });
@@ -24,8 +26,10 @@ class PricingSettings {
   /// Coste de preparar y retirar cada placa (€).
   final double plateCost;
 
-  /// Pintura: mano de obra y material (€/h de trabajo).
-  final double paintingCostPerHour;
+  /// Pintura: factor sobre el precio sin pintar según el detalle.
+  final double paintPriceSimple;
+  final double paintPriceNormal;
+  final double paintPriceDetailed;
 
   /// Precio recomendado mínimo de un pedido (€).
   final double minimumPrice;
@@ -47,9 +51,12 @@ class PricingSettings {
     machineCostPerHour:
         v[SettingKeys.machineCostPerHour] ?? FinanceDefaults.machineCostPerHour,
     plateCost: v[SettingKeys.plateCost] ?? FinanceDefaults.plateCost,
-    paintingCostPerHour:
-        v[SettingKeys.paintingCostPerHour] ??
-        FinanceDefaults.paintingCostPerHour,
+    paintPriceSimple:
+        v[SettingKeys.paintPriceSimple] ?? FinanceDefaults.paintPriceSimple,
+    paintPriceNormal:
+        v[SettingKeys.paintPriceNormal] ?? FinanceDefaults.paintPriceNormal,
+    paintPriceDetailed:
+        v[SettingKeys.paintPriceDetailed] ?? FinanceDefaults.paintPriceDetailed,
     minimumPrice: v[SettingKeys.minimumPrice] ?? FinanceDefaults.minimumPrice,
     profitGoal: v[SettingKeys.profitGoal] ?? FinanceDefaults.profitGoal,
   );
@@ -59,7 +66,9 @@ class PricingSettings {
     SettingKeys.kwhPrice: kwhPrice,
     SettingKeys.machineCostPerHour: machineCostPerHour,
     SettingKeys.plateCost: plateCost,
-    SettingKeys.paintingCostPerHour: paintingCostPerHour,
+    SettingKeys.paintPriceSimple: paintPriceSimple,
+    SettingKeys.paintPriceNormal: paintPriceNormal,
+    SettingKeys.paintPriceDetailed: paintPriceDetailed,
     SettingKeys.minimumPrice: minimumPrice,
     SettingKeys.profitGoal: profitGoal,
   };

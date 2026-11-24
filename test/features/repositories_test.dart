@@ -14,6 +14,7 @@ import 'package:nesherprints/features/orders/data/order_repository.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_parts.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
+import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/settings/data/settings_repository.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
@@ -73,7 +74,9 @@ void main() {
       expect(s.kwhPrice, 0.15);
       expect(s.machineCostPerHour, 0.10);
       expect(s.plateCost, 1);
-      expect(s.paintingCostPerHour, 10);
+      expect(s.paintPriceSimple, 20);
+      expect(s.paintPriceNormal, 60);
+      expect(s.paintPriceDetailed, 100);
       expect(s.profitGoal, 5000);
     });
 
@@ -187,7 +190,7 @@ void main() {
       expect(await materialStock(matId), 850);
     });
 
-    test('intentos y horas de pintura se guardan y se leen', () async {
+    test('intentos y detalle de pintura se guardan y se leen', () async {
       final id = await orders.create(
         const Order(
           name: 'Pintado',
@@ -196,7 +199,7 @@ void main() {
           status: OrderStatus.draft,
           isPainted: true,
           attempts: 1.3,
-          paintHours: 2.5,
+          paintDetail: PaintDetail.detailed,
           costOverride: 12.34,
         ),
         plates: const [],
@@ -204,7 +207,7 @@ void main() {
       final o = (await orders.getAllWithDetails()).single.order;
       expect(o.id, id);
       expect(o.attempts, 1.3);
-      expect(o.paintHours, 2.5);
+      expect(o.paintDetail, PaintDetail.detailed);
       expect(o.costOverride, 12.34);
     });
 
@@ -212,7 +215,7 @@ void main() {
       await orders.create(newOrder(), plates: const []);
       final o = (await orders.getAllWithDetails()).single.order;
       expect(o.attempts, 1);
-      expect(o.paintHours, 0);
+      expect(o.paintDetail, PaintDetail.normal);
       expect(o.costOverride, isNull);
     });
 
@@ -386,6 +389,7 @@ void main() {
         expect(order['name'], 'Antiguo');
         expect(order['attempts'], 1);
         expect(order['paint_hours'], 0);
+        expect(order['paint_level'], 1, reason: 'pedidos antiguos: normal');
         expect(order['cost_override'], isNull);
 
         // Reaplicar la migración no falla ni duplica nada.

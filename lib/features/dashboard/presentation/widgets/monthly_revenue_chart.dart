@@ -82,7 +82,15 @@ class MonthlyRevenueChart extends StatelessWidget {
       borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
     );
 
+    final top = monthly.values.fold<double>(
+      0,
+      (m, s) => [m, s.gross, s.profit].reduce((a, b) => a > b ? a : b),
+    );
+    final interval = _niceInterval(top);
+    final maxY = (top / interval).ceil().clamp(1, 1000) * interval;
+
     return BarChartData(
+      maxY: maxY,
       alignment: BarChartAlignment.spaceAround,
       barTouchData: BarTouchData(
         touchTooltipData: BarTouchTooltipData(
@@ -132,6 +140,7 @@ class MonthlyRevenueChart extends StatelessWidget {
         leftTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,
+            interval: interval,
             reservedSize: 52,
             getTitlesWidget: (value, meta) => SideTitleWidget(
               meta: meta,
@@ -147,6 +156,7 @@ class MonthlyRevenueChart extends StatelessWidget {
       ),
       gridData: FlGridData(
         drawVerticalLine: false,
+        horizontalInterval: interval,
         getDrawingHorizontalLine: (_) =>
             const FlLine(color: AppColors.border, strokeWidth: 1),
       ),
@@ -164,6 +174,23 @@ class MonthlyRevenueChart extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Intervalo "redondo" (1, 2, 5 × 10ⁿ) para que el eje tenga unas 4 marcas.
+double _niceInterval(double maxValue) {
+  if (maxValue <= 0) return 1;
+  final raw = maxValue / 4;
+  var magnitude = 1.0;
+  while (magnitude * 10 <= raw) {
+    magnitude *= 10;
+  }
+  while (magnitude > raw) {
+    magnitude /= 10;
+  }
+  for (final step in const [1.0, 2.0, 5.0, 10.0]) {
+    if (step * magnitude >= raw) return step * magnitude;
+  }
+  return 10 * magnitude;
 }
 
 class _Legend extends StatelessWidget {

@@ -66,6 +66,7 @@ class PriceSummaryPanel extends StatelessWidget {
         _Recommended(
           value: estimate.suggestedPrice,
           minimumApplied: estimate.minimumApplied,
+          paintSurcharge: estimate.paintSurcharge,
           showApply: !isLocked && estimate.suggestedPrice > 0,
           onApply: onApplySuggested,
         ),
@@ -135,7 +136,6 @@ class _Breakdown extends StatelessWidget {
       (AppStrings.lineMaterial, estimate.materialCost),
       (AppStrings.lineMachine, estimate.machineCost),
       if (estimate.platesCost > 0) (AppStrings.linePlates, estimate.platesCost),
-      if (estimate.paintCost > 0) (AppStrings.linePaint, estimate.paintCost),
       if (estimate.extrasCost > 0) (AppStrings.lineExtras, estimate.extrasCost),
     ];
     return Container(
@@ -197,12 +197,16 @@ class _Recommended extends StatelessWidget {
   const _Recommended({
     required this.value,
     required this.minimumApplied,
+    required this.paintSurcharge,
     required this.showApply,
     required this.onApply,
   });
 
   final double value;
   final bool minimumApplied;
+
+  /// Lo que suma la pintura al recomendado (0 si no se pinta).
+  final double paintSurcharge;
   final bool showApply;
   final VoidCallback onApply;
 
@@ -235,6 +239,11 @@ class _Recommended extends StatelessWidget {
                 if (minimumApplied)
                   const Text(
                     AppStrings.minimumNote,
+                    style: AppTextStyles.mutedSmall,
+                  ),
+                if (paintSurcharge > 0)
+                  Text(
+                    AppStrings.paintSurchargeNote(formatEuro(paintSurcharge)),
                     style: AppTextStyles.mutedSmall,
                   ),
               ],

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
 /// Datos de una placa necesarios para el cálculo.
@@ -21,7 +22,7 @@ class PriceEstimate {
     required this.materialCost,
     required this.machineCost,
     required this.platesCost,
-    required this.paintCost,
+    required this.paintSurcharge,
     required this.extrasCost,
     required this.suggestedPrice,
     required this.minimumApplied,
@@ -31,7 +32,7 @@ class PriceEstimate {
     materialCost: 0,
     machineCost: 0,
     platesCost: 0,
-    paintCost: 0,
+    paintSurcharge: 0,
     extrasCost: 0,
     suggestedPrice: 0,
     minimumApplied: false,
@@ -46,21 +47,22 @@ class PriceEstimate {
   /// Preparación y retirada de las placas.
   final double platesCost;
 
-  /// Pintura (horas × tarifa).
-  final double paintCost;
+  /// Importe de la pintura que se suma al precio recomendado (no es coste: es
+  /// trabajo tuyo). 0 si la pieza no se pinta.
+  final double paintSurcharge;
 
   /// Piezas extra.
   final double extrasCost;
 
-  /// Precio recomendado: `coste × (1 + margen)`, nunca menos que el mínimo.
+  /// Precio recomendado: `coste × (1 + margen)`, nunca menos que el mínimo,
+  /// más el recargo de pintura.
   final double suggestedPrice;
 
   /// `true` si el recomendado es el precio mínimo (el cálculo salía menor).
   final bool minimumApplied;
 
-  /// Coste real de fabricación: suma de todos los conceptos.
-  double get cost =>
-      materialCost + machineCost + platesCost + paintCost + extrasCost;
+  /// Coste real de fabricación: material, máquina, placas y piezas.
+  double get cost => materialCost + machineCost + platesCost + extrasCost;
 }
 
 /// Semáforo del precio final frente al coste y al recomendado.
@@ -94,10 +96,10 @@ enum PriceHealth {
 /// material = Σ gramos/1000 × €/kg × intentos
 /// máquina  = horas × (kW × €/kWh + desgaste €/h) × intentos
 /// placas   = nº de placas × coste por placa
-/// pintura  = pintado ? horas de pintura × €/h : 0
 /// piezas   = Σ precio × cantidad
-/// COSTE        = material + máquina + placas + pintura + piezas
-/// RECOMENDADO  = max(mínimo, COSTE × (1 + margen/100))
+/// COSTE        = material + máquina + placas + piezas
+/// SIN PINTAR   = max(mínimo, COSTE × (1 + margen/100))
+/// RECOMENDADO  = SIN PINTAR + importe de pintura del nivel (si se pinta)
 /// ```
 class PricingCalculator {
   PricingCalculator._();
@@ -109,14 +111,15 @@ class PricingCalculator {
   /// - [selectedExtras]: cantidad por id de pieza.
   /// - [attempts]: 1 = a la primera; 1,3 = +30 % de material y máquina por
   ///   impresiones falladas.
+  /// - [paintDetail]: detalle de la pintura, o `null` si no se pinta. El
+  ///   importe del nivel se suma al precio; no depende del peso.
   static PriceEstimate estimate({
     required List<PricingPlate> plates,
     required Map<int, double> materialCostPerKg,
     required Map<int, double> extraUnitPrices,
     required Map<int, int> selectedExtras,
     required double attempts,
-    required bool isPainted,
-    required double paintHours,
+    required PaintDetail? paintDetail,
     required PricingSettings settings,
   }) {
     var material = 0.0;
@@ -132,26 +135,35 @@ class PricingCalculator {
         (extraUnitPrices[e.key] ?? 0) * e.value,
     ].fold(0.0, (a, b) => a + b);
 
-    final costs = PriceEstimate(
-      materialCost: material * attempts,
-      machineCost: minutes / 60 * settings.machineCostPerPrintHour * attempts,
-      platesCost: plates.length * settings.plateCost,
-      paintCost: isPainted ? paintHours * settings.paintingCostPerHour : 0,
-      extrasCost: extras,
-      suggestedPrice: 0,
-      minimumApplied: false,
-    );
+    final materialCost = material * attempts;
+    final machineCost =
+        minutes / 60 * settings.machineCostPerPrintHour * attempts;
+    final platesCost = plates.length * settings.plateCost;
+    final printCost = materialCost + machineCost + platesCost;
+    final cost = printCost + extras;
 
-    final cost = costs.cost;
-    if (cost <= 0) return costs;
+    if (cost <= 0) {
+      return PriceEstimate(
+        materialCost: materialCost,
+        machineCost: machineCost,
+        platesCost: platesCost,
+        paintSurcharge: 0,
+        extrasCost: extras,
+        suggestedPrice: 0,
+        minimumApplied: false,
+      );
+    }
+
     final withMargin = cost * (1 + settings.profitMarginPercent / 100);
+    final unpainted = math.max(settings.minimumPrice, withMargin);
+    final surcharge = paintDetail?.priceOf(settings) ?? 0;
     return PriceEstimate(
-      materialCost: costs.materialCost,
-      machineCost: costs.machineCost,
-      platesCost: costs.platesCost,
-      paintCost: costs.paintCost,
-      extrasCost: costs.extrasCost,
-      suggestedPrice: math.max(settings.minimumPrice, withMargin),
+      materialCost: materialCost,
+      machineCost: machineCost,
+      platesCost: platesCost,
+      paintSurcharge: surcharge,
+      extrasCost: extras,
+      suggestedPrice: unpainted + surcharge,
       minimumApplied: settings.minimumPrice > withMargin,
     );
   }

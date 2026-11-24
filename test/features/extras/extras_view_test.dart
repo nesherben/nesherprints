@@ -112,7 +112,7 @@ void main() {
 
     expect(find.text('Aún no hay piezas'), findsOneWidget);
     await tapText(t, 'Añadir Piezas');
-    expect(find.text('Añadir Extra'), findsOneWidget);
+    expect(find.text('Añadir Pieza'), findsOneWidget);
   });
 
   testWidgets('el buscador filtra por nombre', (t) async {

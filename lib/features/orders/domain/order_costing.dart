@@ -11,7 +11,7 @@ class OrderCosting {
   ///
   /// Si el pedido trae un coste fijo ([Order.costOverride], los importados)
   /// se usa tal cual. En otro caso se recalcula con sus placas, piezas (a su
-  /// precio registrado), intentos y pintura, y con los ajustes y precios de
+  /// precio registrado), intentos, y con los ajustes y precios de
   /// material **actuales**.
   static double of({
     required Order order,
@@ -38,8 +38,7 @@ class OrderCosting {
       },
       selectedExtras: {for (final line in extras) line.extraId: line.quantity},
       attempts: order.attempts,
-      isPainted: order.isPainted,
-      paintHours: order.paintHours,
+      paintDetail: order.isPainted ? order.paintDetail : null,
       settings: settings,
     ).cost;
   }

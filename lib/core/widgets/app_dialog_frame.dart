@@ -190,7 +190,7 @@ class _Header extends StatelessWidget {
                   Text(
                     subtitle!,
                     style: AppTextStyles.mutedSmall,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
               ],

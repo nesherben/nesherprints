@@ -24,6 +24,7 @@ import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_parts.dart';
 import 'package:nesherprints/features/orders/domain/order_rules.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
+import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
 import 'package:nesherprints/features/orders/presentation/status_style.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_form/extras_section.dart';
@@ -96,10 +97,12 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
   final _paidController = TextEditingController(text: '0');
-  final _paintHoursController = TextEditingController(text: '1');
   final _attemptsController = TextEditingController(text: '1');
 
   PriceEstimate _estimate = PriceEstimate.zero;
+
+  /// Detalle de la figura; solo cuenta si [_isPainted].
+  PaintDetail _paintDetail = PaintDetail.normal;
 
   bool get _isEditing => widget.initialOrder != null;
   bool get _isLocked => _isEditing && _status.isLocked;
@@ -115,7 +118,6 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     _nameController.dispose();
     _priceController.dispose();
     _paidController.dispose();
-    _paintHoursController.dispose();
     _attemptsController.dispose();
     super.dispose();
   }
@@ -161,7 +163,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
           _paidController.text = duplicating
               ? '0'
               : source.paidAmount.toStringAsFixed(2);
-          _paintHoursController.text = formatInputNumber(source.paintHours);
+          _paintDetail = source.paintDetail;
           _attemptsController.text = formatInputNumber(source.attempts);
           for (final line in lines) {
             if (line.quantity <= 0) continue;
@@ -197,8 +199,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
         extraUnitPrices: _extraPrices,
         selectedExtras: _selectedExtras,
         attempts: _attempts,
-        isPainted: _isPainted,
-        paintHours: parseDecimal(_paintHoursController.text),
+        paintDetail: _isPainted ? _paintDetail : null,
         settings: _settings,
       );
       if (_attempted) _errors = _validate();
@@ -303,7 +304,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       isPainted: _isPainted,
       notes: initial?.notes ?? '',
       attempts: _attempts,
-      paintHours: parseDecimal(_paintHoursController.text),
+      paintDetail: _paintDetail,
       costOverride: initial?.costOverride,
     );
   }
@@ -693,17 +694,30 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
           ),
           if (_isPainted) ...[
             const SizedBox(height: AppSpacing.md),
-            TextField(
-              controller: _paintHoursController,
-              readOnly: _isLocked,
-              keyboardType: decimalKeyboard,
-              inputFormatters: decimalInputFormatters,
-              onChanged: (_) => _recalculate(),
-              decoration: const InputDecoration(
-                labelText: AppStrings.paintHoursLabel,
-                helperText: AppStrings.paintHoursHelp,
-                suffixText: 'h',
-              ),
+            const Text(
+              AppStrings.paintDetailLabel,
+              style: AppTextStyles.mutedSmall,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            SegmentedButton<PaintDetail>(
+              showSelectedIcon: false,
+              segments: [
+                for (final d in PaintDetail.values)
+                  ButtonSegment(
+                    value: d,
+                    label: Text(
+                      '${_paintDetailName(d)} · '
+                      '+${formatEuro(d.priceOf(_settings))}',
+                    ),
+                  ),
+              ],
+              selected: {_paintDetail},
+              onSelectionChanged: _isLocked
+                  ? null
+                  : (v) {
+                      _paintDetail = v.first;
+                      _recalculate();
+                    },
             ),
           ],
         ],
@@ -711,6 +725,12 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     );
   }
 }
+
+String _paintDetailName(PaintDetail d) => switch (d) {
+  PaintDetail.simple => AppStrings.paintDetailSimple,
+  PaintDetail.normal => AppStrings.paintDetailNormal,
+  PaintDetail.detailed => AppStrings.paintDetailDetailed,
+};
 
 /// Coloca los hijos en una fila con la proporción [flexes] si caben, o
 /// apilados si el ancho es pequeño. Nunca desborda.

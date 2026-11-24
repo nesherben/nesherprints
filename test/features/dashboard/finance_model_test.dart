@@ -147,7 +147,6 @@ void main() {
 
     Order order({
       bool painted = false,
-      double paintHours = 0,
       double attempts = 1,
       double? override,
     }) => Order(
@@ -157,7 +156,6 @@ void main() {
       date: '2026-11-01',
       status: OrderStatus.completed,
       isPainted: painted,
-      paintHours: paintHours,
       attempts: attempts,
       costOverride: override,
     );
@@ -180,20 +178,24 @@ void main() {
       expect(costOf(order(override: 12.34)), 12.34);
     });
 
-    test('suma pintura, piezas a su precio registrado e intentos', () {
-      final base = costOf(order());
-      final withPaint = costOf(order(painted: true, paintHours: 2));
-      expect(withPaint - base, closeTo(20, 1e-9));
+    test(
+      'piezas a su precio registrado e intentos; la pintura no es coste',
+      () {
+        final base = costOf(order());
+        expect(costOf(order(painted: true)), closeTo(base, 1e-9));
 
-      final withExtras = costOf(
-        order(),
-        extras: const [OrderExtraLine(extraId: 7, quantity: 4, unitPrice: 0.5)],
-      );
-      expect(withExtras - base, closeTo(2, 1e-9));
+        final withExtras = costOf(
+          order(),
+          extras: const [
+            OrderExtraLine(extraId: 7, quantity: 4, unitPrice: 0.5),
+          ],
+        );
+        expect(withExtras - base, closeTo(2, 1e-9));
 
-      // Intentos 2: el material y la máquina se duplican.
-      expect(costOf(order(attempts: 2)) - base, closeTo(1.66 + 0.9625, 1e-9));
-    });
+        // Intentos 2: el material y la máquina se duplican.
+        expect(costOf(order(attempts: 2)) - base, closeTo(1.66 + 0.9625, 1e-9));
+      },
+    );
   });
 
   group('PendingList.ageInDays', () {

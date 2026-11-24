@@ -21,8 +21,6 @@ class OrderRules {
       'Lo pagado no puede ser negativo.',
     if (!_isFinite(order.attempts) || order.attempts <= 0)
       'Los intentos deben ser 1 o más.',
-    if (!_isFinite(order.paintHours) || order.paintHours < 0)
-      'Las horas de pintura no pueden ser negativas.',
   ];
 
   /// Errores del formulario: el pedido y además sus placas.

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:nesherprints/app/service_locator.dart';
 import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
@@ -13,6 +14,7 @@ import 'package:nesherprints/core/widgets/empty_state.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
+import 'package:nesherprints/features/orders/domain/stock_check.dart';
 import 'package:nesherprints/features/orders/presentation/status_style.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_form/order_form_dialog.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_list.dart';
@@ -164,10 +166,24 @@ class _OrdersViewState extends State<OrdersView> {
       0.0,
       (order.theoreticalGrams ?? 0) - order.wastedGrams,
     );
+    final shortages = await _stockShortages(order);
+    if (!mounted) return;
+    final warning = shortages.isEmpty
+        ? ''
+        : AppStrings.stockShortageIntro +
+              shortages
+                  .map(
+                    (s) => AppStrings.stockShortageLine(
+                      s.materialName,
+                      s.neededGrams,
+                      s.availableGrams,
+                    ),
+                  )
+                  .join('\n');
     final confirmed = await showConfirmDialog(
       context,
       title: AppStrings.completeTitle,
-      message: AppStrings.completeMessage(grams),
+      message: AppStrings.completeMessage(grams) + warning,
       confirmText: AppStrings.completeConfirm,
       color: AppColors.success,
       icon: Icons.check_circle_outline,
@@ -176,6 +192,29 @@ class _OrdersViewState extends State<OrdersView> {
     final ok = await _attempt(() => widget.onComplete(order));
     if (ok && mounted) {
       AppFeedback.success(context, AppStrings.orderCompleted);
+    }
+  }
+
+  /// Materiales sin stock suficiente para completar [order]; si no se puede
+  /// comprobar, no avisa (el repositorio sigue validando al completar).
+  Future<List<StockShortage>> _stockShortages(OrderSummary order) async {
+    try {
+      final plates = await ServiceLocator.orders.getPlates(order.id);
+      final waste = await ServiceLocator.orders.getAllWaste();
+      final materials = await ServiceLocator.materials.getAll();
+      final wasteByMaterial = <int, double>{};
+      for (final w in waste) {
+        if (w.orderId != order.id) continue;
+        wasteByMaterial[w.materialId] =
+            (wasteByMaterial[w.materialId] ?? 0) + w.grams;
+      }
+      return StockCheck.shortages(
+        plates: plates,
+        wasteByMaterial: wasteByMaterial,
+        materials: materials,
+      );
+    } on Object {
+      return const [];
     }
   }
 

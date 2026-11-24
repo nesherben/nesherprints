@@ -38,7 +38,7 @@ UI en español, tema oscuro. Moneda: euro (`€12.50`; en los campos se acepta c
 | Material (`PrintMaterial`) | `materials` | tipo (`filament`/`resin`), nombre/marca, color, coste €/kg, stock en g (ml) |
 | Pieza extra (`Extra`) | `extras` | nombre, precio unitario €, stock (uds; puede quedar negativo), unidad (no editable) |
 | Cliente (`Client`) | `clients` | nombre, teléfono, email/Instagram, notas (no editables desde la UI) |
-| Pedido (`Order`) | `orders` | cliente (opcional), proyecto, precio final, cobrado, fecha `YYYY-MM-DD`, estado, pintado, notas, **intentos**, **horas de pintura**, **coste fijo** (solo importados) |
+| Pedido (`Order`) | `orders` | cliente (opcional), proyecto, precio final, cobrado, fecha `YYYY-MM-DD`, estado, pintado, notas, **intentos**, **detalle de pintura**, **coste fijo** (solo importados) |
 | Placa (`OrderPlate`) | `order_plates` | pedido, nombre, gramos, minutos, material, estado (`Pending`/`Success`/`Failed`) |
 | Pieza en pedido | `order_extras` | pedido, pieza, cantidad, precio unitario **registrado** al añadirla |
 | Merma (`WasteRecord`) | `order_waste` | pedido, material, gramos perdidos, motivo, fecha |
@@ -81,9 +81,9 @@ Se guardan en inglés (`dbValue`, no cambiar) y se muestran en español.
 - **Datos**: nombre del proyecto, estado (según §3), cliente opcional con alta rápida.
 - **Placas**: nombre, material (desplegable con €/kg), gramos y minutos; alta rápida de material; duplicar/quitar placa; la placa nueva hereda el material de la anterior. Avisa si los gramos superan el stock del material y muestra el coste de material de la placa.
 - **Piezas extra**: contador −/+ por pieza con su precio y stock; avisa si se piden más de las que hay. Al editar se cargan las piezas del pedido con su **precio registrado**.
-- **Producción**: intentos (decimal, 1 = a la primera) y servicio de pintura (solo horas de trabajo).
+- **Producción**: intentos (decimal, 1 = a la primera) y pintura con su detalle (simple, normal o detallada).
 - **Resumen**: nº de placas, tiempo y gramos; desglose (material, máquina, placas, pintura, piezas), nota de intentos y aviso si se aplica el precio mínimo; **coste real**; **precio recomendado** con «Aplicar»; precio final con valoración en texto (verde «Beneficio X (+Y % sobre el coste)», ámbar «Por debajo del recomendado», rojo «Pierdes X»); cobrado con atajos `0 € / 50 % / Todo` y «Falta por cobrar».
-- **Validación** (`OrderRules.validateForm`): nombre obligatorio, al menos una placa, cada placa con material y gramos > 0, tiempo ≥ 0, precio ≥ 0 (0 vale para regalos), cobrado ≥ 0, intentos > 0, horas de pintura ≥ 0. Los errores se muestran en el pie y se actualizan al corregir.
+- **Validación** (`OrderRules.validateForm`): nombre obligatorio, al menos una placa, cada placa con material y gramos > 0, tiempo ≥ 0, precio ≥ 0 (0 vale para regalos), cobrado ≥ 0, intentos > 0. Los errores se muestran en el pie y se actualizan al corregir.
 - **Guardado**: asíncrono; el diálogo no se cierra hasta que se guarda. Si falla, se queda abierto con el error y sin perder lo escrito. `Ctrl+S` guarda.
 - Si el pedido está cerrado: banner informativo, todo en solo lectura y sin botón de guardar.
 - **Duplicar**: pedido nuevo en Borrador, con las placas (sin ids) y piezas del original, nombre «… (copia)», fecha de hoy y cobrado 0.
@@ -99,16 +99,18 @@ Modelo simple: se suman los costes reales y se aplica un margen. Cada concepto s
 material = Σ gramos/1000 × €/kg de su material × intentos
 máquina  = horas de impresión × (0,25 kW × €/kWh + desgaste €/h) × intentos
 placas   = nº de placas × coste por placa
-pintura  = pintado ? horas de pintura × €/h : 0          (el material va en la tarifa)
 piezas   = Σ precio × cantidad
 
-COSTE       = material + máquina + placas + pintura + piezas
-RECOMENDADO = max(precio mínimo, COSTE × (1 + margen/100))
+COSTE       = material + máquina + placas + piezas
+SIN PINTAR  = max(precio mínimo, COSTE × (1 + margen/100))
+RECOMENDADO = SIN PINTAR + importe de pintura del nivel (si se pinta)
 ```
+
+- **Pintura**: no se cobra por horas ni como múltiplo. Según el **detalle de la figura** (Simple / Normal / Detallada) se suma un importe fijo configurable (por defecto +20 €, +60 € y +100 €, calibrados con lo cobrado de más en las piezas pintadas del histórico). No depende del peso (un múltiplo del precio sin pintar sobrevaloraba las piezas grandes y lisas e infravaloraba las pequeñas y detalladas) y no es coste: el coste real no cambia. El nivel se guarda en el pedido (`paint_level`: 0 simple, 1 normal, 2 detallada).
 
 - **Intentos** (por pedido, 1 = a la primera): reimpresiones por fallos; multiplican material y máquina, no el resto.
 - La potencia de la impresora (0,25 kW de media) es una constante (`PricingConstants.printerKw`); con 0,15 €/kWh son unos 0,04 €/h de luz, más 0,10 €/h de desgaste = 0,1375 €/h.
-- Sin coste (sin placas, piezas ni pintura) no hay precio recomendado (ni mínimo).
+- Sin coste (sin placas ni piezas) no hay precio recomendado (ni mínimo).
 - **Semáforo** del precio final frente al coste y al recomendado: neutro si precio o coste ≤ 0; bueno si precio ≥ recomendado; bajo si coste < precio < recomendado; pérdida si precio ≤ coste.
 - Los valores por defecto se calibraron con 9 pedidos reales cobrados: con ellos el recomendado queda a ±10 % en la mayoría de piezas medianas y grandes (espadón: coste 29,87 €, recomendado 74,68 €, cobrado 80 €) y por debajo en las pequeñas, donde actúa el precio mínimo. Ver el histórico de fórmulas en [`EXCEL_FORMULAS.md`](EXCEL_FORMULAS.md).
 
@@ -140,7 +142,7 @@ RECOMENDADO = max(precio mínimo, COSTE × (1 + margen/100))
 
 ### 4.7 Administración (`features/settings`)
 
-Siete ajustes agrupados en cuatro tarjetas, cada uno con ayuda, valor por defecto y «restaurar»:
+Nueve ajustes agrupados en cuatro tarjetas, cada uno con ayuda, valor por defecto y «restaurar»:
 
 | Grupo | Ajuste | Clave | Por defecto |
 |---|---|---|---|
@@ -149,7 +151,9 @@ Siete ajustes agrupados en cuatro tarjetas, cada uno con ayuda, valor por defect
 | Producción | Precio de la electricidad (€/kWh) | `precio_kwh` | 0,15 |
 | Producción | Coste de la máquina: desgaste (€/h) | `coste_maquina_hora` | 0,10 |
 | Producción | Coste por placa (€) | `coste_placa` | 1 |
-| Pintura | Tarifa de pintura, material incluido (€/h) | `coste_hora_pintado` | 10 |
+| Pintura | Pintura simple (€ que se suman) | `precio_pintura_simple` | 20 |
+| Pintura | Pintura normal (€) | `precio_pintura_normal` | 60 |
+| Pintura | Pintura detallada (€) | `precio_pintura_detallada` | 100 |
 | Objetivos | Objetivo de beneficio (€) | `objetivo_beneficio` | 5000 |
 
 - Validación estricta en el campo (vacío, no numérico, negativo o margen > 1000 no se aceptan ni se sustituyen por el defecto); «Guardar» solo si hay cambios válidos; indicador «Cambios sin guardar»; «Restaurar valores por defecto» con confirmación; tarjeta **«Ejemplo en vivo»** que calcula un pedido de muestra (100 g a 20 €/kg, 8 h) con los valores escritos.
@@ -170,8 +174,8 @@ Todo se hace en una transacción. Completar un pedido ya cerrado no hace nada; c
 
 ## 6. Base de datos
 
-- Archivo `nesher_erp_v6.db` (el «v6» es histórico); versión del esquema (`PRAGMA user_version`) = **5**. Esquema único en `lib/core/database/db_schema.dart`: `onCreate` crea tablas y ajustes; `onUpgrade` asegura todas las tablas y aplica migraciones `if (oldVersion < N)`; `onOpen` es una red de seguridad.
-- Migraciones: v2 clientes, placas y piezas; v3 intentos, horas de pintura, colores y coste fijo en pedidos; v4 detalle de pintura (ya no se usa; la columna `paint_detail` y `paint_colors` se conservan sin usar); **v5 modelo de precios simple**: añade los ajustes nuevos y devuelve el margen a su valor por defecto (ahora es un % sobre el coste, no un multiplicador distinto).
+- Archivo `nesher_erp_v6.db` (el «v6» es histórico); versión del esquema (`PRAGMA user_version`) = **6**. Esquema único en `lib/core/database/db_schema.dart`: `onCreate` crea tablas y ajustes; `onUpgrade` asegura todas las tablas y aplica migraciones `if (oldVersion < N)`; `onOpen` es una red de seguridad.
+- Migraciones: v2 clientes, placas y piezas; v3 intentos, horas de pintura, colores y coste fijo en pedidos; v4 detalle de pintura (ya no se usa; la columna `paint_detail` y `paint_colors` se conservan sin usar); **v6 pintura por detalle** (columna `paint_level`; las horas y la tarifa de pintura dejan de usarse); **v5 modelo de precios simple**: añade los ajustes nuevos y devuelve el margen a su valor por defecto (ahora es un % sobre el coste, no un multiplicador distinto).
 - **Copia de seguridad**: antes de migrar a una versión nueva, `AppDatabase` copia el archivo junto al original (`<archivo>.bak-v<versión>-<fecha>`).
 - `PRAGMA foreign_keys` no está activado; el borrado de pedidos elimina explícitamente sus placas, mermas, piezas y consumos.
 
@@ -192,7 +196,7 @@ Vigentes:
 |---|---|---|
 | K1 | El panel **recalcula** el coste de los pedidos cerrados con los precios de material y ajustes actuales: si cambias un €/kg o un margen, cambia el beneficio histórico. | Cifras históricas inestables. Mejora prevista: congelar el coste al completar. |
 | K2 | Editar una pieza sobrescribe su stock con las «unidades por paquete». | Se pierde el stock real si se usa mal. |
-| K3 | El stock de material puede quedar negativo al completar o registrar mermas (solo hay aviso en el formulario). | Inventario incoherente sin aviso. |
+| K3 | El stock de material puede quedar negativo al completar o registrar mermas. Al completar, el diálogo de confirmación avisa de qué material no alcanza (`StockCheck`), pero se permite seguir. | Inventario negativo si se ignora el aviso. |
 | K4 | Si una pieza se elimina del catálogo, desaparece de los pedidos que la tenían al editarlos. | Pérdida silenciosa en casos raros. |
 | K5 | No hay forma de reabrir un pedido completado por error (decisión deliberada: el material ya se descontó). | Hay que borrarlo y recrearlo. |
 | K6 | Los clientes no se pueden borrar; un cliente con pedidos no tiene restricción. | — |
