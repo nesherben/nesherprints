@@ -57,4 +57,10 @@ class OrderRules {
     final errors = validateOrder(order);
     if (errors.isNotEmpty) throw OrderRuleException(errors.first);
   }
+
+  /// Coste fijo que debe conservar un pedido al guardarlo desde el formulario:
+  /// solo los cerrados mantienen el congelado; uno abierto lo recalcula con
+  /// sus placas (que al guardar ya tienen material) y se congela al completarlo.
+  static double? costOverrideOnSave(Order? initial) =>
+      (initial?.status.countsAsRevenue ?? false) ? initial?.costOverride : null;
 }

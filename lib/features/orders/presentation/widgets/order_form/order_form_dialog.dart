@@ -334,7 +334,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       notes: _notesController.text.trim(),
       attempts: _attempts,
       paintDetail: _paintDetail,
-      costOverride: initial?.costOverride,
+      costOverride: OrderRules.costOverrideOnSave(initial),
     );
   }
 

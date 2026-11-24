@@ -125,4 +125,33 @@ void main() {
       expect(OrderStatus.manualChoices, isNot(contains(OrderStatus.shipped)));
     });
   });
+
+  group('costOverrideOnSave', () {
+    Order order(OrderStatus status, double? cost) => Order(
+      name: 'x',
+      price: 10,
+      date: '2026-01-01',
+      status: status,
+      costOverride: cost,
+    );
+
+    test('un pedido cerrado conserva su coste congelado', () {
+      expect(
+        OrderRules.costOverrideOnSave(order(OrderStatus.completed, 4.5)),
+        4.5,
+      );
+    });
+
+    test('un pedido abierto (o nuevo) lo recalcula', () {
+      expect(
+        OrderRules.costOverrideOnSave(order(OrderStatus.draft, 4.5)),
+        isNull,
+      );
+      expect(
+        OrderRules.costOverrideOnSave(order(OrderStatus.inProgress, 4.5)),
+        isNull,
+      );
+      expect(OrderRules.costOverrideOnSave(null), isNull);
+    });
+  });
 }
