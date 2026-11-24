@@ -410,32 +410,34 @@ class _OrdersViewState extends State<OrdersView> {
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          chip(
-            label: AppStrings.filterAll,
-            count: widget.orders.length,
-            selected: _statusFilter == null && !_receivableOnly,
-            onTap: () => setState(() {
-              _statusFilter = null;
-              _receivableOnly = false;
-            }),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          chip(
-            label: AppStrings.filterReceivable,
-            count: count(_isReceivable),
-            selected: _receivableOnly,
-            color: AppColors.warning,
-            onTap: () => setState(() {
-              _receivableOnly = true;
-              _statusFilter = null;
-            }),
-          ),
-          for (final status in OrderStatus.values) ...[
-            const SizedBox(width: AppSpacing.sm),
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        chip(
+          label: AppStrings.filterAll,
+          count: widget.orders.length,
+          selected: _statusFilter == null && !_receivableOnly,
+          onTap: () => setState(() {
+            _statusFilter = null;
+            _receivableOnly = false;
+          }),
+        ),
+        chip(
+          label: AppStrings.filterReceivable,
+          count: count(_isReceivable),
+          selected: _receivableOnly,
+          color: AppColors.warning,
+          onTap: () => setState(() {
+            _receivableOnly = true;
+            _statusFilter = null;
+          }),
+        ),
+        // Los estados sin pedidos no ocupan sitio (salvo el elegido).
+        for (final status in OrderStatus.values)
+          if (_statusFilter == status ||
+              count((o) => o.order.status == status) > 0) ...[
             chip(
               label: status.label,
               count: count((o) => o.order.status == status),
@@ -447,16 +449,14 @@ class _OrdersViewState extends State<OrdersView> {
               }),
             ),
           ],
-          if (_hasActiveFilters) ...[
-            const SizedBox(width: AppSpacing.sm),
-            TextButton.icon(
-              onPressed: _clearFilters,
-              icon: const Icon(Icons.filter_alt_off, size: 18),
-              label: const Text(AppStrings.clearFilters),
-            ),
-          ],
+        if (_hasActiveFilters) ...[
+          TextButton.icon(
+            onPressed: _clearFilters,
+            icon: const Icon(Icons.filter_alt_off, size: 18),
+            label: const Text(AppStrings.clearFilters),
+          ),
         ],
-      ),
+      ],
     );
   }
 }

@@ -82,12 +82,10 @@ class OrderList extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= wideBreakpoint;
-        final roomy = constraints.maxWidth >= _WideRow.roomyBreakpoint;
         return Column(
           children: [
             if (wide)
               _HeaderRow(
-                roomy: roomy,
                 sortColumn: sortColumn,
                 ascending: ascending,
                 onSort: onSort,
@@ -114,11 +112,7 @@ class OrderList extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (i > 0 && !first) const Divider(),
-                            _WideRow(
-                              order: order,
-                              actions: actions,
-                              roomy: roomy,
-                            ),
+                            _WideRow(order: order, actions: actions),
                           ],
                         );
                       }
@@ -185,13 +179,11 @@ class _MonthHeader extends StatelessWidget {
 
 class _HeaderRow extends StatelessWidget {
   const _HeaderRow({
-    required this.roomy,
     required this.sortColumn,
     required this.ascending,
     required this.onSort,
   });
 
-  final bool roomy;
   final OrderSortColumn sortColumn;
   final bool ascending;
   final ValueChanged<OrderSortColumn> onSort;
@@ -241,6 +233,7 @@ class _HeaderRow extends StatelessWidget {
     const gap = SizedBox(width: _WideRow.gap);
     return Container(
       decoration: const BoxDecoration(
+        color: AppColors.surfaceHigh,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       padding: const EdgeInsets.only(
@@ -251,7 +244,6 @@ class _HeaderRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const SizedBox(width: AppSpacing.lg - AppSpacing.lg),
           SizedBox(
             width: _WideRow.idWidth,
             child: _label(AppStrings.colId, OrderSortColumn.id),
@@ -263,13 +255,6 @@ class _HeaderRow extends StatelessWidget {
           ),
           gap,
           Expanded(child: _label(AppStrings.colProject, OrderSortColumn.name)),
-          if (roomy) ...[
-            gap,
-            SizedBox(
-              width: _WideRow.clientWidth,
-              child: _label(AppStrings.colClient, null),
-            ),
-          ],
           gap,
           SizedBox(
             width: _WideRow.statusWidth,
@@ -287,15 +272,11 @@ class _HeaderRow extends StatelessWidget {
           gap,
           SizedBox(
             width: _WideRow.collectWidth,
-            child: _label(AppStrings.colCollection, OrderSortColumn.pending),
-          ),
-          if (roomy) ...[
-            gap,
-            SizedBox(
-              width: _WideRow.profitWidth,
-              child: _label(AppStrings.colProfit, null, align: TextAlign.end),
+            child: Padding(
+              padding: const EdgeInsets.only(left: AppSpacing.sm),
+              child: _label(AppStrings.colCollection, OrderSortColumn.pending),
             ),
-          ],
+          ),
           gap,
           const SizedBox(width: _WideRow.actionsWidth),
         ],
@@ -307,29 +288,22 @@ class _HeaderRow extends StatelessWidget {
 // ==================== Fila ancha ====================
 
 class _WideRow extends StatelessWidget {
-  const _WideRow({
-    required this.order,
-    required this.actions,
-    required this.roomy,
-  });
+  const _WideRow({required this.order, required this.actions});
 
   static const double accentWidth = 3;
   static const double idWidth = 48;
-  static const double dateWidth = 84;
-  static const double clientWidth = 150;
-  static const double statusWidth = 150;
-  static const double priceWidth = 96;
-  static const double collectWidth = 120;
-  static const double profitWidth = 92;
-  static const double actionsWidth = 96;
+  static const double dateWidth = 88;
+  static const double statusWidth = 140;
+  static const double priceWidth = 100;
+  static const double collectWidth = 112;
+  static const double actionsWidth = 88;
   static const double gap = AppSpacing.md;
 
-  /// Anchura del listado a partir de la cual caben cliente y beneficio.
-  static const double roomyBreakpoint = 1120;
+  /// Alto mínimo de la fila: todas miden lo mismo tengan o no segunda línea.
+  static const double minHeight = 58;
 
   final OrderSummary order;
   final OrderListActions actions;
-  final bool roomy;
 
   @override
   Widget build(BuildContext context) {
@@ -337,77 +311,66 @@ class _WideRow extends StatelessWidget {
     final o = order.order;
     return InkWell(
       onTap: () => actions.onOpen(order),
-      child: IntrinsicHeight(
-        child: Row(
-          children: [
-            // Franja con el color del estado: se ve de un vistazo.
-            Container(width: accentWidth, color: statusColor(o.status)),
-            const SizedBox(width: AppSpacing.lg),
-            SizedBox(
-              width: idWidth,
-              child: Text(
-                '#${order.id}',
-                style: AppTextStyles.money.copyWith(color: AppColors.textMuted),
-              ),
-            ),
-            gapBox,
-            SizedBox(
-              width: dateWidth,
-              child: Text(
-                o.date.isEmpty ? '—' : o.date,
-                style: AppTextStyles.mutedSmall,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            gapBox,
-            Expanded(child: _ProjectInline(order: order)),
-            if (roomy) ...[
-              gapBox,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: minHeight),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              // Franja con el color del estado: se ve de un vistazo.
+              Container(width: accentWidth, color: statusColor(o.status)),
+              const SizedBox(width: AppSpacing.lg),
               SizedBox(
-                width: clientWidth,
+                width: idWidth,
                 child: Text(
-                  order.clientName ?? '—',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.muted,
+                  '#${order.id}',
+                  style: AppTextStyles.money.copyWith(
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ),
-            ],
-            gapBox,
-            SizedBox(
-              width: statusWidth,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: StatusBadge(
-                  status: o.status,
-                  onChanged: (s) => actions.onStatusChange(order, s),
-                ),
-              ),
-            ),
-            gapBox,
-            SizedBox(
-              width: priceWidth,
-              child: _Price(order: o),
-            ),
-            gapBox,
-            SizedBox(
-              width: collectWidth,
-              child: _Collection(order: o),
-            ),
-            if (roomy) ...[
               gapBox,
               SizedBox(
-                width: profitWidth,
-                child: _ProfitText(order: order, alignEnd: true),
+                width: dateWidth,
+                child: Text(
+                  o.date.isEmpty ? '—' : o.date,
+                  style: AppTextStyles.mutedSmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              gapBox,
+              Expanded(child: _ProjectInline(order: order)),
+              gapBox,
+              SizedBox(
+                width: statusWidth,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: StatusBadge(
+                    status: o.status,
+                    onChanged: (s) => actions.onStatusChange(order, s),
+                  ),
+                ),
+              ),
+              gapBox,
+              SizedBox(
+                width: priceWidth,
+                child: _Price(order: order),
+              ),
+              gapBox,
+              SizedBox(
+                width: collectWidth,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.sm),
+                  child: _Collection(order: o),
+                ),
+              ),
+              gapBox,
+              SizedBox(
+                width: actionsWidth,
+                child: _Actions(order: order, actions: actions),
+              ),
+              const SizedBox(width: AppSpacing.md),
             ],
-            gapBox,
-            SizedBox(
-              width: actionsWidth,
-              child: _Actions(order: order, actions: actions),
-            ),
-            const SizedBox(width: AppSpacing.md),
-          ],
+          ),
         ),
       ),
     );
@@ -542,6 +505,8 @@ class _Project extends StatelessWidget {
 
 /// Nombre del proyecto con sus datos (placas, pintura, merma) en la misma
 /// línea; así la fila mide una sola línea.
+/// Proyecto en dos líneas: el nombre y, debajo en gris, el cliente, las
+/// placas, la pintura y la merma.
 class _ProjectInline extends StatelessWidget {
   const _ProjectInline({required this.order});
 
@@ -550,38 +515,50 @@ class _ProjectInline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imported = order.plateNames?.startsWith('Importado') ?? false;
+    final client = order.clientName;
+    final hasSub =
+        (client != null && client.isNotEmpty) ||
+        (!imported && order.platesCount > 0) ||
+        order.order.isPainted ||
+        order.wastedGrams > 0;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-      child: Row(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Flexible(
-            child: Text(
-              order.order.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-            ),
+          Text(
+            order.order.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
           ),
-          if (!imported && order.platesCount > 0) ...[
-            const SizedBox(width: AppSpacing.md),
-            _Mini(
-              icon: Icons.layers_outlined,
-              text: AppStrings.platesCount(order.platesCount),
-            ),
-          ],
-          if (order.order.isPainted) ...[
-            const SizedBox(width: AppSpacing.sm),
-            const _Mini(
-              icon: Icons.brush_outlined,
-              text: AppStrings.painted,
-              color: AppColors.info,
-            ),
-          ],
-          if (order.wastedGrams > 0) ...[
-            const SizedBox(width: AppSpacing.sm),
-            StatusPill(
-              label: AppStrings.wastePercent(order.wasteRatePercent),
-              color: _Details._wasteColor(order.wasteSeverity),
+          if (hasSub) ...[
+            const SizedBox(height: 3),
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: 2,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (client != null && client.isNotEmpty)
+                  _Mini(icon: Icons.person_outline, text: client),
+                if (!imported && order.platesCount > 0)
+                  _Mini(
+                    icon: Icons.layers_outlined,
+                    text: AppStrings.platesCount(order.platesCount),
+                  ),
+                if (order.order.isPainted)
+                  const _Mini(
+                    icon: Icons.brush_outlined,
+                    text: AppStrings.painted,
+                    color: AppColors.info,
+                  ),
+                if (order.wastedGrams > 0)
+                  StatusPill(
+                    label: AppStrings.wastePercent(order.wasteRatePercent),
+                    color: _Details._wasteColor(order.wasteSeverity),
+                  ),
+              ],
             ),
           ],
         ],
@@ -590,31 +567,38 @@ class _ProjectInline extends StatelessWidget {
   }
 }
 
+/// Precio, con el beneficio debajo cuando el pedido ya está cerrado.
 class _Price extends StatelessWidget {
   const _Price({required this.order});
 
-  final Order order;
+  final OrderSummary order;
 
   @override
   Widget build(BuildContext context) {
-    final settled = order.isSettled;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
+    final o = order.order;
+    final cost = o.costOverride;
+    final showProfit = o.status.countsAsRevenue && cost != null;
+    final profit = showProfit ? o.price - cost : 0.0;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        if (settled) ...[
-          const Icon(Icons.check_circle, size: 15, color: AppColors.success),
-          const SizedBox(width: 4),
-        ],
-        Flexible(
-          child: Text(
-            formatEuro(order.price),
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.money.copyWith(
-              fontSize: 15,
-              color: settled ? AppColors.success : AppColors.textMain,
+        Text(
+          formatEuro(o.price),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.money.copyWith(fontSize: 15),
+        ),
+        if (showProfit)
+          Text(
+            profit < 0 ? '-${formatEuro(-profit)}' : '+${formatEuro(profit)}',
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: profit >= 0 ? AppColors.success : AppColors.danger,
             ),
           ),
-        ),
       ],
     );
   }
@@ -627,10 +611,18 @@ class _Collection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Cobrado es lo normal: en gris. Solo lo pendiente llama la atención.
     if (order.isSettled) {
-      return const Text(
-        AppStrings.collected,
-        style: TextStyle(fontSize: 12, color: AppColors.success),
+      return const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check, size: 14, color: AppColors.textMuted),
+          SizedBox(width: 4),
+          Text(
+            AppStrings.collected,
+            style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+          ),
+        ],
       );
     }
     return Tooltip(
@@ -660,36 +652,6 @@ class _Collection extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Beneficio de un pedido cerrado (precio − coste congelado); «—» si no hay.
-class _ProfitText extends StatelessWidget {
-  const _ProfitText({required this.order, this.alignEnd = false});
-
-  final OrderSummary order;
-  final bool alignEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    final o = order.order;
-    final cost = o.costOverride;
-    if (!o.status.countsAsRevenue || cost == null) {
-      return Text(
-        '—',
-        textAlign: alignEnd ? TextAlign.end : TextAlign.start,
-        style: AppTextStyles.mutedSmall,
-      );
-    }
-    final profit = o.price - cost;
-    return Text(
-      profit < 0 ? '-${formatEuro(-profit)}' : formatEuro(profit),
-      textAlign: alignEnd ? TextAlign.end : TextAlign.start,
-      style: AppTextStyles.money.copyWith(
-        fontSize: 14,
-        color: profit >= 0 ? AppColors.success : AppColors.danger,
       ),
     );
   }
