@@ -114,12 +114,13 @@ Preguntas todavía abiertas: **Q6** (piezas: hoy suman al coste y al precio con 
 
 | Paso | Estado |
 |---|---|
-| Esquema v3 y migración (intentos, horas/colores de pintura, coste fijo, ajustes) | ✅ hecho, con tests |
+| Esquema v3/v4 y migraciones (intentos, pintura, coste fijo, ajustes) | ✅ hecho, con tests y copia de seguridad |
 | `PricingCalculator` con las fórmulas del Excel | ✅ hecho; coste (Z) coincide con 5 pedidos reales y precio con la fórmula corregida |
-| Formulario de pedido: intentos, colores, horas de pintura | ✅ hecho |
-| Administración: los 8 ajustes | ✅ hecho |
-| Panel: beneficio real/teórico, objetivo, ratio mensual | ⏳ pendiente (usa `Order.costOverride` o el coste calculado) |
-| Importador de pedidos y materiales del Excel | ⏳ pendiente |
+| Formulario de pedido (intentos, pintura, resumen de precio) y Administración (8 ajustes) | ✅ hecho |
+| Panel: beneficio real/teórico, objetivo, detalle mensual, pendientes de cobro | ✅ hecho (coste recalculado, o fijo si el pedido lo trae) |
+| Arreglos de stock y datos de la revisión de nov-2026 | ✅ hecho, con tests de invariantes |
+| Importador de pedidos y materiales del Excel (con informe de cuadre) | ⏳ pendiente |
+| Congelar el coste al completar (estabilidad del histórico) | ⏳ pendiente (K1 de SPEC) |
 | Ensayo en paralelo con el Excel | ⏳ pendiente |
 
 Los pedidos importados conservarán su **precio cobrado y su coste tal como están en la hoja** (`cost_override`), sin recalcular con la fórmula nueva, porque las filas antiguas usan fórmulas distintas.

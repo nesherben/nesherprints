@@ -1,5 +1,7 @@
 # Revisión de la app — 23-nov-2026
 
+> **Actualización 24-nov-2026:** los bugs de datos de la sección 2 (puntos 1–9) están **corregidos y cubiertos por tests** (`stock_invariants_test.dart`), el neto del panel (punto 10) usa ya el coste real, los desbordes de la sección 1b están arreglados y la UI se ha rediseñado. Este documento queda como registro de la revisión; el estado actual está en `SPEC.md`.
+
 Resumen de la revisión hecha con tres agentes (analista técnico, diseñador UI/UX y experto en negocio) sobre el estado tras el refactor, la calculadora del Excel (v3) y el detalle de pintura (v4). Objetivo: dejar el Excel para el **1/1/2027**.
 
 Estado: 52 tests en verde (+9 de fallos confirmados, omitidos) y análisis estático limpio; la app compila y arranca en Windows. Los agentes revisaron el código; el recorrido por las pantallas se ha hecho con pruebas automáticas (sección 1b), **nadie ha usado la interfaz a mano ni se ha visto con capturas**.

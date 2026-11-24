@@ -1,119 +1,99 @@
 # NesherPrints ERP — Especificación funcional
 
-> Describe **cómo funciona la app hoy** (noviembre 2026), no cómo debería funcionar.
-> Lo que parece un fallo o una decisión dudosa está en [Problemas conocidos](#9-problemas-conocidos) para decidirlo después.
+> Describe **cómo funciona la app hoy** (24-nov-2026). Fórmulas del Excel y plan de migración: [`EXCEL_FORMULAS.md`](EXCEL_FORMULAS.md). Mapa del código: [`../CLAUDE.md`](../CLAUDE.md).
 > Si cambias una regla, actualiza este documento en el mismo commit.
 
 ## 1. Qué es
 
-Aplicación de escritorio (Flutter, Windows principalmente; también Android) para llevar un pequeño negocio de **impresión 3D por encargo**. Un solo usuario, sin cuentas ni servidor: todo se guarda en un SQLite local.
+Aplicación de escritorio (Flutter, Windows principalmente; también compila para Android) para llevar un pequeño negocio de **impresión 3D por encargo**. Un solo usuario, sin cuentas ni servidor: todo se guarda en un SQLite local.
 
 Sirve para:
-- **Presupuestar** un pedido a partir de sus placas de impresión, el material, las piezas extra y el pintado.
+- **Presupuestar** un pedido a partir de sus placas, material, piezas extra, pintura e intentos, con las fórmulas del Excel del usuario.
 - **Seguir** los pedidos (estado, cobros, mermas).
 - **Controlar el stock** de material (filamento/resina) y de piezas extra.
-- **Ver la facturación** (bruto, neto, pendiente de cobro) en un panel.
+- **Ver el negocio**: facturado, beneficio real, cobros pendientes y avance hacia el objetivo.
 
-UI en español. Moneda: euro (`€12.50`, siempre con punto y 2 decimales en pantalla; en los campos se acepta coma o punto).
+UI en español, tema oscuro. Moneda: euro (`€12.50`; en los campos se acepta coma o punto).
 
 ## 2. Navegación
 
-Barra lateral (`NavigationRail`) con 6 secciones y un botón fijo **"Nuevo Pedido"** abajo:
-
-| # | Sección | Pantalla | Feature |
+| # | Sección | Atajo | Pantalla |
 |---|---|---|---|
-| 0 | Panel | `DashboardView` | `dashboard` |
-| 1 | Inventario | `InventoryView` | `inventory` |
-| 2 | Piezas | `ExtrasView` | `extras` |
-| 3 | Pedidos | `OrdersView` | `orders` |
-| 4 | Clientes | `ClientsView` | `clients` |
-| 5 | Administración | `SettingsView` | `settings` |
+| 0 | Panel | `Ctrl+1` | `DashboardView` |
+| 1 | Inventario | `Ctrl+2` | `InventoryView` |
+| 2 | Piezas | `Ctrl+3` | `ExtrasView` |
+| 3 | Pedidos | `Ctrl+4` | `OrdersView` |
+| 4 | Clientes | `Ctrl+5` | `ClientsView` |
+| 5 | Administración | `Ctrl+6` | `SettingsView` |
 
-Al cambiar de sección, la pantalla se reconstruye y recarga sus datos. La lista de pedidos la carga `MainLayout` y la comparten Panel y Pedidos; se recarga tras cada operación sobre pedidos.
+- `Ctrl+N`: nuevo pedido desde cualquier sección. `Ctrl+F`: buscar (en Pedidos). `Ctrl+S`: guardar (formulario de pedido y Administración).
+- **Ventana ancha (≥ 1100 px):** barra lateral extendida con logotipo, botón «Nuevo pedido» y etiquetas. **Media:** barra lateral compacta. **Estrecha (< 720 px):** barra de navegación inferior y botón flotante «Nuevo pedido».
+- Cambiar de sección reconstruye la pantalla (recarga sus datos) con un fundido suave. La lista de pedidos la carga `MainLayout` y la comparten Panel y Pedidos.
+- Si se guarda un pedido desde una sección que no es Panel ni Pedidos (por ejemplo desde Piezas), esa pantalla se recarga para no mostrar stock viejo.
 
 ## 3. Entidades
 
 | Entidad | Tabla | Campos clave |
 |---|---|---|
 | Material (`PrintMaterial`) | `materials` | tipo (`filament`/`resin`), nombre/marca, color, coste €/kg, stock en g (ml) |
-| Pieza extra (`Extra`) | `extras` | nombre, precio unitario €, stock (uds, puede ser negativo), unidad (no editable) |
+| Pieza extra (`Extra`) | `extras` | nombre, precio unitario €, stock (uds; puede quedar negativo), unidad (no editable) |
 | Cliente (`Client`) | `clients` | nombre, teléfono, email/Instagram, notas (no editables desde la UI) |
-| Pedido (`Order`) | `orders` | cliente (opcional), nombre del proyecto, precio final, cobrado, fecha `YYYY-MM-DD`, estado, pintado (0/1), notas, **intentos** (1 = a la primera), **horas de pintura**, **detalle de pintura** (pocos / normal / muchos), **coste fijo** (solo pedidos importados del Excel) |
+| Pedido (`Order`) | `orders` | cliente (opcional), proyecto, precio final, cobrado, fecha `YYYY-MM-DD`, estado, pintado, notas, **intentos**, **horas de pintura**, **detalle de pintura** (pocos/normal/muchos), **coste fijo** (solo importados) |
 | Placa (`OrderPlate`) | `order_plates` | pedido, nombre, gramos, minutos, material, estado (`Pending`/`Success`/`Failed`) |
-| Pieza en pedido | `order_extras` | pedido, pieza, cantidad, precio unitario en el momento de añadirla |
-| Merma (`WasteRecord`) | `order_waste` | pedido, material, gramos perdidos, motivo, fecha (automática) |
-| Consumo heredado | `order_items` | pedido, material, gramos. **La app ya no escribe aquí**; solo lo lee el panel |
+| Pieza en pedido | `order_extras` | pedido, pieza, cantidad, precio unitario **registrado** al añadirla |
+| Merma (`WasteRecord`) | `order_waste` | pedido, material, gramos perdidos, motivo, fecha |
+| Consumo heredado | `order_items` | ya no se usa (se conserva la tabla) |
 | Ajustes | `settings` | clave → valor numérico |
 
 ### Estados del pedido
 
-Se guardan y se muestran en inglés: `Draft`, `Reserved`, `In Progress`, `Completed`, `Shipped`, `Canceled`.
+Se guardan en inglés (`dbValue`, no cambiar) y se muestran en español.
 
-| Estado | Bloquea formulario | Botón "Completar" | Cuenta como ingreso | Cuenta como deuda |
-|---|---|---|---|---|
-| Draft | no | sí | no | no |
-| Reserved | no | sí | no | sí |
-| In Progress | no | sí | no | sí |
-| Completed | **sí** | no | **sí** | sí |
-| Shipped | **sí** | no | **sí** | sí |
-| Canceled | no | no | no | no |
+| Estado (guardado → mostrado) | Formulario | Botón «Completar» | Ingreso | Deuda | Cambios rápidos permitidos |
+|---|---|---|---|---|---|
+| `Draft` → Borrador | editable | sí | no | no | Reservado, En curso, Cancelado |
+| `Reserved` → Reservado | editable | sí | no | sí | Borrador, En curso, Cancelado |
+| `In Progress` → En curso | editable | sí | no | sí | Borrador, Reservado, Cancelado |
+| `Completed` → Completado | **solo lectura** | no | **sí** | sí | **solo Enviado** |
+| `Shipped` → Enviado | **solo lectura** | no | **sí** | sí | ninguno |
+| `Canceled` → Cancelado | editable | **no** | no | no | Borrador, Reservado, En curso |
 
-- A mano (formulario o menú rápido) se puede elegir cualquier estado **excepto `Completed`**, que solo se alcanza con la acción **Completar**.
-- En el formulario, si el pedido ya está `Completed`, la opción aparece en el desplegable (aunque el formulario está bloqueado).
+- **Completado** solo se alcanza con la acción «Completar» (descuenta material); **Enviado** solo desde Completado. Un pedido cerrado no se puede reabrir ni editar (el repositorio lo rechaza con un mensaje).
+- Un pedido nuevo no puede nacer completado ni enviado.
 
 ## 4. Pantallas y reglas
 
 ### 4.1 Pedidos (`features/orders`)
 
-**Listado** (`OrdersView` + `OrderDataTable`)
-- Buscador por nombre de proyecto (contiene, sin distinguir mayúsculas).
-- Filtro por estado ("Todos" o un estado).
-- Orden por columna: ID, Proyecto, Estado (texto), Finanzas (precio). Sin orden elegido: ID descendente.
-- "Limpiar Filtros" aparece si hay búsqueda, filtro u orden activos.
-- Columnas:
-  - **ID / Fecha**.
-  - **Proyecto**, con el nombre del cliente si tiene.
-  - **Estado**: etiqueta con menú de cambio rápido.
-  - **Finanzas**: Total, Pagado y "Falta" si queda deuda. Va en verde con ✓ si está saldado, es decir completado o con lo pendiente ≤ 0.
-  - **Detalles**: "Pintado", nº de placas, merma en % y nombres de las placas.
-  - **Acciones**.
-- Merma en %: `gramos perdidos / gramos teóricos × 100`, sin límite. Sin gramos teóricos se divide entre 1 g. Color: > 30 % rojo, > 10 % naranja, el resto verde.
-- **Acciones por fila:**
-  - **Completar** (solo si `canComplete`). Pide confirmación. Pone estado `Completed`, cobrado = precio y **resta del inventario los gramos de todas las placas**.
-  - **Editar**: abre el formulario.
-  - **Merma**: abre el diálogo de merma.
-  - **Eliminar**: pide confirmación. Devuelve al stock las piezas extra y borra el pedido.
+**Listado** (`OrdersView` + `order_list.dart`)
+- Búsqueda por proyecto, cliente, nº de pedido (`#12`) o nombre de placa. `Ctrl+F` enfoca el buscador.
+- Filtros en chips con contador: Todos, **Por cobrar** (deuda > 0 en pedidos con deuda) y uno por estado. «Limpiar filtros» aparece si hay alguno activo.
+- Orden por columna (ID/fecha, proyecto, estado, finanzas) pulsando la cabecera; en estrecho, menú «Ordenar por» (incluye «pendiente de cobro»). Sin elegir: más reciente primero.
+- Filas virtualizadas (válidas para cientos de pedidos). **Ancho (≥ 880 px del listado):** columnas ID/fecha, proyecto + cliente, estado, finanzas, detalles, acciones. **Estrecho:** tarjetas apiladas.
+- **Finanzas**: total; «Cobrado» en verde con ✓ si está saldado (completado o pendiente ≤ 0); si no, «Pagado X · Falta Y».
+- **Detalles**: nº de placas, «Pintado», merma en % (rojo > 30 %, ámbar > 10 %, verde) y nombres de las placas. Merma % = gramos perdidos / gramos de las placas × 100, sin límite.
+- **Acciones**: Completar (solo si procede), Editar/Ver y menú ⋮ (Registrar merma, Duplicar, Eliminar). Tocar la fila abre el pedido.
+- **Completar** pide confirmación indicando los gramos aproximados que se descontarán. **Eliminar** pide confirmación y explica qué ocurre. Toda acción fallida muestra un aviso con el motivo.
+- Estados vacíos: sin pedidos («Crear el primer pedido») y sin resultados («Limpiar filtros»).
 
-**Formulario** (`OrderFormDialog`, se abre desde "Nuevo Pedido" o desde "Editar")
-1. **Cliente** (opcional), con botón para crear uno nuevo sin salir.
-2. **Nombre del proyecto** y **estado**.
-3. **Placas**: añadir o quitar. Cada placa tiene nombre (por defecto "Placa N"), material (por defecto el primero de la lista), gramos y minutos. Botón para dar de alta un material nuevo y asignarlo a la placa.
-4. **Piezas extra**: contador −/+ por cada pieza del inventario.
-5. **Finanzas**:
-   - nº de placas (automático);
-   - intentos (por defecto 1);
-   - casilla de pintura, sus horas (por defecto 1) y el detalle de la pintura (pocos ≤ 4 colores / normal 5–10 / muchos > 10; por defecto normal);
-   - coste de fabricación y precio recomendado, con "Aplicar" para copiarlo al precio;
-   - precio final, con color de semáforo;
-   - pagado/adelanto (por defecto 0.00).
-- Si el pedido está bloqueado (`Completed`/`Shipped`), todo es de solo lectura y no se puede guardar.
-- Al **crear**: se guarda el pedido con sus placas y piezas. Se **resta el stock de las piezas**, pero no el del material: el material se resta al completar.
-- Al **editar**:
-  - si la lista de placas no está vacía, se **reemplazan todas las placas** (conservan su id y su estado);
-  - si la lista de piezas no está vacía, se devuelven al stock las anteriores y se aplican las nuevas;
-  - si alguna de las dos listas está vacía, esa parte **no se toca**.
+**Formulario** (`OrderFormDialog`: nuevo, editar o duplicar)
+- Dos columnas en ancho (datos a la izquierda con scroll, **resumen de precio fijo** a la derecha); una columna en estrecho.
+- **Datos**: nombre del proyecto, estado (según §3), cliente opcional con alta rápida.
+- **Placas**: nombre, material (desplegable con €/kg), gramos y minutos; alta rápida de material; duplicar/quitar placa; la placa nueva hereda el material de la anterior. Avisa si los gramos superan el stock del material y muestra el coste de material de la placa.
+- **Piezas extra**: contador −/+ por pieza con su precio y stock; avisa si se piden más de las que hay. Al editar se cargan las piezas del pedido con su **precio registrado**.
+- **Producción**: intentos (decimal, 1 = a la primera) y servicio de pintura (horas + detalle pocos/normal/muchos).
+- **Resumen**: nº de placas, tiempo y gramos; desglose (material, luz, recargo por placas, pintura, piezas) y nota de intentos; **coste real**; **precio recomendado** con «Aplicar»; precio final con valoración en texto (verde «Beneficio X (+Y % sobre el coste)», ámbar «Por debajo del recomendado», rojo «Pierdes X»); cobrado con atajos `0 € / 50 % / Todo` y «Falta por cobrar».
+- **Validación** (`OrderRules.validateForm`): nombre obligatorio, al menos una placa, cada placa con material y gramos > 0, tiempo ≥ 0, precio ≥ 0 (0 vale para regalos), cobrado ≥ 0, intentos > 0, horas de pintura ≥ 0. Los errores se muestran en el pie y se actualizan al corregir.
+- **Guardado**: asíncrono; el diálogo no se cierra hasta que se guarda. Si falla, se queda abierto con el error y sin perder lo escrito. `Ctrl+S` guarda.
+- Si el pedido está cerrado: banner informativo, todo en solo lectura y sin botón de guardar.
+- **Duplicar**: pedido nuevo en Borrador, con las placas (sin ids) y piezas del original, nombre «… (copia)», fecha de hoy y cobrado 0.
+- Al **crear**: se guardan pedido, placas y piezas; se **resta el stock de las piezas** (no el del material). Al **editar**: las placas y piezas se reemplazan por las del formulario (lista vacía = borrar); las piezas anteriores se devuelven al stock y se aplican las nuevas, conservando el precio registrado de las que ya estaban.
 
-**Merma** (`WasteDialog`)
-- Se elige la placa (por defecto la primera) y el % que llegó a imprimirse (deslizador de 5 en 5, por defecto 100 %).
-- Gramos perdidos = gramos de la placa × %. Se guarda en `order_waste` y **se restan del stock del material**.
-- Motivo opcional. Si se deja vacío: "Fallo al N% en <placa>".
-- Si el pedido no tiene placas, solo se muestra un aviso.
+**Merma** (`WasteDialog`): se elige la placa y el % que llegó a imprimirse (de 5 en 5); gramos = gramos de la placa × %. Se guarda y **se resta del material**. Motivo opcional («Fallo al N % en <placa>» por defecto). No se puede registrar una merma de 0 g.
 
 ### 4.2 Calculadora de precios (`PricingCalculator`)
 
 Transcrita del Excel `Finanza.ods` (detalle y casos reales en [`EXCEL_FORMULAS.md`](EXCEL_FORMULAS.md)); los tests usan pedidos reales de la hoja.
-
-Entradas: placas (gramos, minutos y material con su €/kg y tipo), intentos, pintura (sí/no, horas y detalle), piezas elegidas y los ajustes.
 
 ```
 mat    = Σ gramos/1000 × €/kg de su material
@@ -131,122 +111,94 @@ RECOMENDADO = (mat×2 + luz + recargo) × largo × (2 + margenBeneficio/100)
               + pintura + piezas × (1 + margenBeneficio/100)
 ```
 
-- Los intentos solo afectan al coste, no al precio recomendado.
-- Las piezas se suman al coste a su precio unitario y al precio con el margen de beneficio (decisión provisional; en el Excel se sumaban a mano).
-- Con varios materiales, el recargo usa la media de tarifas de las placas (el Excel solo admite un tipo por pedido).
-- Diferencia con el Excel: la hoja multiplica por `1 + (S+100)/100`, que con S = 0,15 vale 2,0015 (el 15 % no se aplica). La app usa `2 + margen/100` = 2,15.
+- Los intentos solo afectan al coste, no al recomendado. Las piezas suman al coste a su precio y al precio con el margen (decisión provisional).
+- Con varios materiales, el recargo usa la media de tarifas de las placas.
+- Diferencia con el Excel: la hoja multiplica por `1 + (S+100)/100` (con S = 0,15 vale 2,0015); la app usa `2 + margen/100` = 2,15.
+- **Semáforo** (frente al coste y al recomendado): neutro si precio o coste ≤ 0; bueno si precio ≥ recomendado; bajo si coste < precio < recomendado; pérdida si precio ≤ coste.
 
-**Semáforo del precio final** (frente al coste y al recomendado):
-- **neutro** si el precio o el coste son ≤ 0;
-- **verde** si precio ≥ recomendado;
-- **naranja** si coste < precio < recomendado;
-- **rojo** si precio ≤ coste.
+### 4.3 Panel (`features/dashboard`)
 
-### 4.3 Panel (`features/dashboard`, `FinanceSummary`)
-
-- **Ingresos brutos**: Σ precio de los pedidos `Completed` + `Shipped`.
-- **Beneficio neto**: bruto − coste de material según `order_items` (tabla heredada) − coste de **todas** las mermas registradas (gramos × €/kg actual del material).
-- **Pendiente de cobro**: Σ (precio − cobrado) > 0 de los pedidos que no son `Draft` ni `Canceled`.
-- **Histórico mensual** (barras): bruto y neto por mes (`YYYY-MM` de la fecha del pedido), solo con ingresos. El neto mensual no descuenta mermas.
-- **Distribución** (tarta): % de pedidos por estado, con leyenda.
+- **Indicadores**: Facturado (suma de pedidos completados o enviados), **Beneficio real** (facturado − coste real; con su margen %), **Pendiente de cobro** (deuda de pedidos que no son borrador ni cancelados) y **Objetivo** (beneficio «teórico» / objetivo configurable, con barra de progreso).
+- **Beneficio teórico** = real + coste de pintura (como la columna `AB` del Excel).
+- **Coste real** de cada pedido cerrado: su coste fijo si lo tiene (`costOverride`, pedidos importados); si no, se **recalcula** con sus placas, piezas (a su precio registrado), intentos y pintura, con los ajustes y precios de material **actuales**.
+- Gráfica de barras de facturado y beneficio por mes (con scroll si hay muchos meses y tooltips), anillo de pedidos por estado, **detalle mensual** (pedidos, facturado, beneficio, margen; el mes más reciente primero) y lista de **pendientes de cobro** con su antigüedad.
+- Las **mermas** no se restan del beneficio (ya van en los intentos); se muestran como nota informativa con su coste.
 
 ### 4.4 Inventario (`features/inventory`)
 
-- Tabla de materiales: tipo (chip Resina/Filamento), nombre, color, €/kg, stock. Orden: resinas primero y después por nombre.
-- Stock en rojo si es < **200 g**; si no, en verde.
-- Añadir/editar con un diálogo: tipo, nombre/marca, color, €/kg y stock.
-- **Eliminar sin confirmación.**
+- Franja resumen (nº de materiales, kg totales, nº con stock bajo) y buscador por nombre, color o tipo.
+- Tarjetas con icono por tipo, color, €/kg, barra de stock (verde/ámbar/rojo; **bajo** si < 200 g) y acciones. Vacío: estado vacío con botón de alta.
+- Alta/edición con validación (nombre obligatorio, €/kg y stock obligatorios y ≥ 0).
+- **Borrar**: si alguna placa usa el material **no se borra** y se avisa de cuántas; si no, pide confirmación.
 
 ### 4.5 Piezas extra (`features/extras`)
 
-- Lista con nombre, precio unitario y stock.
-- **Alta/edición por paquete**:
-  - se introducen las unidades y el precio total;
-  - precio unitario = total / unidades (o el total si no hay unidades);
-  - al editar, el formulario propone total = precio unitario × stock y **las unidades sustituyen al stock actual**.
-- **Sumar unidades**: se introducen las unidades y el precio pagado por ellas.
-  - Nuevo precio unitario = media ponderada: `(precio × stock + total) / (stock + unidades)`.
-  - Si el stock resultante es ≤ 0, se mantiene el precio.
-  - Solo se puede aplicar con unidades > 0 y total ≥ 0.
-- Eliminar con confirmación.
+- Franja resumen (nº de piezas, valor del stock = Σ precio × stock con stock > 0, agotadas) y tarjetas con precio unitario, stock grande y etiqueta (Agotado, Stock negativo, Pocas unidades 1–5).
+- **Alta/edición por paquete**: unidades y precio total; precio unitario = total / unidades (o el total si no hay unidades). Al editar, las unidades **sustituyen** al stock.
+- **Sumar unidades**: unidades y precio pagado; el precio unitario pasa a la **media ponderada** `(precio × stock + total) / (stock + unidades)` (un stock negativo cuenta como 0). Muestra el precio antes → después. La operación lee stock y precio actuales de la base de datos dentro de una transacción.
+- Borrar con confirmación.
 
 ### 4.6 Clientes (`features/clients`)
 
-- Rejilla de tarjetas (3 columnas) con nombre, teléfono y email, ordenada por nombre.
-- Alta/edición: nombre/alias, teléfono (WhatsApp) y email/Instagram, todos opcionales.
-  - Si todo está vacío, se cierra sin guardar.
-  - Si falta el nombre, se usa el teléfono o, si tampoco hay, el email.
-  - Se recortan los espacios.
-- No se pueden borrar clientes.
+- Buscador (nombre, teléfono, email) y rejilla adaptable de tarjetas con avatar de iniciales, teléfono y email (con botón de copiar), «N pedidos · €X facturado» y, si debe dinero, «Debe €Y».
+- Alta/edición con todos los campos opcionales: si todo está vacío no se guarda; sin nombre se usa el teléfono o el email. No se pueden borrar clientes.
 
 ### 4.7 Administración (`features/settings`)
 
-| Ajuste | Clave en BD | Por defecto |
+Ocho ajustes agrupados en tarjetas (Precio, Energía y placas, Pintura, Objetivos), cada uno con ayuda, valor por defecto y «restaurar»:
+
+| Ajuste | Clave | Por defecto |
 |---|---|---|
-| Margen de beneficio (%): el precio recomendado se multiplica por 2 + margen | `margen_beneficio` | 15 |
+| Margen de beneficio (%): el recomendado se multiplica por 2 + margen | `margen_beneficio` | 15 |
 | Margen de seguridad del coste (%) | `margen_seguridad` | 15 |
-| Coste de luz (€/hora de impresión) | `coste_kwh` | 0,0375 |
-| Recargo por placa extra, filamento (€) | `tarifa_placa_filamento` | 0,5 |
-| Recargo por placa extra, resina (€) | `tarifa_placa_resina` | 1,5 |
-| Coste de pintado (€/hora) | `coste_hora_pintado` | 8 |
-| Material de pintura, pocos detalles (€) | `coste_pintura_pocos` | 3/90 |
-| Material de pintura, detalle normal (€) | `coste_pintura_normal` | 9/90 |
-| Material de pintura, muchos detalles (€) | `coste_pintura_muchos` | 13/90 |
+| Coste de luz (€/h de impresión) | `coste_kwh` | 0,0375 |
+| Recargo por placa extra, filamento / resina (€) | `tarifa_placa_filamento` / `tarifa_placa_resina` | 0,5 / 1,5 |
+| Coste de pintado (€/h) | `coste_hora_pintado` | 8 |
+| Material de pintura: pocos / normal / muchos (€) | `coste_pintura_pocos` / `_normal` / `_muchos` | 3/90 · 9/90 · 13/90 |
 | Objetivo de beneficio (€) | `objetivo_beneficio` | 5000 |
 
-- Un valor no numérico guarda el valor por defecto. Si falta una clave, guardar la crea.
-- Afectan a los cálculos desde ese momento: el precio guardado en un pedido no cambia.
-- `coste_placa_extra` (v1-v2) y `coste_unidad_color` (v3) están obsoletas: las filas se conservan pero no se usan.
+- Validación estricta en el campo (vacío, no numérico, negativo o margen > 1000 no se aceptan ni se sustituyen por el defecto); «Guardar» solo si hay cambios válidos; indicador «Cambios sin guardar»; «Restaurar valores por defecto» con confirmación; tarjeta **«Ejemplo en vivo»** que calcula un pedido de muestra con los valores escritos.
+- Afectan a los cálculos desde ese momento; el precio guardado en un pedido no cambia. `coste_placa_extra` y `coste_unidad_color` están obsoletas (se conservan).
 
-## 5. Movimientos de stock (resumen)
+## 5. Movimientos de stock
 
-| Acción | Material (`materials.stock_g`) | Piezas (`extras.stock`) |
+| Acción | Material (`stock_g`) | Piezas (`stock`) |
 |---|---|---|
 | Crear pedido | — | − cantidades |
-| Editar pedido con piezas | — | + anteriores, − nuevas |
-| Completar pedido | − gramos de todas sus placas | — |
+| Editar pedido | — | + anteriores, − nuevas (si se envían piezas) |
+| **Completar** | − gramos de cada material (suma de placas) **menos lo ya registrado como merma de ese material en el pedido** (mínimo 0). Una sola vez | — |
 | Registrar merma | − gramos perdidos | — |
-| Borrar pedido | — (no se devuelve nada) | + cantidades |
-| Sumar unidades a pieza | — | + unidades |
+| Borrar pedido | **no se repone** (ya se gastó) | + cantidades |
+| Sumar unidades a pieza | — | + unidades (atómico) |
 
-Todas estas operaciones se hacen en una única transacción.
+Todo se hace en una transacción. Completar un pedido ya cerrado no hace nada; completar uno cancelado se rechaza.
 
 ## 6. Base de datos
 
-- Archivo `nesher_erp_v6.db` en la carpeta de bases de datos del sistema. El "v6" del nombre es histórico; la versión del esquema es `PRAGMA user_version = 4`.
-- El esquema está definido en un solo sitio: `lib/core/database/db_schema.dart`.
-  - `onCreate`: crea todas las tablas e inserta los 3 ajustes.
-  - `onUpgrade`: asegura todas las tablas y aplica migraciones incrementales con `if (oldVersion < N)`. La v2 añadió clientes, placas y piezas. La v3 añadió a `orders` intentos, horas de pintura, colores y coste fijo, e insertó los ajustes de las fórmulas del Excel; los ajustes `margen_beneficio` (45) y `coste_hora_pintado` (15) se pasan a 15 y 8 solo si conservan su valor por defecto antiguo. La v4 sustituye los colores por el detalle de pintura (`paint_detail`): los colores ya guardados se convierten (≤ 4 → pocos, 5–10 → normal, > 10 → muchos; 0 → normal) y la columna `paint_colors` se conserva sin usar.
-  - `onOpen`: `CREATE TABLE IF NOT EXISTS` de todas las tablas como red de seguridad. No modifica datos.
-- `PRAGMA foreign_keys` **no** está activado, así que los `ON DELETE CASCADE` no actúan.
-- Los valores de estado se guardan como texto en inglés. No se pueden renombrar sin migrar los datos.
+- Archivo `nesher_erp_v6.db` (el «v6» es histórico); versión del esquema (`PRAGMA user_version`) = **4**. Esquema único en `lib/core/database/db_schema.dart`: `onCreate` crea tablas y ajustes; `onUpgrade` asegura todas las tablas y aplica migraciones `if (oldVersion < N)`; `onOpen` es una red de seguridad.
+- v2: clientes, placas, piezas. v3: intentos, horas de pintura, colores y coste fijo en pedidos + ajustes del Excel (los ajustes antiguos 45 % y 15 €/h pasan a 15 % y 8 €/h solo si no se habían editado). v4: detalle de pintura (los colores guardados se convierten: ≤ 4 pocos, 5–10 normal, > 10 muchos; la columna antigua se conserva).
+- **Copia de seguridad**: antes de migrar a una versión nueva, `AppDatabase` copia el archivo junto al original (`<archivo>.bak-v<versión>-<fecha>`).
+- `PRAGMA foreign_keys` no está activado; el borrado de pedidos elimina explícitamente sus placas, mermas, piezas y consumos.
 
-## 7. Arquitectura
+## 7. Pruebas
 
-Ver [`CLAUDE.md`](../CLAUDE.md) para el mapa de carpetas y las convenciones.
+139 pruebas, sin omitidas (`bash .claude/skills/verify/verify.sh`):
+- Reglas puras: calculadora (pedidos reales del Excel), estados, validación, panel, costes, clientes, piezas.
+- Repositorios con SQLite en memoria: `stock_invariants_test.dart` (cada test protege un fallo real ya corregido), `repositories_test.dart` (incluye migraciones v1→v4), copia de seguridad con archivos reales.
+- Pantallas con toques simulados: `test/app/order_flow_test.dart` (crear, completar, enviar, validación, duplicar, editar conservando piezas, eliminar, y **ningún desborde** en escritorio y móvil) y una prueba por pantalla.
 
-## 8. Pruebas
+## 8. Problemas conocidos
 
-- `test/features/repositories_test.dart`: repositorios sobre SQLite en memoria (stock, completar, borrar, mermas, ajustes, migración v1→v2).
-- `test/features/orders/pricing_calculator_test.dart`: fija la fórmula de precio actual.
-- `test/features/dashboard/finance_summary_test.dart`, `order_test.dart` y `extras_and_clients_test.dart`: reglas puras.
+Resueltos en nov-2026 (con test): recargo de placas acumulativo; horas de pintura sin guardar; editar pedidos perdía las piezas; borrar dejaba placas y mermas huérfanas; completar dos veces, o tras una merma, descontaba material de más; Enviado sin completar; guardado sin validar ni avisar de errores; stock de piezas pisado por datos de pantalla viejos; precio de piezas re-registrado al editar; neto del panel sin coste de material; estados en inglés; borrar material sin confirmar ni comprobar uso; ajustes con valores inválidos sustituidos en silencio.
 
-## 9. Problemas conocidos
+Vigentes:
 
-Comportamiento actual que probablemente no es el deseado. **No se ha cambiado** en el refactor para no alterar resultados. Hay que decidir cada uno por separado.
-
-| # | Dónde | Qué pasa | Impacto |
-|---|---|---|---|
-| P1 | Panel, beneficio neto | El coste de material sale de `order_items`, que ya no se escribe, así que hoy es 0. El neto solo descuenta mermas. | El neto se sobreestima. El coste real de las placas ya existe (`OrderSummary.materialCost`). |
-| P2 | ~~Recargo acumulativo por placa~~ | **Resuelto en v3**: la calculadora sigue el Excel (recargo no acumulativo). | — |
-| P3 | Editar pedido | El formulario no carga las piezas extra que ya tiene el pedido (aparecen a 0). Si no se toca nada se conservan; si se añade alguna, **sustituyen** a las anteriores. Tampoco se pueden quitar todas. | Fácil perder o duplicar piezas sin darse cuenta. |
-| P4 | ~~Horas de pintura no guardadas~~ | **Resuelto en v3**: se guardan con el pedido, junto con el detalle de pintura y los intentos. | — |
-| P5 | Borrar pedido | No se borran sus placas ni sus mermas (no hay `foreign_keys`). Las mermas huérfanas **siguen restando** en el neto. | Datos huérfanos y neto alterado. |
-| P6 | Completar | Resta los gramos de todas las placas aunque alguna haya fallado y ya tenga merma registrada. | El material de una placa fallida se descuenta dos veces. |
-| P7 | Estados | El cambio rápido permite pasar un pedido `Completed` a otro estado, y pasar a `Shipped` sin completar, así que no se resta material. | Stock y cobros incoherentes. |
-| P8 | Inventario | Borrar material no pide confirmación y no comprueba si lo usan placas. | Placas con material inexistente: su coste deja de contar. |
-| P9 | Piezas | Editar una pieza sobrescribe el stock con "unidades por paquete". | Se pierde el stock real. |
-| P10 | Validación | Se pueden guardar materiales, pedidos y piezas sin nombre o con valores negativos. Un pedido con una placa sin material falla al guardar (NOT NULL). | Datos basura o error sin mensaje. |
-| P11 | UI | Los estados se muestran en inglés en una UI en español. | Inconsistencia visual. |
-| P12 | Errores | Las operaciones de BD no muestran ningún mensaje si fallan. | Fallos silenciosos. |
-| P13 | ~~Ajustes~~ | **Resuelto**: guardar crea la clave si falta. | — |
+| # | Qué pasa | Impacto |
+|---|---|---|
+| K1 | El panel **recalcula** el coste de los pedidos cerrados con los precios de material y ajustes actuales: si cambias un €/kg o un margen, cambia el beneficio histórico. | Cifras históricas inestables. Mejora prevista: congelar el coste al completar. |
+| K2 | Los pedidos importados (`costOverride`) no conocen su parte de pintura: su beneficio «teórico» es igual al real. | Objetivo algo infravalorado. |
+| K3 | Editar una pieza sobrescribe su stock con las «unidades por paquete». | Se pierde el stock real si se usa mal. |
+| K4 | El stock de material puede quedar negativo al completar o registrar mermas (solo hay aviso en el formulario). | Inventario incoherente sin aviso. |
+| K5 | Si una pieza se elimina del catálogo, desaparece de los pedidos que la tenían al editarlos. | Pérdida silenciosa en casos raros. |
+| K6 | No hay forma de reabrir un pedido completado por error (decisión deliberada: el material ya se descontó). | Hay que borrarlo y recrearlo. |
+| K7 | Los clientes no se pueden borrar; un cliente con pedidos no tiene restricción. | — |
