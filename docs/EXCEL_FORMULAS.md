@@ -1,4 +1,6 @@
-# Fórmulas del Excel (`Finanza.ods`) — referencia para la app
+# Fórmulas del Excel (`Finanza.ods`) — referencia histórica
+
+> **Desde el 24-nov-2026 la app ya no usa estas fórmulas.** El usuario decidió olvidar el Excel y pasar a un modelo más simple y fácil de configurar (ver [`SPEC.md`](SPEC.md) §4.2). Este documento se conserva para **importar los datos históricos** de la hoja (columnas, estados, lotes) y para entender los costes y precios antiguos. Las secciones 2–4 describen las fórmulas de la hoja, no las de la app.
 
 > Transcripción de la hoja de cálculo con la que se llevan hoy los pedidos. Es la **fuente de verdad** de los cálculos: la app debe acabar dando los mismos números.
 > Verificado: recalculando las filas 139, 142, 143, 144 y 145 con estas fórmulas se obtiene exactamente lo que guarda la hoja.
@@ -100,27 +102,7 @@ Tabla de **materiales/piezas** (AH–AK): nombre, unidades del paquete, precio d
 
 La hoja tiene además un presupuesto personal mensual (ingresos, gastos fijos y beneficio medio de encargos). No forma parte de este documento.
 
-## 6. Decisiones (23-nov-2026) y progreso hacia el 1/1/27
+## 6. Qué queda de este documento
 
-| Pregunta | Decisión |
-|---|---|
-| Q1 multiplicador | `2 + margen/100` (= ×2,15). La hoja lo calcula mal (×2,0015) porque `S` está guardado como 0,15 y la fórmula espera 15. |
-| Q3 material | Por placa. El recargo usa la media de tarifas de las placas. |
-| Q2 estados | Se mantienen los 6 de la app. Al importar: 0 → Draft, 1 → In Progress, 2 → Completed. |
-| Pintura (colores) | 3 modos de detalle (pocos ≤ 4 / normal 5–10 / muchos > 10) con importe editable, en lugar del nº de colores. |
-| Q5 beneficio | Panel con beneficio real y teórico, objetivo (5.000 € configurable) y ratio mensual. |
-
-Preguntas todavía abiertas: **Q6** (piezas: hoy suman al coste y al precio con margen, provisional), **Q7** (lotes con cantidad) y **Q8** (importar los ~140 pedidos históricos: ver plan).
-
-| Paso | Estado |
-|---|---|
-| Esquema v3/v4 y migraciones (intentos, pintura, coste fijo, ajustes) | ✅ hecho, con tests y copia de seguridad |
-| `PricingCalculator` con las fórmulas del Excel | ✅ hecho; coste (Z) coincide con 5 pedidos reales y precio con la fórmula corregida |
-| Formulario de pedido (intentos, pintura, resumen de precio) y Administración (8 ajustes) | ✅ hecho |
-| Panel: beneficio real/teórico, objetivo, detalle mensual, pendientes de cobro | ✅ hecho (coste recalculado, o fijo si el pedido lo trae) |
-| Arreglos de stock y datos de la revisión de nov-2026 | ✅ hecho, con tests de invariantes |
-| Importador de pedidos y materiales del Excel (con informe de cuadre) | ⏳ pendiente |
-| Congelar el coste al completar (estabilidad del histórico) | ⏳ pendiente (K1 de SPEC) |
-| Ensayo en paralelo con el Excel | ⏳ pendiente |
-
-Los pedidos importados conservarán su **precio cobrado y su coste tal como están en la hoja** (`cost_override`), sin recalcular con la fórmula nueva, porque las filas antiguas usan fórmulas distintas.
+- La **migración de datos** del Excel a la app (pedidos y materiales históricos) sigue pendiente: al importar, cada pedido conservará su precio cobrado y su coste tal como estaban en la hoja (`cost_override`), sin recalcular con el modelo nuevo. Los estados 0/1/2 se mapearán a Borrador / En curso / Completado, y los colores de pintura ya no se usan.
+- Todas las decisiones sobre fórmulas (multiplicador ×2,15, material por placa, luz amortiguada, detalle de pintura…) quedaron **reemplazadas por el modelo simple** de `SPEC.md` §4.2.

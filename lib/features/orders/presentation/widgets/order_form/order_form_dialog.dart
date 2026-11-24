@@ -24,7 +24,6 @@ import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_parts.dart';
 import 'package:nesherprints/features/orders/domain/order_rules.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
-import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
 import 'package:nesherprints/features/orders/presentation/status_style.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_form/extras_section.dart';
@@ -85,7 +84,6 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   // Estado del formulario
   OrderStatus _status = OrderStatus.draft;
   bool _isPainted = false;
-  PaintDetail _paintDetail = PaintDetail.normal;
   int? _clientId;
   List<PlateDraft> _plates = [];
 
@@ -158,7 +156,6 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
               : source.name;
           _status = duplicating ? OrderStatus.draft : source.status;
           _isPainted = source.isPainted;
-          _paintDetail = source.paintDetail;
           _clientId = source.clientId;
           _priceController.text = source.price.toStringAsFixed(2);
           _paidController.text = duplicating
@@ -196,16 +193,12 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     setState(() {
       _estimate = PricingCalculator.estimate(
         plates: [for (final p in _plates) p.toPricing()],
-        materials: {
-          for (final m in _materials)
-            m.id!: PricingMaterial(costPerKg: m.costPerKg, kind: m.kind),
-        },
+        materialCostPerKg: {for (final m in _materials) m.id!: m.costPerKg},
         extraUnitPrices: _extraPrices,
         selectedExtras: _selectedExtras,
         attempts: _attempts,
         isPainted: _isPainted,
         paintHours: parseDecimal(_paintHoursController.text),
-        paintDetail: _paintDetail,
         settings: _settings,
       );
       if (_attempted) _errors = _validate();
@@ -311,7 +304,6 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       notes: initial?.notes ?? '',
       attempts: _attempts,
       paintHours: parseDecimal(_paintHoursController.text),
-      paintDetail: _paintDetail,
       costOverride: initial?.costOverride,
     );
   }
@@ -701,53 +693,17 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
           ),
           if (_isPainted) ...[
             const SizedBox(height: AppSpacing.md),
-            _ResponsiveRow(
-              flexes: const [2, 3],
-              children: [
-                TextField(
-                  controller: _paintHoursController,
-                  readOnly: _isLocked,
-                  keyboardType: decimalKeyboard,
-                  inputFormatters: decimalInputFormatters,
-                  onChanged: (_) => _recalculate(),
-                  decoration: const InputDecoration(
-                    labelText: AppStrings.paintHoursLabel,
-                    suffixText: 'h',
-                  ),
-                ),
-                SegmentedButton<PaintDetail>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(
-                      value: PaintDetail.few,
-                      label: Text(AppStrings.paintDetailFewShort),
-                      tooltip: AppStrings.paintDetailFew,
-                    ),
-                    ButtonSegment(
-                      value: PaintDetail.normal,
-                      label: Text(AppStrings.paintDetailNormalShort),
-                      tooltip: AppStrings.paintDetailNormal,
-                    ),
-                    ButtonSegment(
-                      value: PaintDetail.many,
-                      label: Text(AppStrings.paintDetailManyShort),
-                      tooltip: AppStrings.paintDetailMany,
-                    ),
-                  ],
-                  selected: {_paintDetail},
-                  onSelectionChanged: _isLocked
-                      ? null
-                      : (s) {
-                          _paintDetail = s.first;
-                          _recalculate();
-                        },
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            const Text(
-              AppStrings.paintDetailHint,
-              style: AppTextStyles.mutedSmall,
+            TextField(
+              controller: _paintHoursController,
+              readOnly: _isLocked,
+              keyboardType: decimalKeyboard,
+              inputFormatters: decimalInputFormatters,
+              onChanged: (_) => _recalculate(),
+              decoration: const InputDecoration(
+                labelText: AppStrings.paintHoursLabel,
+                helperText: AppStrings.paintHoursHelp,
+                suffixText: 'h',
+              ),
             ),
           ],
         ],

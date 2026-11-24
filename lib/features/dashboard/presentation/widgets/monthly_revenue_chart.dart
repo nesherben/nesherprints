@@ -96,7 +96,7 @@ class MonthlyRevenueChart extends StatelessWidget {
                       formatEuro(stats.gross),
                     )
                   : AppStrings.chartTooltipProfit(
-                      formatEuro(stats.realProfit),
+                      formatEuro(stats.profit),
                       formatPercent(stats.ratio),
                     ),
               const TextStyle(
@@ -158,7 +158,7 @@ class MonthlyRevenueChart extends StatelessWidget {
             barsSpace: 4,
             barRods: [
               rod(monthly[months[i]]!.gross, AppColors.primary),
-              rod(monthly[months[i]]!.realProfit, AppColors.success),
+              rod(monthly[months[i]]!.profit, AppColors.success),
             ],
           ),
       ],

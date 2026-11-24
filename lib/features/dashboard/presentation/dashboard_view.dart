@@ -17,7 +17,6 @@ import 'package:nesherprints/features/dashboard/presentation/widgets/pending_lis
 import 'package:nesherprints/features/dashboard/presentation/widgets/status_pie_chart.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_costing.dart';
-import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
 
 /// Panel: indicadores del negocio, objetivo, histórico mensual, reparto por
 /// estado y cobros pendientes.
@@ -59,10 +58,7 @@ class _DashboardViewState extends State<DashboardView> {
       final waste = await ServiceLocator.orders.getAllWaste();
       if (!mounted || generation != _generation) return;
 
-      final pricingMaterials = {
-        for (final m in materials)
-          m.id!: PricingMaterial(costPerKg: m.costPerKg, kind: m.kind),
-      };
+      final costPerKg = {for (final m in materials) m.id!: m.costPerKg};
       final costs = {
         for (final o in widget.orders)
           if (o.order.status.countsAsRevenue)
@@ -70,7 +66,7 @@ class _DashboardViewState extends State<DashboardView> {
               order: o.order,
               plates: plates[o.id] ?? const [],
               extras: extraLines[o.id] ?? const [],
-              materials: pricingMaterials,
+              materialCostPerKg: costPerKg,
               settings: settings,
             ),
       };
@@ -169,9 +165,9 @@ class _KpiGrid extends StatelessWidget {
       ),
       KpiCard(
         title: AppStrings.kpiNetProfit,
-        value: formatEuro(summary.realProfit),
+        value: formatEuro(summary.profit),
         icon: Icons.savings_outlined,
-        color: summary.realProfit >= 0 ? AppColors.success : AppColors.danger,
+        color: summary.profit >= 0 ? AppColors.success : AppColors.danger,
         subtitle: AppStrings.marginOnRevenue(
           formatPercent(summary.ratio, decimals: 1),
         ),
@@ -192,7 +188,7 @@ class _KpiGrid extends StatelessWidget {
         color: goalReached ? AppColors.success : AppColors.info,
         progress: summary.goalProgress,
         subtitle: AppStrings.goalOf(
-          formatEuro(summary.theoreticalProfit, decimals: 0),
+          formatEuro(summary.profit, decimals: 0),
           formatEuro(summary.profitGoal, decimals: 0),
         ),
       ),

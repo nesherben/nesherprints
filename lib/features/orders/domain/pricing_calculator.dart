@@ -1,7 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:nesherprints/features/inventory/domain/print_material.dart';
-import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
 /// Datos de una placa necesarios para el cálculo.
@@ -17,55 +15,52 @@ class PricingPlate {
   final double minutes;
 }
 
-/// Datos de un material necesarios para el cálculo.
-class PricingMaterial {
-  const PricingMaterial({required this.costPerKg, required this.kind});
-
-  final double costPerKg;
-  final MaterialKind kind;
-}
-
 /// Resultado de la estimación de un pedido.
 class PriceEstimate {
   const PriceEstimate({
     required this.materialCost,
-    required this.electricityCost,
-    required this.plateFee,
+    required this.machineCost,
+    required this.platesCost,
     required this.paintCost,
     required this.extrasCost,
-    required this.cost,
     required this.suggestedPrice,
+    required this.minimumApplied,
   });
 
   static const zero = PriceEstimate(
     materialCost: 0,
-    electricityCost: 0,
-    plateFee: 0,
+    machineCost: 0,
+    platesCost: 0,
     paintCost: 0,
     extrasCost: 0,
-    cost: 0,
     suggestedPrice: 0,
+    minimumApplied: false,
   );
 
-  /// Material de las placas (a la primera, sin multiplicar por intentos).
+  /// Material de las placas × intentos.
   final double materialCost;
 
-  /// Luz de toda la impresión (lineal, a la primera).
-  final double electricityCost;
+  /// Máquina (electricidad y desgaste por hora de impresión) × intentos.
+  final double machineCost;
 
-  /// Recargo por placas extra.
-  final double plateFee;
+  /// Preparación y retirada de las placas.
+  final double platesCost;
 
-  /// Pintura, con el margen de seguridad.
+  /// Pintura (horas × tarifa).
   final double paintCost;
+
+  /// Piezas extra.
   final double extrasCost;
 
-  /// Coste real de fabricación (`Z` en el Excel): material y luz × intentos,
-  /// más recargo de placas, con margen de seguridad, más pintura y piezas.
-  final double cost;
-
-  /// Precio recomendado (`F` en el Excel).
+  /// Precio recomendado: `coste × (1 + margen)`, nunca menos que el mínimo.
   final double suggestedPrice;
+
+  /// `true` si el recomendado es el precio mínimo (el cálculo salía menor).
+  final bool minimumApplied;
+
+  /// Coste real de fabricación: suma de todos los conceptos.
+  double get cost =>
+      materialCost + machineCost + platesCost + paintCost + extrasCost;
 }
 
 /// Semáforo del precio final frente al coste y al recomendado.
@@ -93,115 +88,71 @@ enum PriceHealth {
   }
 }
 
-/// Motor de precios. Transcribe las fórmulas de `Finanza.ods`
-/// (ver docs/EXCEL_FORMULAS.md).
+/// Motor de precios. Modelo (detalle en docs/SPEC.md §4.2):
+///
+/// ```
+/// material = Σ gramos/1000 × €/kg × intentos
+/// máquina  = horas × (kW × €/kWh + desgaste €/h) × intentos
+/// placas   = nº de placas × coste por placa
+/// pintura  = pintado ? horas de pintura × €/h : 0
+/// piezas   = Σ precio × cantidad
+/// COSTE        = material + máquina + placas + pintura + piezas
+/// RECOMENDADO  = max(mínimo, COSTE × (1 + margen/100))
+/// ```
 class PricingCalculator {
   PricingCalculator._();
 
-  /// Horas por placa a partir de las cuales la luz se amortigua.
-  static const double lightDampingHours = 12;
-  static const double lightDampingFactor = 15;
-
-  /// Horas por placa a partir de las cuales el precio sube por impresión larga.
-  static const double longPrintHours = 8;
-  static const double longPrintFactor = 0.085;
-
-  /// Cada placa extra encarece el recargo un 10 %.
-  static const double plateFeeGrowth = 0.1;
-
-  /// Estima coste real y precio recomendado.
+  /// Estima coste y precio recomendado.
   ///
-  /// - [materials]: coste €/kg y tipo por id de material.
+  /// - [materialCostPerKg]: coste €/kg por id de material.
   /// - [extraUnitPrices]: precio unitario por id de pieza.
   /// - [selectedExtras]: cantidad por id de pieza.
-  /// - [attempts]: 1 = a la primera; 1,3 = +30 % de material y luz por fallos.
-  ///
-  /// Con varios materiales, el recargo por placa usa la media de las tarifas
-  /// de las placas (el Excel solo admite un tipo por pedido).
+  /// - [attempts]: 1 = a la primera; 1,3 = +30 % de material y máquina por
+  ///   impresiones falladas.
   static PriceEstimate estimate({
     required List<PricingPlate> plates,
-    required Map<int, PricingMaterial> materials,
+    required Map<int, double> materialCostPerKg,
     required Map<int, double> extraUnitPrices,
     required Map<int, int> selectedExtras,
     required double attempts,
     required bool isPainted,
     required double paintHours,
-    required PaintDetail paintDetail,
     required PricingSettings settings,
   }) {
-    if (plates.isEmpty && selectedExtras.isEmpty && !isPainted) {
-      return PriceEstimate.zero;
-    }
-
-    final count = plates.length;
-    var materialCost = 0.0;
-    var totalMinutes = 0.0;
-    var feeSum = 0.0;
+    var material = 0.0;
+    var minutes = 0.0;
     for (final plate in plates) {
-      final material = materials[plate.materialId];
-      if (material != null) {
-        materialCost += plate.grams / 1000 * material.costPerKg;
-      }
-      totalMinutes += plate.minutes;
-      feeSum += material?.kind == MaterialKind.resin
-          ? settings.resinPlateFee
-          : settings.filamentPlateFee;
+      final costPerKg = materialCostPerKg[plate.materialId];
+      if (costPerKg != null) material += plate.grams / 1000 * costPerKg;
+      minutes += plate.minutes;
     }
-    final hours = totalMinutes / 60;
-    final hoursPerPlate = count == 0 ? 0.0 : hours / count;
 
-    final averageFee = count == 0 ? 0.0 : feeSum / count;
-    final plateFee = math.max(
-      0.0,
-      (count - 1) * averageFee * (1 + plateFeeGrowth * (count - 1)),
-    );
-
-    final safety = 1 + settings.safetyMarginPercent / 100;
-    final paintCost = isPainted
-        ? (paintHours * settings.paintingCostPerHour +
-                  settings.paintDetailCost(paintDetail)) *
-              safety
-        : 0.0;
-    final extrasCost = [
+    final extras = [
       for (final e in selectedExtras.entries)
         (extraUnitPrices[e.key] ?? 0) * e.value,
     ].fold(0.0, (a, b) => a + b);
 
-    // Coste real (Z): luz lineal y material, ambos × intentos.
-    final electricityCost = hours * settings.kwhCost;
-    final cost =
-        math.max(
-          0.0,
-          (materialCost * attempts + electricityCost * attempts + plateFee) *
-                  safety +
-              paintCost,
-        ) +
-        extrasCost;
+    final costs = PriceEstimate(
+      materialCost: material * attempts,
+      machineCost: minutes / 60 * settings.machineCostPerPrintHour * attempts,
+      platesCost: plates.length * settings.plateCost,
+      paintCost: isPainted ? paintHours * settings.paintingCostPerHour : 0,
+      extrasCost: extras,
+      suggestedPrice: 0,
+      minimumApplied: false,
+    );
 
-    // Precio recomendado (F): material ×2, luz amortigurada, recargo de
-    // impresión larga y multiplicador 2 + margen.
-    final dampedHours = hoursPerPlate <= lightDampingHours
-        ? hoursPerPlate
-        : lightDampingHours +
-              lightDampingFactor * math.log(hoursPerPlate / lightDampingHours);
-    final longPrint = hoursPerPlate <= longPrintHours
-        ? 1.0
-        : 1 + longPrintFactor * math.log(hoursPerPlate / longPrintHours);
-    final base =
-        (materialCost * 2 + count * dampedHours * settings.kwhCost + plateFee) *
-        longPrint;
-    final profit = settings.profitMarginPercent / 100;
-    final suggestedPrice =
-        base * (2 + profit) + paintCost + extrasCost * (1 + profit);
-
+    final cost = costs.cost;
+    if (cost <= 0) return costs;
+    final withMargin = cost * (1 + settings.profitMarginPercent / 100);
     return PriceEstimate(
-      materialCost: materialCost,
-      electricityCost: electricityCost,
-      plateFee: plateFee,
-      paintCost: paintCost,
-      extrasCost: extrasCost,
-      cost: cost,
-      suggestedPrice: suggestedPrice,
+      materialCost: costs.materialCost,
+      machineCost: costs.machineCost,
+      platesCost: costs.platesCost,
+      paintCost: costs.paintCost,
+      extrasCost: costs.extrasCost,
+      suggestedPrice: math.max(settings.minimumPrice, withMargin),
+      minimumApplied: settings.minimumPrice > withMargin,
     );
   }
 }

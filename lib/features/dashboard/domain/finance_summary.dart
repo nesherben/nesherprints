@@ -1,5 +1,4 @@
 import 'package:nesherprints/features/orders/domain/order.dart';
-import 'package:nesherprints/features/orders/domain/order_costing.dart';
 import 'package:nesherprints/features/orders/domain/order_parts.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
 
@@ -8,39 +7,22 @@ const String kNoDateMonth = 'Sin fecha';
 
 /// Totales de un mes (`YYYY-MM`).
 class MonthStats {
-  const MonthStats({
-    this.orders = 0,
-    this.gross = 0,
-    this.cost = 0,
-    this.paintCost = 0,
-  });
+  const MonthStats({this.orders = 0, this.gross = 0, this.cost = 0});
 
   final int orders;
   final double gross;
   final double cost;
 
-  /// Parte del coste que es pintura.
-  final double paintCost;
+  /// Beneficio: facturado − coste.
+  double get profit => gross - cost;
 
-  /// Beneficio real: facturado − coste.
-  double get realProfit => gross - cost;
+  /// Beneficio sobre lo facturado (0–1; 0 si no se facturó nada).
+  double get ratio => gross > 0 ? profit / gross : 0;
 
-  /// Beneficio «teórico»: el real más la pintura (la pintura se cobra
-  /// aparte, como en la columna `AB` del Excel).
-  double get theoreticalProfit => realProfit + paintCost;
-
-  /// Beneficio real sobre lo facturado (0–1; 0 si no se facturó nada).
-  double get ratio => gross > 0 ? realProfit / gross : 0;
-
-  MonthStats add({
-    required double gross,
-    required double cost,
-    required double paintCost,
-  }) => MonthStats(
+  MonthStats add({required double gross, required double cost}) => MonthStats(
     orders: orders + 1,
     gross: this.gross + gross,
     cost: this.cost + cost,
-    paintCost: this.paintCost + paintCost,
   );
 }
 
@@ -65,7 +47,6 @@ class FinanceSummary {
     required this.completedOrders,
     required this.grossRevenue,
     required this.cost,
-    required this.paintCost,
     required this.pendingCollection,
     required this.profitGoal,
     required this.monthly,
@@ -84,7 +65,6 @@ class FinanceSummary {
 
   /// Coste real de esos pedidos.
   final double cost;
-  final double paintCost;
 
   /// Deuda pendiente de pedidos que no son borrador ni cancelados.
   final double pendingCollection;
@@ -107,21 +87,22 @@ class FinanceSummary {
   final double wasteGrams;
   final int wasteRecords;
 
-  double get realProfit => grossRevenue - cost;
-  double get theoreticalProfit => realProfit + paintCost;
+  /// Beneficio: facturado − coste real.
+  double get profit => grossRevenue - cost;
 
-  /// Beneficio real sobre lo facturado (0–1).
-  double get ratio => grossRevenue > 0 ? realProfit / grossRevenue : 0;
+  /// Beneficio sobre lo facturado (0–1).
+  double get ratio => grossRevenue > 0 ? profit / grossRevenue : 0;
 
-  /// Avance hacia el objetivo (beneficio teórico / objetivo; puede pasar de 1).
-  double get goalProgress =>
-      profitGoal > 0 ? theoreticalProfit / profitGoal : 0;
+  /// Avance hacia el objetivo (beneficio / objetivo; puede pasar de 1).
+  double get goalProgress => profitGoal > 0 ? profit / profitGoal : 0;
 
   int get totalOrders => statusCounts.values.fold(0, (a, b) => a + b);
 
+  /// [costs]: coste real por número de pedido (solo hace falta para los
+  /// pedidos que cuentan como ingreso; si falta uno se toma 0).
   static FinanceSummary compute({
     required List<OrderSummary> orders,
-    required Map<int, OrderCost> costs,
+    required Map<int, double> costs,
     required Map<int, double> materialCostPerKg,
     required List<WasteRecord> waste,
     required double profitGoal,
@@ -130,7 +111,7 @@ class FinanceSummary {
     final monthly = <String, MonthStats>{};
     final pending = <PendingOrder>[];
     var completed = 0;
-    var gross = 0.0, cost = 0.0, paint = 0.0, receivable = 0.0;
+    var gross = 0.0, cost = 0.0, receivable = 0.0;
 
     for (final summary in orders) {
       final o = summary.order;
@@ -149,20 +130,16 @@ class FinanceSummary {
       }
 
       if (o.status.countsAsRevenue) {
-        final orderCost = costs[summary.id];
-        final c = orderCost?.cost ?? 0;
-        final p = orderCost?.paintCost ?? 0;
+        final c = costs[summary.id] ?? 0;
         completed++;
         gross += o.price;
         cost += c;
-        paint += p;
         final month = o.date.length >= 7
             ? o.date.substring(0, 7)
             : kNoDateMonth;
         monthly[month] = (monthly[month] ?? const MonthStats()).add(
           gross: o.price,
           cost: c,
-          paintCost: p,
         );
       }
     }
@@ -179,7 +156,6 @@ class FinanceSummary {
       completedOrders: completed,
       grossRevenue: gross,
       cost: cost,
-      paintCost: paint,
       pendingCollection: receivable,
       profitGoal: profitGoal,
       monthly: {for (final m in months) m: monthly[m]!},

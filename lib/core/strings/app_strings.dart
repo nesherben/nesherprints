@@ -172,10 +172,6 @@ class AppStrings {
   static const totalPlatesAuto = 'Total Placas (Automático)';
   static const paintServiceTitle = 'Servicio de Pintura';
   static const paintHoursLabel = 'Horas Pintura';
-  static const paintDetailLabel = 'Detalle de la pintura';
-  static const paintDetailFew = 'Pocos (≤ 4 colores)';
-  static const paintDetailNormal = 'Normal (5–10)';
-  static const paintDetailMany = 'Muchos (> 10)';
   static const attemptsLabel = 'Intentos (1 = a la primera)';
   static const costManufacture = 'Coste Fabricación';
   static const suggestedPrice = 'Precio recomendado';
@@ -248,8 +244,6 @@ class AppStrings {
       '${plates == 1 ? '1 placa' : '$plates placas'} · $time · '
       '${grams.toStringAsFixed(0)} g';
   static const lineMaterial = 'Material';
-  static const lineElectricity = 'Luz';
-  static const linePlateFee = 'Recargo por placas';
   static const linePaint = 'Pintura';
   static const lineExtras = 'Piezas';
   static String attemptsNote(String attempts) =>
@@ -282,12 +276,6 @@ class AppStrings {
       'descontó del inventario.';
   static const attemptsHelp =
       'Reimpresiones por fallos: sube el coste, no el precio recomendado.';
-  static const paintServiceHint = 'Suma horas y material de pintura';
-  static const paintDetailFewShort = 'Pocos';
-  static const paintDetailNormalShort = 'Normal';
-  static const paintDetailManyShort = 'Muchos';
-  static const paintDetailHint =
-      'Detalle de la pieza: pocos ≤ 4 colores, normal 5–10, muchos > 10.';
 
   // ==================== PEDIDOS: MERMA ====================
   static const wasteDialogTitle = 'Registrar Merma';
@@ -380,6 +368,38 @@ class AppStrings {
       '${clientOrders(count)} · $billed facturado';
   static String clientOwes(String amount) => 'Debe $amount';
 
+  // ==================== MODELO DE PRECIOS SIMPLE ====================
+  static const lineMachine = 'Máquina';
+  static const linePlates = 'Placas';
+  static const minimumNote = 'Se aplica el precio mínimo';
+  static const paintServiceHint = 'Horas de trabajo × tarifa de pintura';
+  static const paintHoursHelp = 'La tarifa ya incluye el material';
+  static const settingsGroupProduction = 'Producción';
+  static const settingsGroupProductionHint =
+      'Máquina y preparación de cada placa.';
+  static const profitMarginHint =
+      'Se suma al coste. Con 150 %, un coste de 10 € da un precio '
+      'recomendado de 25 €.';
+  static const minimumPriceLabel = 'Precio mínimo';
+  static const minimumPriceHint =
+      'El precio recomendado nunca baja de esto (piezas muy pequeñas).';
+  static const kwhPriceLabel = 'Precio de la electricidad';
+  static const kwhPriceHint =
+      'Lo que pagas por kWh. La impresora consume unos 0,25 kW de media.';
+  static const machineCostLabel = 'Coste de la máquina';
+  static const machineCostHint =
+      'Desgaste y amortización aproximados por hora de impresión, sin '
+      'contar la luz.';
+  static const plateCostLabel = 'Coste por placa';
+  static const plateCostHint =
+      'Preparar, laminar y retirar cada placa. Se cobra por cada placa.';
+  static const paintingCostHint =
+      'Euros por hora de pintura, con el material incluido.';
+  static const unitEuroPerHour = '€/h';
+  static const unitEuroPerKwh = '€/kWh';
+  static const settingsExampleHint =
+      '1 placa de 100 g a 20 €/kg, 8 h de impresión, sin pintura ni piezas.';
+
   // ==================== ADMINISTRACIÓN (AJUSTES) ====================
   static const settingsTitle = 'Administración';
   static const settingsSubtitle =
@@ -403,51 +423,22 @@ class AppStrings {
   static const settingsErrorTooBig = 'Máximo 1000';
 
   static const settingsGroupPrice = 'Precio';
-  static const settingsGroupPriceHint = 'Cuánto se gana sobre el coste.';
-  static const settingsGroupEnergy = 'Energía y placas';
-  static const settingsGroupEnergyHint = 'Luz y recargo por placa extra.';
+  static const settingsGroupPriceHint = 'Cuánto ganas sobre el coste.';
   static const settingsGroupPaint = 'Pintura';
-  static const settingsGroupPaintHint = 'Mano de obra y material de pintado.';
+  static const settingsGroupPaintHint = 'Tarifa por hora de pintura.';
   static const settingsGroupGoals = 'Objetivos';
   static const settingsGroupGoalsHint = 'Meta que se muestra en el panel.';
 
   static const profitMarginLabel = 'Margen de beneficio';
-  static const profitMarginHint =
-      'El precio recomendado se multiplica por 2 + este margen. Con 15 % '
-      'se multiplica por 2,15.';
-  static const safetyMarginLabel = 'Margen de seguridad del coste';
-  static const safetyMarginHint =
-      'Se suma al coste real (material, luz y pintura) para cubrir '
-      'imprevistos. Sube el coste y el precio recomendado.';
-  static const kwhCostLabel = 'Coste de luz';
-  static const kwhCostHint =
-      'Euros de electricidad por cada hora de impresión.';
-  static const filamentPlateFeeLabel = 'Recargo por placa extra · filamento';
-  static const filamentPlateFeeHint =
-      'Se añade al coste por cada placa a partir de la segunda.';
-  static const resinPlateFeeLabel = 'Recargo por placa extra · resina';
-  static const resinPlateFeeHint =
-      'Igual que el de filamento, para las placas de resina.';
   static const paintingCostLabel = 'Coste de pintado';
-  static const paintingCostHint =
-      'Euros por hora de trabajo de pintura en pedidos pintados.';
-  static const paintDetailFewCostLabel = 'Material · pocos colores (≤ 4)';
-  static const paintDetailNormalCostLabel = 'Material · detalle normal (5–10)';
-  static const paintDetailManyCostLabel = 'Material · muchos colores (> 10)';
-  static const paintDetailCostHint =
-      'Pintura gastada por pedido según el detalle elegido.';
   static const profitGoalLabel = 'Objetivo de beneficio';
   static const profitGoalHint =
       'Beneficio acumulado al que aspiras; el panel mide tu avance.';
 
   static const unitPercent = '%';
   static const unitEuro = '€';
-  static const unitEuroPerHour = '€/h';
 
   static const settingsExampleTitle = 'Ejemplo en vivo';
-  static const settingsExampleHint =
-      '1 placa de 100 g de filamento a 20 €/kg, 2 h de impresión, sin '
-      'pintura ni piezas.';
   static const settingsExampleCost = 'Coste';
   static const settingsExamplePrice = 'Precio recomendado';
   static const settingsExampleInvalid =

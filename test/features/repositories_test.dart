@@ -14,7 +14,6 @@ import 'package:nesherprints/features/orders/data/order_repository.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_parts.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
-import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/settings/data/settings_repository.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
@@ -69,26 +68,27 @@ void main() {
   group('Settings', () {
     test('una BD nueva trae los valores por defecto', () async {
       final s = await settings.getPricingSettings();
-      expect(s.profitMarginPercent, 15);
-      expect(s.safetyMarginPercent, 15);
-      expect(s.paintingCostPerHour, 8);
-      expect(s.kwhCost, 0.0375);
-      expect(s.filamentPlateFee, 0.5);
-      expect(s.resinPlateFee, 1.5);
+      expect(s.profitMarginPercent, 150);
+      expect(s.minimumPrice, 5);
+      expect(s.kwhPrice, 0.15);
+      expect(s.machineCostPerHour, 0.10);
+      expect(s.plateCost, 1);
+      expect(s.paintingCostPerHour, 10);
       expect(s.profitGoal, 5000);
     });
 
     test('guardar y leer', () async {
       await settings.savePricingSettings(
         const PricingSettings(
-          profitMarginPercent: 60,
-          paintingCostPerHour: 10,
-          kwhCost: 0.05,
+          profitMarginPercent: 200,
+          kwhPrice: 0.22,
+          minimumPrice: 8,
         ),
       );
       final s = await settings.getPricingSettings();
-      expect(s.profitMarginPercent, 60);
-      expect(s.kwhCost, 0.05);
+      expect(s.profitMarginPercent, 200);
+      expect(s.kwhPrice, 0.22);
+      expect(s.minimumPrice, 8);
     });
 
     test('guardar crea una clave que faltaba', () async {
@@ -96,10 +96,10 @@ void main() {
       await raw.delete(
         SettingsTable.name,
         where: '${SettingsTable.key} = ?',
-        whereArgs: [SettingKeys.kwhCost],
+        whereArgs: [SettingKeys.kwhPrice],
       );
-      await settings.savePricingSettings(const PricingSettings(kwhCost: 0.07));
-      expect((await settings.getPricingSettings()).kwhCost, 0.07);
+      await settings.savePricingSettings(const PricingSettings(kwhPrice: 0.07));
+      expect((await settings.getPricingSettings()).kwhPrice, 0.07);
     });
   });
 
@@ -187,7 +187,7 @@ void main() {
       expect(await materialStock(matId), 850);
     });
 
-    test('intentos, horas y detalle de pintura se guardan y se leen', () async {
+    test('intentos y horas de pintura se guardan y se leen', () async {
       final id = await orders.create(
         const Order(
           name: 'Pintado',
@@ -197,7 +197,6 @@ void main() {
           isPainted: true,
           attempts: 1.3,
           paintHours: 2.5,
-          paintDetail: PaintDetail.many,
           costOverride: 12.34,
         ),
         plates: const [],
@@ -206,7 +205,6 @@ void main() {
       expect(o.id, id);
       expect(o.attempts, 1.3);
       expect(o.paintHours, 2.5);
-      expect(o.paintDetail, PaintDetail.many);
       expect(o.costOverride, 12.34);
     });
 
@@ -215,7 +213,6 @@ void main() {
       final o = (await orders.getAllWithDetails()).single.order;
       expect(o.attempts, 1);
       expect(o.paintHours, 0);
-      expect(o.paintDetail, PaintDetail.normal);
       expect(o.costOverride, isNull);
     });
 
@@ -301,48 +298,51 @@ void main() {
       "SELECT name FROM sqlite_master WHERE type = 'table'",
     )).map((r) => r['name']).toSet();
 
-    test('v1 → v3 crea las tablas y conserva los datos', () async {
-      final raw = await openOld(1, (db) async {
-        await db.execute(
-          'CREATE TABLE settings (key TEXT UNIQUE, value REAL, '
-          'id INTEGER PRIMARY KEY AUTOINCREMENT)',
-        );
-        await db.insert('settings', {'key': 'margen_beneficio', 'value': 50});
-      });
-      await DbSchema.onUpgrade(raw, 1, DbSchema.version);
-      await DbSchema.onOpen(raw);
-
-      expect(
-        await tablesOf(raw),
-        containsAll([
-          'clients',
-          'orders',
-          'order_plates',
-          'extras',
-          'order_extras',
-          'materials',
-        ]),
-      );
-      final values = await settingsOf(raw);
-      expect(
-        values['margen_beneficio'],
-        50,
-        reason: 'valor editado, se respeta',
-      );
-      expect(values['coste_kwh'], 0.0375);
-      expect(values['coste_pintura_muchos'], 13 / 90);
-      expect(values['tarifa_placa_resina'], 1.5);
-      await raw.close();
-    });
+    const settingsTable =
+        'CREATE TABLE settings (key TEXT UNIQUE, value REAL, '
+        'id INTEGER PRIMARY KEY AUTOINCREMENT)';
 
     test(
-      'v2 → v3 añade columnas y actualiza solo los valores por defecto antiguos',
+      'v1 → v5 crea las tablas y deja el margen en su valor por defecto',
+      () async {
+        final raw = await openOld(1, (db) async {
+          await db.execute(settingsTable);
+          await db.insert('settings', {'key': 'margen_beneficio', 'value': 50});
+        });
+        await DbSchema.onUpgrade(raw, 1, DbSchema.version);
+        await DbSchema.onOpen(raw);
+
+        expect(
+          await tablesOf(raw),
+          containsAll([
+            'clients',
+            'orders',
+            'order_plates',
+            'extras',
+            'order_extras',
+            'materials',
+          ]),
+        );
+        final values = await settingsOf(raw);
+        expect(
+          values['margen_beneficio'],
+          150,
+          reason:
+              'el margen cambió de significado: vuelve al valor por defecto',
+        );
+        expect(values['precio_kwh'], 0.15);
+        expect(values['coste_maquina_hora'], 0.10);
+        expect(values['coste_placa'], 1);
+        expect(values['precio_minimo'], 5);
+        await raw.close();
+      },
+    );
+
+    test(
+      'v2 → v5 añade columnas, respeta ajustes editados y conserva los pedidos',
       () async {
         final raw = await openOld(2, (db) async {
-          await db.execute(
-            'CREATE TABLE settings (key TEXT UNIQUE, value REAL, '
-            'id INTEGER PRIMARY KEY AUTOINCREMENT)',
-          );
+          await db.execute(settingsTable);
           await db.insert('settings', {'key': 'margen_beneficio', 'value': 45});
           await db.insert('settings', {
             'key': 'coste_hora_pintado',
@@ -355,8 +355,8 @@ void main() {
           await db.execute(
             'CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, '
             'client_id INTEGER, name TEXT NOT NULL, price REAL NOT NULL, '
-            'paid_amount REAL DEFAULT 0.0, date TEXT NOT NULL, status TEXT NOT NULL, '
-            'is_painted INTEGER NOT NULL, notes TEXT)',
+            'paid_amount REAL DEFAULT 0.0, date TEXT NOT NULL, '
+            'status TEXT NOT NULL, is_painted INTEGER NOT NULL, notes TEXT)',
           );
           await db.insert('orders', {
             'name': 'Antiguo',
@@ -370,11 +370,7 @@ void main() {
         await DbSchema.onOpen(raw);
 
         final values = await settingsOf(raw);
-        expect(
-          values['margen_beneficio'],
-          15,
-          reason: '45 era el valor por defecto antiguo',
-        );
+        expect(values['margen_beneficio'], 150);
         expect(
           values['coste_hora_pintado'],
           12,
@@ -383,115 +379,69 @@ void main() {
         expect(
           values['coste_placa_extra'],
           2.5,
-          reason: 'obsoleta pero se conserva',
+          reason: 'obsoleta, se conserva',
         );
-        expect(values['margen_seguridad'], 15);
 
         final order = (await raw.query('orders')).single;
         expect(order['name'], 'Antiguo');
         expect(order['attempts'], 1);
         expect(order['paint_hours'], 0);
-        expect(order['paint_detail'], 'normal');
         expect(order['cost_override'], isNull);
 
         // Reaplicar la migración no falla ni duplica nada.
+        final before = (await settingsOf(raw)).length;
         await DbSchema.onUpgrade(raw, 2, DbSchema.version);
-        // 10 ajustes de la calculadora + la clave obsoleta de placa extra.
-        expect((await settingsOf(raw)).length, 11);
+        expect((await settingsOf(raw)).length, before);
         await raw.close();
       },
     );
 
-    test('v3 → v4 convierte los colores al modo de detalle', () async {
-      final raw = await openOld(3, (db) async {
-        await db.execute(
-          'CREATE TABLE settings (key TEXT UNIQUE, value REAL, '
-          'id INTEGER PRIMARY KEY AUTOINCREMENT)',
-        );
-        await db.insert('settings', {
-          'key': 'coste_unidad_color',
-          'value': 1 / 90,
-        });
-        await db.execute(
-          'CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, '
-          'client_id INTEGER, name TEXT NOT NULL, price REAL NOT NULL, '
-          'paid_amount REAL DEFAULT 0.0, date TEXT NOT NULL, '
-          'status TEXT NOT NULL, is_painted INTEGER NOT NULL, notes TEXT, '
-          'attempts REAL NOT NULL DEFAULT 1, '
-          'paint_hours REAL NOT NULL DEFAULT 0, '
-          'paint_colors REAL NOT NULL DEFAULT 0, cost_override REAL)',
-        );
-        for (final (name, colors) in [
-          ('sin colores', 0),
-          ('cuatro', 4),
-          ('cinco', 5),
-          ('diez', 10),
-          ('once', 11),
-          ('catorce', 14),
-        ]) {
+    test(
+      'v4 → v5 conserva los ajustes y el detalle de pintura antiguos',
+      () async {
+        final raw = await openOld(4, (db) async {
+          await db.execute(settingsTable);
+          for (final (key, value) in [
+            ('margen_beneficio', 15.0),
+            ('margen_seguridad', 15.0),
+            ('coste_kwh', 0.0375),
+            ('coste_hora_pintado', 8.0),
+            ('coste_pintura_normal', 0.1),
+            ('objetivo_beneficio', 4000.0),
+          ]) {
+            await db.insert('settings', {'key': key, 'value': value});
+          }
+          await db.execute(
+            'CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+            'client_id INTEGER, name TEXT NOT NULL, price REAL NOT NULL, '
+            'paid_amount REAL DEFAULT 0.0, date TEXT NOT NULL, '
+            'status TEXT NOT NULL, is_painted INTEGER NOT NULL, notes TEXT, '
+            'attempts REAL NOT NULL DEFAULT 1, '
+            'paint_hours REAL NOT NULL DEFAULT 2, '
+            'paint_colors REAL NOT NULL DEFAULT 0, cost_override REAL, '
+            "paint_detail TEXT NOT NULL DEFAULT 'normal')",
+          );
           await db.insert('orders', {
-            'name': name,
-            'price': 1,
-            'date': '2026-01-01',
+            'name': 'Pintado',
+            'price': 50,
+            'date': '2026-11-01',
             'status': 'Draft',
             'is_painted': 1,
-            'paint_colors': colors,
+            'paint_detail': 'many',
           });
-        }
-      });
-      await DbSchema.onUpgrade(raw, 3, DbSchema.version);
-      await DbSchema.onOpen(raw);
+        });
+        await DbSchema.onUpgrade(raw, 4, DbSchema.version);
+        await DbSchema.onOpen(raw);
 
-      final details = {
-        for (final r in await raw.query('orders'))
-          r['name'] as String: r['paint_detail'] as String,
-      };
-      expect(details, {
-        'sin colores': 'normal',
-        'cuatro': 'few',
-        'cinco': 'normal',
-        'diez': 'normal',
-        'once': 'many',
-        'catorce': 'many',
-      });
-      final values = await settingsOf(raw);
-      expect(values['coste_pintura_pocos'], 3 / 90);
-      expect(
-        values['coste_unidad_color'],
-        1 / 90,
-        reason: 'obsoleta, se conserva',
-      );
-
-      // Reaplicar no pisa lo que el usuario haya cambiado después.
-      await raw.update('orders', {
-        'paint_detail': 'few',
-      }, where: "name = 'catorce'");
-      await DbSchema.onUpgrade(raw, 3, DbSchema.version);
-      expect(
-        (await raw.query(
-          'orders',
-          where: "name = 'catorce'",
-        )).single['paint_detail'],
-        'few',
-      );
-      await raw.close();
-    });
-  });
-
-  group('PaintDetail', () {
-    test('modo según nº de colores del Excel', () {
-      expect(PaintDetail.fromColorCount(1), PaintDetail.few);
-      expect(PaintDetail.fromColorCount(4), PaintDetail.few);
-      expect(PaintDetail.fromColorCount(5), PaintDetail.normal);
-      expect(PaintDetail.fromColorCount(10), PaintDetail.normal);
-      expect(PaintDetail.fromColorCount(11), PaintDetail.many);
-      expect(PaintDetail.fromColorCount(14), PaintDetail.many);
-    });
-
-    test('valores desconocidos se leen como normal', () {
-      expect(PaintDetail.fromDb('few'), PaintDetail.few);
-      expect(PaintDetail.fromDb(null), PaintDetail.normal);
-      expect(PaintDetail.fromDb('???'), PaintDetail.normal);
-    });
+        final values = await settingsOf(raw);
+        expect(values['margen_beneficio'], 150);
+        expect(values['objetivo_beneficio'], 4000, reason: 'se respeta');
+        expect(values['coste_hora_pintado'], 8, reason: 'se respeta');
+        expect(values['coste_kwh'], 0.0375, reason: 'obsoleta, se conserva');
+        expect(values['precio_kwh'], 0.15, reason: 'ajuste nuevo');
+        expect((await raw.query('orders')).single['name'], 'Pintado');
+        await raw.close();
+      },
+    );
   });
 }

@@ -81,15 +81,15 @@ void main() {
     t,
   ) async {
     await open(t);
-    expect(textOf(t, profitField()), '15');
-    expect(textOf(t, field(SettingKeys.kwhCost)), '0.0375');
+    expect(textOf(t, profitField()), '150');
+    expect(textOf(t, field(SettingKeys.kwhPrice)), '0.15');
     expect(textOf(t, field(SettingKeys.profitGoal)), '5000');
     expect(find.text('Todo guardado'), findsOneWidget);
     expect(saveButton(t).onPressed, isNull);
     expect(find.byTooltip('Restaurar este valor'), findsNothing);
     // Ejemplo con los valores de fábrica.
-    expect(find.text('€2.39'), findsOneWidget);
-    expect(find.text('€8.76'), findsOneWidget);
+    expect(find.text('€4.10'), findsOneWidget);
+    expect(find.text('€10.25'), findsOneWidget);
   });
 
   testWidgets('un valor inválido muestra error y deshabilita Guardar', (
@@ -120,8 +120,8 @@ void main() {
       () => ServiceLocator.settings.getPricingSettings(),
     ))!;
     expect(saved.profitMarginPercent, 20.5);
-    expect(saved.safetyMarginPercent, FinanceDefaults.safetyMarginPercent);
-    expect(saved.paintDetailFewCost, FinanceDefaults.paintDetailFewCost);
+    expect(saved.kwhPrice, FinanceDefaults.kwhPrice);
+    expect(saved.minimumPrice, FinanceDefaults.minimumPrice);
     expect(find.text('Todo guardado'), findsOneWidget);
     expect(saveButton(t).onPressed, isNull);
   });
@@ -142,7 +142,7 @@ void main() {
     await settle(t, rounds: 3);
     await t.tap(find.text('Restaurar'));
     await settle(t, rounds: 3);
-    expect(textOf(t, profitField()), '15');
+    expect(textOf(t, profitField()), '150');
     // Los valores por defecto coinciden con lo guardado: sin cambios.
     expect(find.text('Todo guardado'), findsOneWidget);
   });
@@ -153,16 +153,19 @@ void main() {
     await t.ensureVisible(find.byTooltip('Restaurar este valor'));
     await t.tap(find.byTooltip('Restaurar este valor'));
     await t.pump();
-    expect(textOf(t, profitField()), '15');
+    expect(textOf(t, profitField()), '150');
   });
 
   testWidgets('el ejemplo en vivo cambia al editar el margen', (t) async {
     await open(t);
-    expect(find.text('€8.76'), findsOneWidget);
+    expect(find.text('€10.25'), findsOneWidget);
+    await enter(t, profitField(), '100');
+    // 4,10 € de coste × 2 = 8,20 €; el coste no depende del margen.
+    expect(find.text('€8.20'), findsOneWidget);
+    expect(find.text('€4.10'), findsOneWidget);
+    // Con margen 0 el recomendado no baja del precio mínimo (5 €).
     await enter(t, profitField(), '0');
-    // (2 × 2 + 0,075) × 2 = 8,15 €; el coste no depende de este margen.
-    expect(find.text('€8.15'), findsOneWidget);
-    expect(find.text('€2.39'), findsOneWidget);
+    expect(find.text('€5.00'), findsOneWidget);
 
     await enter(t, profitField(), '');
     expect(

@@ -13,8 +13,6 @@ import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
 import 'package:nesherprints/core/widgets/section_card.dart';
 import 'package:nesherprints/core/widgets/status_pill.dart';
-import 'package:nesherprints/features/inventory/domain/print_material.dart';
-import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 import 'package:nesherprints/features/settings/presentation/settings_fields.dart';
@@ -240,7 +238,7 @@ class _SettingsViewState extends State<SettingsView> {
                               children: [
                                 _group(SettingGroup.price),
                                 const SizedBox(height: AppSpacing.md),
-                                _group(SettingGroup.energy),
+                                _group(SettingGroup.production),
                                 const SizedBox(height: AppSpacing.md),
                                 _group(SettingGroup.goals),
                               ],
@@ -377,20 +375,14 @@ class _LiveExample extends StatelessWidget {
     if (s == null) return null;
     return PricingCalculator.estimate(
       plates: const [
-        PricingPlate(materialId: _materialId, grams: 100, minutes: 120),
+        PricingPlate(materialId: _materialId, grams: 100, minutes: 480),
       ],
-      materials: const {
-        _materialId: PricingMaterial(
-          costPerKg: 20,
-          kind: MaterialKind.filament,
-        ),
-      },
+      materialCostPerKg: const {_materialId: 20},
       extraUnitPrices: const {},
       selectedExtras: const {},
       attempts: 1,
       isPainted: false,
       paintHours: 0,
-      paintDetail: PaintDetail.normal,
       settings: s,
     );
   }

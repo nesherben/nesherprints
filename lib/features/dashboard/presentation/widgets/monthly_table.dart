@@ -55,10 +55,10 @@ class MonthlyTable extends StatelessWidget {
                             formatMonth(months[i]),
                             '${stats.orders}',
                             formatEuro(stats.gross),
-                            formatEuro(stats.realProfit),
+                            formatEuro(stats.profit),
                             formatPercent(stats.ratio),
                           ],
-                          profitPositive: stats.realProfit >= 0,
+                          profitPositive: stats.profit >= 0,
                         );
                       },
                     ),

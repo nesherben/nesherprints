@@ -3,38 +3,27 @@ import 'package:nesherprints/features/orders/domain/order_parts.dart';
 import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
-/// Coste de un pedido ya guardado.
-class OrderCost {
-  const OrderCost({required this.cost, required this.paintCost});
-
-  /// Coste real de fabricación (`Z` del Excel).
-  final double cost;
-
-  /// Parte del coste que es pintura (para el beneficio «teórico»).
-  final double paintCost;
-}
-
-/// Calcula el coste de pedidos guardados con las fórmulas de la calculadora.
+/// Calcula el coste real de pedidos ya guardados con la calculadora.
 class OrderCosting {
   OrderCosting._();
 
   /// Coste real de [order].
   ///
-  /// Si el pedido trae un coste fijo ([Order.costOverride], los importados
-  /// del Excel) se usa tal cual y no se conoce la parte de pintura. En otro
-  /// caso se recalcula con sus placas, piezas (a su precio registrado),
-  /// intentos y pintura, y con los ajustes y precios de material **actuales**.
-  static OrderCost of({
+  /// Si el pedido trae un coste fijo ([Order.costOverride], los importados)
+  /// se usa tal cual. En otro caso se recalcula con sus placas, piezas (a su
+  /// precio registrado), intentos y pintura, y con los ajustes y precios de
+  /// material **actuales**.
+  static double of({
     required Order order,
     required List<OrderPlate> plates,
     required List<OrderExtraLine> extras,
-    required Map<int, PricingMaterial> materials,
+    required Map<int, double> materialCostPerKg,
     required PricingSettings settings,
   }) {
     final fixed = order.costOverride;
-    if (fixed != null) return OrderCost(cost: fixed, paintCost: 0);
+    if (fixed != null) return fixed;
 
-    final estimate = PricingCalculator.estimate(
+    return PricingCalculator.estimate(
       plates: [
         for (final p in plates)
           PricingPlate(
@@ -43,7 +32,7 @@ class OrderCosting {
             minutes: p.minutes,
           ),
       ],
-      materials: materials,
+      materialCostPerKg: materialCostPerKg,
       extraUnitPrices: {
         for (final line in extras) line.extraId: line.unitPrice ?? 0,
       },
@@ -51,9 +40,7 @@ class OrderCosting {
       attempts: order.attempts,
       isPainted: order.isPainted,
       paintHours: order.paintHours,
-      paintDetail: order.paintDetail,
       settings: settings,
-    );
-    return OrderCost(cost: estimate.cost, paintCost: estimate.paintCost);
+    ).cost;
   }
 }

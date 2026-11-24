@@ -16,10 +16,10 @@ enum SettingGroup {
     AppStrings.settingsGroupPriceHint,
     Icons.sell_outlined,
   ),
-  energy(
-    AppStrings.settingsGroupEnergy,
-    AppStrings.settingsGroupEnergyHint,
-    Icons.bolt,
+  production(
+    AppStrings.settingsGroupProduction,
+    AppStrings.settingsGroupProductionHint,
+    Icons.precision_manufacturing_outlined,
   ),
   paint(
     AppStrings.settingsGroupPaint,
@@ -55,38 +55,37 @@ enum SettingField {
     FinanceDefaults.profitMarginPercent,
     max: _maxMargin,
   ),
-  safetyMargin(
+  minimumPrice(
     SettingGroup.price,
-    SettingKeys.safetyMargin,
-    AppStrings.safetyMarginLabel,
-    AppStrings.safetyMarginHint,
-    AppStrings.unitPercent,
-    FinanceDefaults.safetyMarginPercent,
-    max: _maxMargin,
+    SettingKeys.minimumPrice,
+    AppStrings.minimumPriceLabel,
+    AppStrings.minimumPriceHint,
+    AppStrings.unitEuro,
+    FinanceDefaults.minimumPrice,
   ),
-  kwhCost(
-    SettingGroup.energy,
-    SettingKeys.kwhCost,
-    AppStrings.kwhCostLabel,
-    AppStrings.kwhCostHint,
+  kwhPrice(
+    SettingGroup.production,
+    SettingKeys.kwhPrice,
+    AppStrings.kwhPriceLabel,
+    AppStrings.kwhPriceHint,
+    AppStrings.unitEuroPerKwh,
+    FinanceDefaults.kwhPrice,
+  ),
+  machineCost(
+    SettingGroup.production,
+    SettingKeys.machineCostPerHour,
+    AppStrings.machineCostLabel,
+    AppStrings.machineCostHint,
     AppStrings.unitEuroPerHour,
-    FinanceDefaults.kwhCost,
+    FinanceDefaults.machineCostPerHour,
   ),
-  filamentFee(
-    SettingGroup.energy,
-    SettingKeys.filamentPlateFee,
-    AppStrings.filamentPlateFeeLabel,
-    AppStrings.filamentPlateFeeHint,
+  plateCost(
+    SettingGroup.production,
+    SettingKeys.plateCost,
+    AppStrings.plateCostLabel,
+    AppStrings.plateCostHint,
     AppStrings.unitEuro,
-    FinanceDefaults.filamentPlateFee,
-  ),
-  resinFee(
-    SettingGroup.energy,
-    SettingKeys.resinPlateFee,
-    AppStrings.resinPlateFeeLabel,
-    AppStrings.resinPlateFeeHint,
-    AppStrings.unitEuro,
-    FinanceDefaults.resinPlateFee,
+    FinanceDefaults.plateCost,
   ),
   paintingCost(
     SettingGroup.paint,
@@ -95,30 +94,6 @@ enum SettingField {
     AppStrings.paintingCostHint,
     AppStrings.unitEuroPerHour,
     FinanceDefaults.paintingCostPerHour,
-  ),
-  paintDetailFew(
-    SettingGroup.paint,
-    SettingKeys.paintDetailFewCost,
-    AppStrings.paintDetailFewCostLabel,
-    AppStrings.paintDetailCostHint,
-    AppStrings.unitEuro,
-    FinanceDefaults.paintDetailFewCost,
-  ),
-  paintDetailNormal(
-    SettingGroup.paint,
-    SettingKeys.paintDetailNormalCost,
-    AppStrings.paintDetailNormalCostLabel,
-    AppStrings.paintDetailCostHint,
-    AppStrings.unitEuro,
-    FinanceDefaults.paintDetailNormalCost,
-  ),
-  paintDetailMany(
-    SettingGroup.paint,
-    SettingKeys.paintDetailManyCost,
-    AppStrings.paintDetailManyCostLabel,
-    AppStrings.paintDetailCostHint,
-    AppStrings.unitEuro,
-    FinanceDefaults.paintDetailManyCost,
   ),
   profitGoal(
     SettingGroup.goals,
@@ -153,7 +128,7 @@ enum SettingField {
   final String suffix;
   final double defaultValue;
 
-  /// Tope opcional (los márgenes).
+  /// Tope opcional (el margen).
   final double? max;
 
   double valueOf(PricingSettings s) => s.toMap()[key]!;

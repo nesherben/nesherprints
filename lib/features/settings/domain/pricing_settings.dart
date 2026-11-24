@@ -1,88 +1,66 @@
 import 'package:nesherprints/core/constants/app_constants.dart';
-import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 
 /// Ajustes de la calculadora de precios (tabla `settings`).
 class PricingSettings {
   const PricingSettings({
     this.profitMarginPercent = FinanceDefaults.profitMarginPercent,
-    this.safetyMarginPercent = FinanceDefaults.safetyMarginPercent,
+    this.kwhPrice = FinanceDefaults.kwhPrice,
+    this.machineCostPerHour = FinanceDefaults.machineCostPerHour,
+    this.plateCost = FinanceDefaults.plateCost,
     this.paintingCostPerHour = FinanceDefaults.paintingCostPerHour,
-    this.paintDetailFewCost = FinanceDefaults.paintDetailFewCost,
-    this.paintDetailNormalCost = FinanceDefaults.paintDetailNormalCost,
-    this.paintDetailManyCost = FinanceDefaults.paintDetailManyCost,
-    this.kwhCost = FinanceDefaults.kwhCost,
-    this.filamentPlateFee = FinanceDefaults.filamentPlateFee,
-    this.resinPlateFee = FinanceDefaults.resinPlateFee,
+    this.minimumPrice = FinanceDefaults.minimumPrice,
     this.profitGoal = FinanceDefaults.profitGoal,
   });
 
-  /// El precio recomendado se multiplica por `2 + profitMarginPercent / 100`.
+  /// Margen sobre el coste: el precio recomendado es `coste × (1 + margen/100)`.
   final double profitMarginPercent;
 
-  /// Margen que se suma al coste real (material, luz y pintura).
-  final double safetyMarginPercent;
+  /// Precio de la electricidad (€/kWh).
+  final double kwhPrice;
 
-  /// Coste de pintado por hora (€).
+  /// Desgaste aproximado de la máquina (€/h de impresión).
+  final double machineCostPerHour;
+
+  /// Coste de preparar y retirar cada placa (€).
+  final double plateCost;
+
+  /// Pintura: mano de obra y material (€/h de trabajo).
   final double paintingCostPerHour;
 
-  /// Material de pintura (€) según el detalle: pocos (≤ 4 colores), normal
-  /// (5–10) y muchos (> 10).
-  final double paintDetailFewCost;
-  final double paintDetailNormalCost;
-  final double paintDetailManyCost;
-
-  double paintDetailCost(PaintDetail detail) => switch (detail) {
-    PaintDetail.few => paintDetailFewCost,
-    PaintDetail.normal => paintDetailNormalCost,
-    PaintDetail.many => paintDetailManyCost,
-  };
-
-  /// Coste de la luz por hora de impresión (€/h).
-  final double kwhCost;
-
-  /// Recargo base por placa extra según el material de la placa (€).
-  final double filamentPlateFee;
-  final double resinPlateFee;
+  /// Precio recomendado mínimo de un pedido (€).
+  final double minimumPrice;
 
   /// Objetivo de beneficio acumulado (€) que se compara en el panel.
   final double profitGoal;
+
+  /// Coste de una hora de impresión: electricidad (potencia × €/kWh) más el
+  /// desgaste de la máquina.
+  double get machineCostPerPrintHour =>
+      PricingConstants.printerKw * kwhPrice + machineCostPerHour;
 
   /// Desde el mapa clave → valor de `settings`; las claves que falten toman
   /// el valor por defecto.
   factory PricingSettings.fromMap(Map<String, double> v) => PricingSettings(
     profitMarginPercent:
         v[SettingKeys.profitMargin] ?? FinanceDefaults.profitMarginPercent,
-    safetyMarginPercent:
-        v[SettingKeys.safetyMargin] ?? FinanceDefaults.safetyMarginPercent,
+    kwhPrice: v[SettingKeys.kwhPrice] ?? FinanceDefaults.kwhPrice,
+    machineCostPerHour:
+        v[SettingKeys.machineCostPerHour] ?? FinanceDefaults.machineCostPerHour,
+    plateCost: v[SettingKeys.plateCost] ?? FinanceDefaults.plateCost,
     paintingCostPerHour:
         v[SettingKeys.paintingCostPerHour] ??
         FinanceDefaults.paintingCostPerHour,
-    paintDetailFewCost:
-        v[SettingKeys.paintDetailFewCost] ?? FinanceDefaults.paintDetailFewCost,
-    paintDetailNormalCost:
-        v[SettingKeys.paintDetailNormalCost] ??
-        FinanceDefaults.paintDetailNormalCost,
-    paintDetailManyCost:
-        v[SettingKeys.paintDetailManyCost] ??
-        FinanceDefaults.paintDetailManyCost,
-    kwhCost: v[SettingKeys.kwhCost] ?? FinanceDefaults.kwhCost,
-    filamentPlateFee:
-        v[SettingKeys.filamentPlateFee] ?? FinanceDefaults.filamentPlateFee,
-    resinPlateFee:
-        v[SettingKeys.resinPlateFee] ?? FinanceDefaults.resinPlateFee,
+    minimumPrice: v[SettingKeys.minimumPrice] ?? FinanceDefaults.minimumPrice,
     profitGoal: v[SettingKeys.profitGoal] ?? FinanceDefaults.profitGoal,
   );
 
   Map<String, double> toMap() => {
     SettingKeys.profitMargin: profitMarginPercent,
-    SettingKeys.safetyMargin: safetyMarginPercent,
+    SettingKeys.kwhPrice: kwhPrice,
+    SettingKeys.machineCostPerHour: machineCostPerHour,
+    SettingKeys.plateCost: plateCost,
     SettingKeys.paintingCostPerHour: paintingCostPerHour,
-    SettingKeys.paintDetailFewCost: paintDetailFewCost,
-    SettingKeys.paintDetailNormalCost: paintDetailNormalCost,
-    SettingKeys.paintDetailManyCost: paintDetailManyCost,
-    SettingKeys.kwhCost: kwhCost,
-    SettingKeys.filamentPlateFee: filamentPlateFee,
-    SettingKeys.resinPlateFee: resinPlateFee,
+    SettingKeys.minimumPrice: minimumPrice,
     SettingKeys.profitGoal: profitGoal,
   };
 }

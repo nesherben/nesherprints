@@ -79,7 +79,7 @@ void main() {
             OrderPlate(
               name: 'Base',
               grams: 100,
-              minutes: 120,
+              minutes: 480,
               materialId: material,
             ),
           ],
@@ -112,14 +112,14 @@ void main() {
   ) async {
     await pumpDashboard(t, size: const Size(1600, 1000));
 
-    // Facturado 100 €; coste (2 + 0,075) × 1,15 = 2,386 € → beneficio 97,61 €.
+    // Facturado 100 €; coste 2 + 8 h × 0,1375 + 1 placa = 4,10 € → beneficio 95,90 €.
     expect(find.text('Facturado'), findsWidgets);
     expect(find.text('€100.00'), findsWidgets);
-    expect(find.text('€97.61'), findsWidgets);
+    expect(find.text('€95.90'), findsWidgets);
     // Pendiente: 100 € cobrados al completar + 30 € que faltan del reservado.
     expect(find.text('€30.00'), findsWidgets);
     expect(find.text('1 pedido por cobrar'), findsOneWidget);
-    // Objetivo: 97,61 / 5.000 ≈ 2 %.
+    // Objetivo: 95,90 / 5.000 ≈ 2 %.
     expect(find.text('2 %'), findsOneWidget);
     expect(find.text('nov 2026'), findsWidgets);
     expect(find.text('Pendiente'), findsOneWidget);

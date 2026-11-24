@@ -1,8 +1,8 @@
 # CLAUDE.md — NesherPrints ERP
 
-App Flutter de escritorio/Android para gestionar un negocio de impresión 3D: pedidos con calculadora de precio (fórmulas del Excel del usuario), inventario de material, piezas extra, clientes y panel de facturación. SQLite local, un usuario, UI en español.
+App Flutter de escritorio/Android para gestionar un negocio de impresión 3D: pedidos con calculadora de precio (modelo simple: coste × margen), inventario de material, piezas extra, clientes y panel de facturación. SQLite local, un usuario, UI en español.
 
-**Especificación funcional (reglas, fórmulas, stock, problemas conocidos): [`docs/SPEC.md`](docs/SPEC.md).** Fórmulas del Excel y plan de migración: [`docs/EXCEL_FORMULAS.md`](docs/EXCEL_FORMULAS.md). Léelas antes de tocar lógica de negocio.
+**Especificación funcional (reglas, fórmulas, stock, problemas conocidos): [`docs/SPEC.md`](docs/SPEC.md).** Histórico de las fórmulas del Excel antiguo (para importar datos): [`docs/EXCEL_FORMULAS.md`](docs/EXCEL_FORMULAS.md). Léelas antes de tocar lógica de negocio.
 
 ## Comandos
 
@@ -44,8 +44,8 @@ lib/
 
 | Feature | Domain | Data | Presentation |
 |---|---|---|---|
-| `orders` | `Order`, `OrderSummary`, `OrderStatus` (reglas de estado) / `PlateStatus`, `OrderPlate`, `OrderExtraLine`, `WasteRecord`, `PaintDetail`, `OrderRules` (validación), `PricingCalculator`/`PriceHealth`, `OrderCosting` | `OrderRepository` (crear/editar/completar/borrar/merma; todo el stock en transacción) | `OrdersView`, `order_list.dart` (filas/tarjetas virtualizadas), `StatusBadge`, `WasteDialog`, `order_form/` (diálogo + placas, piezas, panel de resumen del precio) |
-| `dashboard` | `FinanceSummary.compute` (real/teórico, objetivo, mensual, pendientes) | — (usa repos de orders/inventory/settings) | `DashboardView`, `KpiCard`, `MonthlyRevenueChart`, `StatusPieChart`, `MonthlyTable`, `PendingList` |
+| `orders` | `Order`, `OrderSummary`, `OrderStatus` (reglas de estado) / `PlateStatus`, `OrderPlate`, `OrderExtraLine`, `WasteRecord`, `OrderRules` (validación), `PricingCalculator`/`PriceHealth`, `OrderCosting` | `OrderRepository` (crear/editar/completar/borrar/merma; todo el stock en transacción) | `OrdersView`, `order_list.dart` (filas/tarjetas virtualizadas), `StatusBadge`, `WasteDialog`, `order_form/` (diálogo + placas, piezas, panel de resumen del precio) |
+| `dashboard` | `FinanceSummary.compute` (beneficio, objetivo, mensual, pendientes) | — (usa repos de orders/inventory/settings) | `DashboardView`, `KpiCard`, `MonthlyRevenueChart`, `StatusPieChart`, `MonthlyTable`, `PendingList` |
 | `inventory` | `PrintMaterial`, `MaterialKind` | `MaterialRepository` | `InventoryView`, `MaterialDialog`, tarjetas de material |
 | `extras` | `Extra`, `ExtraPricing` | `ExtrasRepository` (incl. `addStock` atómico) | `ExtrasView`, `ExtraCard`, `ExtraDialog`, `AddStockDialog` |
 | `clients` | `Client` (`fromForm` aplica reglas), `ClientStats` | `ClientRepository` | `ClientsView`, `ClientCard`, `ClientFormDialog` |
@@ -56,7 +56,7 @@ Flujo de datos: Vista → `ServiceLocator.<repo>` → `AppDatabase` → SQLite. 
 ## Convenciones
 
 - **Reglas de negocio**: antes de cambiar una regla, mira `docs/SPEC.md` (§5 stock, §9 problemas conocidos) y las pruebas `stock_invariants_test.dart`: cada una protege un fallo real ya corregido.
-- **Base de datos**: datos reales del usuario. Nunca renombres tablas/columnas ni valores persistidos (`OrderStatus.dbValue`, `SettingKeys`, `MaterialKind.dbValue`, `PaintDetail.dbValue`) sin migración. Cambios de esquema: subir `DbSchema.version`, añadir `if (oldVersion < N)` en `onUpgrade`, actualizar `onCreate` y añadir test de migración en `repositories_test.dart`. Antes de migrar, `AppDatabase` copia el archivo (`.bak-vN-fecha`).
+- **Base de datos**: datos reales del usuario. Nunca renombres tablas/columnas ni valores persistidos (`OrderStatus.dbValue`, `SettingKeys`, `MaterialKind.dbValue`, `OrderStatus`…) sin migración. Cambios de esquema: subir `DbSchema.version`, añadir `if (oldVersion < N)` en `onUpgrade`, actualizar `onCreate` y añadir test de migración en `repositories_test.dart`. Antes de migrar, `AppDatabase` copia el archivo (`.bak-vN-fecha`).
 - **Lógica** en `domain/` como funciones/clases puras con test; los repositorios solo SQL + transacciones (y las reglas de estado/stock); las vistas solo UI y llamadas a repositorios.
 - **Modelos** tipados; nada de `Map<String, dynamic>` fuera de `fromMap`/`toMap`. Nombres de columnas desde las clases `*Table` de `db_schema.dart`.
 - **Errores**: las operaciones lanzan `AppException` (mensaje para el usuario); la UI las muestra con `AppFeedback.failure`. Nada de `try/catch` vacíos ni de cerrar un diálogo antes de saber si se guardó.

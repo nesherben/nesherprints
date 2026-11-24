@@ -65,6 +65,7 @@ class PriceSummaryPanel extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         _Recommended(
           value: estimate.suggestedPrice,
+          minimumApplied: estimate.minimumApplied,
           showApply: !isLocked && estimate.suggestedPrice > 0,
           onApply: onApplySuggested,
         ),
@@ -132,8 +133,8 @@ class _Breakdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final lines = <(String, double)>[
       (AppStrings.lineMaterial, estimate.materialCost),
-      (AppStrings.lineElectricity, estimate.electricityCost),
-      if (estimate.plateFee > 0) (AppStrings.linePlateFee, estimate.plateFee),
+      (AppStrings.lineMachine, estimate.machineCost),
+      if (estimate.platesCost > 0) (AppStrings.linePlates, estimate.platesCost),
       if (estimate.paintCost > 0) (AppStrings.linePaint, estimate.paintCost),
       if (estimate.extrasCost > 0) (AppStrings.lineExtras, estimate.extrasCost),
     ];
@@ -195,11 +196,13 @@ class _Breakdown extends StatelessWidget {
 class _Recommended extends StatelessWidget {
   const _Recommended({
     required this.value,
+    required this.minimumApplied,
     required this.showApply,
     required this.onApply,
   });
 
   final double value;
+  final bool minimumApplied;
   final bool showApply;
   final VoidCallback onApply;
 
@@ -229,6 +232,11 @@ class _Recommended extends StatelessWidget {
                     color: AppColors.primary,
                   ),
                 ),
+                if (minimumApplied)
+                  const Text(
+                    AppStrings.minimumNote,
+                    style: AppTextStyles.mutedSmall,
+                  ),
               ],
             ),
           ),

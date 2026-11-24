@@ -115,7 +115,7 @@ void main() {
     await enter(t, 'Nombre del Proyecto', 'Figura de prueba');
     await tapText(t, 'Añadir Placa');
     await enter(t, 'Gramos (g)', '100');
-    await enter(t, 'Tiempo', '120');
+    await enter(t, 'Tiempo', '480');
     await settle(t, rounds: 2);
   }
 
@@ -164,12 +164,11 @@ void main() {
     await openApp(t);
     await createOrderThroughForm(t);
 
-    // 100 g × 20 €/kg = 2 € de material; 2 h de luz = 0,075 €.
-    // Coste = (2 + 0,075) × 1,15 = 2,39 €
-    // Recomendado = (2 × 2 + 0,075) × 2,15 = 8,76 €
-    expect(find.text('€2.39'), findsOneWidget, reason: 'coste real');
-    expect(find.text('€8.76'), findsOneWidget, reason: 'precio recomendado');
-    expect(find.text('1 placa · 2 h · 100 g'), findsOneWidget);
+    // 100 g × 20 €/kg = 2 € de material; 8 h × 0,1375 €/h = 1,10 € de máquina;
+    // 1 placa = 1 €. Coste 4,10 €; recomendado = 4,10 × 2,5 = 10,25 €.
+    expect(find.text('€4.10'), findsOneWidget, reason: 'coste real');
+    expect(find.text('€10.25'), findsOneWidget, reason: 'precio recomendado');
+    expect(find.text('1 placa · 8 h · 100 g'), findsOneWidget);
   });
 
   testWidgets('flujo completo: crear, ver en Pedidos y completar', (t) async {
@@ -182,7 +181,7 @@ void main() {
     final saved = await allOrders(t);
     expect(saved, hasLength(1));
     expect(saved.single.order.name, 'Figura de prueba');
-    expect(saved.single.order.price, closeTo(8.76, 0.01));
+    expect(saved.single.order.price, closeTo(10.25, 0.01));
     expect(saved.single.platesCount, 1);
     expect(await stockOfPla(t), 1000, reason: 'crear no gasta material');
 
