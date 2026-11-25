@@ -198,13 +198,13 @@ class _RowLayout {
   const _RowLayout({required this.showClient, required this.inlineActions});
 
   /// Ancho mínimo para la columna Cliente / para acciones visibles.
-  static const double clientFrom = 1200;
-  static const double inlineFrom = 1040;
+  static const double clientFrom = 1080;
+  static const double inlineFrom = 940;
 
   final bool showClient;
   final bool inlineActions;
 
-  double get actionsWidth => inlineActions ? 224 : 88;
+  double get actionsWidth => inlineActions ? 176 : 88;
 }
 
 // ==================== Cabecera ====================
@@ -336,12 +336,12 @@ class _WideRow extends StatelessWidget {
   });
 
   static const double accentWidth = 3;
-  static const double idWidth = 48;
-  static const double dateWidth = 88;
+  static const double idWidth = 44;
+  static const double dateWidth = 80;
   static const double clientWidth = 150;
-  static const double statusWidth = 140;
-  static const double priceWidth = 100;
-  static const double collectWidth = 112;
+  static const double statusWidth = 130;
+  static const double priceWidth = 92;
+  static const double collectWidth = 100;
   static const double gap = AppSpacing.md;
 
   /// Alto mínimo de la fila: todas miden lo mismo tengan o no segunda línea.
@@ -827,6 +827,14 @@ class _Mini extends StatelessWidget {
   }
 }
 
+/// Botón de icono de 34 px (las acciones en línea van muy juntas).
+final _tightButton = IconButton.styleFrom(
+  minimumSize: const Size(34, 34),
+  maximumSize: const Size(34, 34),
+  padding: EdgeInsets.zero,
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+);
+
 class _Actions extends StatelessWidget {
   const _Actions({
     required this.order,
@@ -850,7 +858,7 @@ class _Actions extends StatelessWidget {
     tooltip: tooltip,
     icon: Icon(icon, size: 20),
     color: color,
-    visualDensity: VisualDensity.compact,
+    style: _tightButton,
     onPressed: () => actions.onMenu(order, action),
   );
 
@@ -868,11 +876,11 @@ class _Actions extends StatelessWidget {
               tooltip: AppStrings.completeTooltip,
               icon: const Icon(Icons.check_circle_outline, size: 22),
               color: AppColors.success,
-              visualDensity: VisualDensity.compact,
+              style: _tightButton,
               onPressed: () => actions.onComplete(order),
             )
           else
-            const SizedBox(width: 40),
+            const SizedBox(width: 34),
           _icon(
             AppStrings.wasteAction,
             Icons.recycling,
@@ -892,7 +900,7 @@ class _Actions extends StatelessWidget {
               color: AppColors.info,
             )
           else
-            const SizedBox(width: 40),
+            const SizedBox(width: 34),
           _icon(
             AppStrings.deleteAction,
             Icons.delete_outline,
