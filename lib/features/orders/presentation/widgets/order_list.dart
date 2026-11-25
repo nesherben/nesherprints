@@ -55,7 +55,11 @@ class OrderList extends StatelessWidget {
     required this.ascending,
     required this.onSort,
     required this.actions,
+    this.selectedId,
   });
+
+  /// Pedido marcado con el teclado (flechas arriba y abajo).
+  final int? selectedId;
 
   /// Anchura mínima del contenedor para usar filas con columnas.
   static const double wideBreakpoint = 880;
@@ -142,6 +146,7 @@ class OrderList extends StatelessWidget {
                               order: order,
                               actions: actions,
                               layout: layout,
+                              selected: order.id == selectedId,
                             ),
                           ],
                         );
@@ -345,7 +350,10 @@ class _WideRow extends StatelessWidget {
     required this.order,
     required this.actions,
     required this.layout,
+    this.selected = false,
   });
+
+  final bool selected;
 
   static const double accentWidth = 3;
   static const double idWidth = 44;
@@ -367,96 +375,102 @@ class _WideRow extends StatelessWidget {
   Widget build(BuildContext context) {
     const gapBox = SizedBox(width: gap);
     final o = order.order;
-    return InkWell(
-      onTap: () => actions.onOpen(order),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: minHeight),
-        child: IntrinsicHeight(
-          child: Row(
-            children: [
-              // Franja con el color del estado: se ve de un vistazo.
-              Container(width: accentWidth, color: statusColor(o.status)),
-              const SizedBox(width: AppSpacing.lg),
-              SizedBox(
-                width: idWidth,
-                child: Text(
-                  '#${order.id}',
-                  style: AppTextStyles.money.copyWith(
-                    color: AppColors.textMuted,
+    return _KeepVisible(
+      active: selected,
+      child: Ink(
+        color: selected ? AppColors.primary.withValues(alpha: 0.10) : null,
+        child: InkWell(
+          onTap: () => actions.onOpen(order),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: minHeight),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  // Franja con el color del estado: se ve de un vistazo.
+                  Container(width: accentWidth, color: statusColor(o.status)),
+                  const SizedBox(width: AppSpacing.lg),
+                  SizedBox(
+                    width: idWidth,
+                    child: Text(
+                      '#${order.id}',
+                      style: AppTextStyles.money.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              gapBox,
-              SizedBox(
-                width: dateWidth,
-                child: Text(
-                  o.date.isEmpty ? '—' : o.date,
-                  style: AppTextStyles.mutedSmall,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              gapBox,
-              Expanded(
-                child: _ProjectInline(
-                  order: order,
-                  showClient: !layout.showClient,
-                ),
-              ),
-              gapBox,
-              if (layout.showClient) ...[
-                SizedBox(
-                  width: clientWidth,
-                  child: _ClientCell(order: order, actions: actions),
-                ),
-                gapBox,
-              ],
-              SizedBox(
-                width: statusWidth,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: StatusBadge(
-                    status: o.status,
-                    onChanged: (s) => actions.onStatusChange(order, s),
+                  gapBox,
+                  SizedBox(
+                    width: dateWidth,
+                    child: Text(
+                      o.date.isEmpty ? '—' : o.date,
+                      style: AppTextStyles.mutedSmall,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-              ),
-              gapBox,
-              SizedBox(
-                width: priceWidth,
-                child: InlineMoneyCell(
-                  value: o.price,
-                  enabled: !o.isPersonal,
-                  alignEnd: true,
-                  tooltip: AppStrings.editPriceTip,
-                  display: _Price(order: order),
-                  onSubmit: (v) => actions.onSetPrice(order, v),
-                ),
-              ),
-              gapBox,
-              SizedBox(
-                width: collectWidth,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: AppSpacing.sm),
-                  child: InlineMoneyCell(
-                    value: o.paidAmount,
-                    enabled: !o.isPersonal && o.price > 0,
-                    tooltip: AppStrings.editPaidTip,
-                    display: _Collection(order: o),
-                    onSubmit: (v) => actions.onSetPaid(order, v),
+                  gapBox,
+                  Expanded(
+                    child: _ProjectInline(
+                      order: order,
+                      showClient: !layout.showClient,
+                    ),
                   ),
-                ),
+                  gapBox,
+                  if (layout.showClient) ...[
+                    SizedBox(
+                      width: clientWidth,
+                      child: _ClientCell(order: order, actions: actions),
+                    ),
+                    gapBox,
+                  ],
+                  SizedBox(
+                    width: statusWidth,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: StatusBadge(
+                        status: o.status,
+                        onChanged: (s) => actions.onStatusChange(order, s),
+                      ),
+                    ),
+                  ),
+                  gapBox,
+                  SizedBox(
+                    width: priceWidth,
+                    child: InlineMoneyCell(
+                      value: o.price,
+                      enabled: !o.isPersonal,
+                      alignEnd: true,
+                      tooltip: AppStrings.editPriceTip,
+                      display: _Price(order: order),
+                      onSubmit: (v) => actions.onSetPrice(order, v),
+                    ),
+                  ),
+                  gapBox,
+                  SizedBox(
+                    width: collectWidth,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: AppSpacing.sm),
+                      child: InlineMoneyCell(
+                        value: o.paidAmount,
+                        enabled: !o.isPersonal && o.price > 0,
+                        tooltip: AppStrings.editPaidTip,
+                        display: _Collection(order: o),
+                        onSubmit: (v) => actions.onSetPaid(order, v),
+                      ),
+                    ),
+                  ),
+                  gapBox,
+                  SizedBox(
+                    width: layout.actionsWidth,
+                    child: _Actions(
+                      order: order,
+                      actions: actions,
+                      inline: layout.inlineActions,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                ],
               ),
-              gapBox,
-              SizedBox(
-                width: layout.actionsWidth,
-                child: _Actions(
-                  order: order,
-                  actions: actions,
-                  inline: layout.inlineActions,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-            ],
+            ),
           ),
         ),
       ),
@@ -853,6 +867,45 @@ class _Mini extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Mantiene a la vista la fila marcada con el teclado.
+class _KeepVisible extends StatefulWidget {
+  const _KeepVisible({required this.active, required this.child});
+
+  final bool active;
+  final Widget child;
+
+  @override
+  State<_KeepVisible> createState() => _KeepVisibleState();
+}
+
+class _KeepVisibleState extends State<_KeepVisible> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.active) _reveal();
+  }
+
+  @override
+  void didUpdateWidget(_KeepVisible old) {
+    super.didUpdateWidget(old);
+    if (widget.active && !old.active) _reveal();
+  }
+
+  void _reveal() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Scrollable.ensureVisible(
+        context,
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 120),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Cliente del pedido: se cambia con un menú sin abrir el formulario.

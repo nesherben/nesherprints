@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:nesherprints/app/app.dart';
 import 'package:nesherprints/app/service_locator.dart';
 import 'package:nesherprints/core/database/app_database.dart';
+import 'package:nesherprints/features/clients/domain/client.dart';
 import 'package:nesherprints/features/extras/domain/extra.dart';
 import 'package:nesherprints/features/inventory/domain/print_material.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
@@ -307,6 +309,52 @@ void main() {
       orders.firstWhere((o) => o.order.name == 'Llavero X').order.price,
       20,
     );
+  });
+
+  testWidgets('con el teclado ↓ marca el pedido e Intro lo abre', (t) async {
+    await openApp(t, seed: () => seedOrder(name: 'Figura'));
+    await tapText(t, 'Pedidos');
+    expect(find.text('Datos del pedido'), findsNothing);
+
+    await t.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await t.pump();
+    await t.sendKeyEvent(LogicalKeyboardKey.enter);
+    await settle(t, rounds: 4);
+
+    expect(find.text('Datos del pedido'), findsOneWidget);
+  });
+
+  testWidgets('asignar cliente a los pedidos filtrados', (t) async {
+    await openApp(
+      t,
+      seed: () async {
+        await seedOrder(name: 'Llavero A');
+        await seedOrder(name: 'Llavero B');
+        await seedOrder(name: 'Otro');
+        await ServiceLocator.clients.save(const Client(name: 'Ana'));
+      },
+    );
+    await tapText(t, 'Pedidos');
+    await t.enterText(
+      find.byWidgetPredicate(
+        (w) =>
+            w is TextField &&
+            (w.decoration?.hintText ?? '').startsWith('Buscar por proyecto'),
+      ),
+      'llavero',
+    );
+    await settle(t, rounds: 3);
+    await tapText(t, 'Asignar cliente a estos (2)');
+    await t.tap(find.byType(DropdownButtonFormField<int>).last);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Ana').last);
+    await t.pumpAndSettle();
+    await t.tap(find.widgetWithText(ElevatedButton, 'Asignar a 2 pedidos'));
+    await settle(t, rounds: 4);
+
+    final orders = await allOrders(t);
+    expect(orders.where((o) => o.clientName == 'Ana'), hasLength(2));
+    expect(orders.where((o) => o.clientName == null), hasLength(1));
   });
 
   testWidgets('duplicar un pedido abre el formulario con una copia', (t) async {

@@ -146,6 +146,13 @@ class AppStrings {
   static const editPaidTip = 'Pulsa para cambiar lo cobrado';
   static const changeClientTip = 'Cambiar cliente';
   static const noClient = 'Sin cliente';
+  static const assignClientAction = 'Asignar cliente a estos';
+  static const assignClientTitle = 'Asignar cliente';
+  static String assignClientMessage(int n) =>
+      'Se asignará el mismo cliente a los $n pedidos que ves en la lista '
+      '(según el buscador y los filtros).';
+  static String assignClientConfirm(int n) => 'Asignar a $n pedidos';
+  static String clientAssigned(int n) => 'Cliente asignado a $n pedidos';
   static const collectAction = 'Marcar como cobrado';
   static const collectedDone = 'Pedido marcado como cobrado';
   static String pendingShort(String amount) => 'Falta $amount';

@@ -20,6 +20,7 @@ import 'package:nesherprints/features/orders/domain/order_status.dart';
 import 'package:nesherprints/features/orders/domain/stock_check.dart';
 import 'package:nesherprints/features/orders/presentation/status_style.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_form/order_form_dialog.dart';
+import 'package:nesherprints/features/orders/presentation/widgets/assign_client_dialog.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_list.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/quick_order_bar.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/waste_dialog.dart';
@@ -54,7 +55,11 @@ class _OrdersViewState extends State<OrdersView> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
   final _quickFocus = FocusNode();
+  final _rootFocus = FocusNode();
   List<Client> _clients = const [];
+
+  /// Pedido marcado con el teclado (↑ ↓ Intro).
+  int? _selectedId;
 
   /// `null` = todos los estados.
   OrderStatus? _statusFilter;
@@ -67,6 +72,10 @@ class _OrdersViewState extends State<OrdersView> {
   void initState() {
     super.initState();
     _loadClients();
+    // Al entrar, el foco es de la pantalla para que las flechas funcionen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _rootFocus.requestFocus();
+    });
   }
 
   @override
@@ -91,6 +100,7 @@ class _OrdersViewState extends State<OrdersView> {
     _searchController.dispose();
     _searchFocus.dispose();
     _quickFocus.dispose();
+    _rootFocus.dispose();
     super.dispose();
   }
 
@@ -323,6 +333,46 @@ class _OrdersViewState extends State<OrdersView> {
     });
   }
 
+  /// Mueve la selección del teclado [delta] filas por la lista visible.
+  void _moveSelection(int delta) {
+    final list = _visibleOrders;
+    if (list.isEmpty) return;
+    final current = list.indexWhere((o) => o.id == _selectedId);
+    final next = current < 0
+        ? (delta > 0 ? 0 : list.length - 1)
+        : (current + delta).clamp(0, list.length - 1);
+    setState(() => _selectedId = list[next].id);
+  }
+
+  void _openSelected() {
+    final match = widget.orders.where((o) => o.id == _selectedId);
+    if (match.isNotEmpty) _openForm(edit: match.first.order);
+  }
+
+  /// Los atajos de flechas no deben robar las teclas a un campo de texto.
+  bool get _typing =>
+      FocusManager.instance.primaryFocus?.context
+          ?.findAncestorWidgetOfExactType<EditableText>() !=
+      null;
+
+  Future<void> _assignClient(List<OrderSummary> orders) async {
+    final result = await showDialog<AssignClientResult>(
+      context: context,
+      builder: (_) =>
+          AssignClientDialog(count: orders.length, clients: _clients),
+    );
+    if (result == null || !mounted) return;
+    final ok = await _attempt(() async {
+      await ServiceLocator.orders.setClientMany([
+        for (final o in orders) o.id,
+      ], result.clientId);
+      await widget.onRefresh();
+    });
+    if (ok && mounted) {
+      AppFeedback.success(context, AppStrings.clientAssigned(orders.length));
+    }
+  }
+
   Future<void> _markPaid(OrderSummary order) async {
     final ok = await _attempt(() async {
       await ServiceLocator.orders.markPaid(order.id);
@@ -361,6 +411,15 @@ class _OrdersViewState extends State<OrdersView> {
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyF, control: true): () =>
             _searchFocus.requestFocus(),
+        const SingleActivator(LogicalKeyboardKey.arrowDown): () {
+          if (!_typing) _moveSelection(1);
+        },
+        const SingleActivator(LogicalKeyboardKey.arrowUp): () {
+          if (!_typing) _moveSelection(-1);
+        },
+        const SingleActivator(LogicalKeyboardKey.enter): () {
+          if (!_typing) _openSelected();
+        },
         // Ctrl+Mayús+N: al alta rápida.
         const SingleActivator(
           LogicalKeyboardKey.keyN,
@@ -370,6 +429,7 @@ class _OrdersViewState extends State<OrdersView> {
             _quickFocus.requestFocus(),
       },
       child: Focus(
+        focusNode: _rootFocus,
         autofocus: true,
         child: Padding(
           padding: EdgeInsets.all(compact ? AppSpacing.lg : AppSpacing.xxl),
@@ -444,6 +504,7 @@ class _OrdersViewState extends State<OrdersView> {
       sortColumn: _sortColumn,
       ascending: _ascending,
       onSort: _sortBy,
+      selectedId: _selectedId,
       actions: OrderListActions(
         onOpen: (o) => _openForm(edit: o.order),
         onStatusChange: _changeStatus,
@@ -528,6 +589,9 @@ class _OrdersViewState extends State<OrdersView> {
       );
     }
 
+    final visibleNow = _hasActiveFilters
+        ? _visibleOrders
+        : const <OrderSummary>[];
     final children = <Widget>[
       chip(
         label: AppStrings.filterAll,
@@ -585,6 +649,15 @@ class _OrdersViewState extends State<OrdersView> {
           icon: const Icon(Icons.filter_alt_off, size: 18),
           label: const Text(AppStrings.clearFilters),
         ),
+        // Con un filtro activo, asignar cliente a todos los que se ven.
+        if (visibleNow.isNotEmpty && visibleNow.length < widget.orders.length)
+          TextButton.icon(
+            onPressed: () => _assignClient(visibleNow),
+            icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+            label: Text(
+              '${AppStrings.assignClientAction} (${visibleNow.length})',
+            ),
+          ),
       ],
     ];
     // En móvil una sola línea que se desliza; en ancho, varias si hace falta.

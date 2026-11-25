@@ -194,6 +194,28 @@ void main() {
       },
     );
 
+    test('setClientMany asigna el cliente a varios pedidos', () async {
+      final matId = await pla();
+      final clientId = await clients.save(const Client(name: 'Ana'));
+      final ids = <int>[];
+      for (var i = 0; i < 3; i++) {
+        ids.add(
+          await orders.create(
+            newOrder(),
+            plates: [
+              OrderPlate(name: 'A', grams: 10, minutes: 5, materialId: matId),
+            ],
+          ),
+        );
+      }
+      await orders.setClientMany(ids.take(2).toList(), clientId);
+      final names = (await orders.getAllWithDetails())
+          .map((o) => o.clientName)
+          .toList();
+      expect(names.where((n) => n == 'Ana'), hasLength(2));
+      expect(names.where((n) => n == null), hasLength(1));
+    });
+
     test('marcar como cobrado iguala lo pagado al precio', () async {
       final matId = await pla();
       final id = await orders.create(

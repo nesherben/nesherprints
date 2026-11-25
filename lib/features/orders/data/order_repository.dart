@@ -318,6 +318,22 @@ class OrderRepository {
     if (n == 0) throw const OrderRuleException('El pedido ya no existe.');
   }
 
+  /// Asigna (o quita con `null`) el cliente de varios pedidos a la vez.
+  Future<void> setClientMany(List<int> orderIds, int? clientId) async {
+    if (orderIds.isEmpty) return;
+    final db = await _db.database;
+    await db.transaction((txn) async {
+      for (final id in orderIds) {
+        await txn.update(
+          OrdersTable.name,
+          {OrdersTable.clientId: clientId},
+          where: '${OrdersTable.id} = ?',
+          whereArgs: [id],
+        );
+      }
+    });
+  }
+
   /// Marca un pedido como cobrado del todo (pagado = precio). Vale también
   /// para uno cerrado; no toca el stock.
   Future<void> markPaid(int orderId) async {
