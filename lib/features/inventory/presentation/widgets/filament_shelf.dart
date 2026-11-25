@@ -20,6 +20,7 @@ class FilamentShelf extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     this.onSetPrice,
+    this.onAddColor,
     this.spinning = const {},
     this.spinToken = 0,
   });
@@ -30,6 +31,9 @@ class FilamentShelf extends StatelessWidget {
 
   /// Cambio rápido del precio por kilo pulsándolo.
   final Future<void> Function(PrintMaterial material, double price)? onSetPrice;
+
+  /// «Añadir color»: copia el perfil (nombre y precio) de la marca.
+  final ValueChanged<MaterialGroup>? onAddColor;
 
   /// Bobinas que giran (recién añadidas o cambiadas).
   final Set<int> spinning;
@@ -48,6 +52,7 @@ class FilamentShelf extends StatelessWidget {
             onEdit: onEdit,
             onDelete: onDelete,
             onSetPrice: onSetPrice,
+            onAddColor: onAddColor,
           ),
         ],
       ],
@@ -63,8 +68,10 @@ class _Shelf extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     this.onSetPrice,
+    this.onAddColor,
   });
 
+  final ValueChanged<MaterialGroup>? onAddColor;
   final MaterialGroup group;
   final Set<int> spinning;
   final int spinToken;
@@ -106,6 +113,15 @@ class _Shelf extends StatelessWidget {
                   AppStrings.shelfBrandMeta(group.materials.length),
                   style: AppTextStyles.mutedSmall,
                 ),
+                if (onAddColor != null)
+                  TextButton.icon(
+                    onPressed: () => onAddColor!(group),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text(AppStrings.addColorToBrand),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
               ],
             ),
           ),

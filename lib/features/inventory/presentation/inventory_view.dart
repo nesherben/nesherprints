@@ -159,10 +159,25 @@ class _InventoryViewState extends State<InventoryView> {
     );
   }
 
-  void _openBulk() {
+  /// Perfiles ya existentes (nombre y precio habitual) para copiarlos.
+  List<FilamentProfile> get _profiles => [
+    for (final g in MaterialGroup.group(
+      _materials.where((m) => m.kind == MaterialKind.filament),
+    ))
+      FilamentProfile(g.name, g.commonPrice),
+  ];
+
+  void _openBulk({MaterialGroup? from}) {
     showDialog<void>(
       context: context,
-      builder: (_) => BulkFilamentDialog(library: _library, onSave: _saveAll),
+      builder: (_) => BulkFilamentDialog(
+        library: _library,
+        profiles: _profiles,
+        initialProfile: from == null
+            ? null
+            : FilamentProfile(from.name, from.commonPrice),
+        onSave: _saveAll,
+      ),
     );
   }
 
@@ -342,6 +357,7 @@ class _InventoryViewState extends State<InventoryView> {
                     spinToken: _spinCounter,
                     onEdit: _openDialog,
                     onDelete: _delete,
+                    onAddColor: (g) => _openBulk(from: g),
                     onSetPrice: (m, price) async {
                       try {
                         await ServiceLocator.materials.save(m.withCost(price));

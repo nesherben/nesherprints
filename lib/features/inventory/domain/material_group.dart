@@ -8,6 +8,24 @@ class MaterialGroup {
   final String name;
   final List<PrintMaterial> materials;
 
+  /// Precio por kilo habitual del grupo (el más repetido; a igualdad, el
+  /// primero), para copiar el perfil al añadir más colores.
+  double get commonPrice {
+    final counts = <double, int>{};
+    for (final m in materials) {
+      counts[m.costPerKg] = (counts[m.costPerKg] ?? 0) + 1;
+    }
+    var best = materials.first.costPerKg;
+    var bestCount = 0;
+    counts.forEach((price, n) {
+      if (n > bestCount) {
+        best = price;
+        bestCount = n;
+      }
+    });
+    return best;
+  }
+
   /// Stock sumado (un stock negativo cuenta como 0).
   double get totalGrams =>
       materials.fold(0.0, (a, m) => a + (m.stockGrams > 0 ? m.stockGrams : 0));

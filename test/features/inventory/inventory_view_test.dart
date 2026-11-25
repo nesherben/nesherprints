@@ -181,6 +181,43 @@ void main() {
     expect(all.every((m) => m.stockGrams == 0), isTrue);
   });
 
+  testWidgets('«Añadir color» de una marca copia nombre y precio', (t) async {
+    await seed(t, [pla]);
+    await openView(t);
+
+    await tapText(t, 'Añadir color');
+    expect(find.text('PLA Silk'), findsWidgets);
+    await enter(t, 'Colores', 'Rojo');
+    await tapText(t, 'Crear 1');
+
+    final rojo = (await stored(t)).firstWhere((m) => m.color == 'Rojo');
+    expect(rojo.name, 'PLA Silk');
+    expect(rojo.costPerKg, 20, reason: 'copia el precio de la marca');
+  });
+
+  testWidgets('con un tipo Bambu Lab se ofrecen sus colores con RGB', (
+    t,
+  ) async {
+    await openView(t);
+    await tapText(t, 'Añadir varios');
+
+    await enter(t, 'Nombre/Marca', 'Bambu Lab PLA Basic');
+    await enter(t, 'Precio por defecto', '19,99');
+    await t.pump();
+    // Un color del catálogo (no de la biblioteca de serie) aparece como chip.
+    final chip = find.widgetWithText(ActionChip, 'Jade White');
+    await t.ensureVisible(chip);
+    await t.tap(chip);
+    await t.pump();
+    await tapText(t, 'Crear 1');
+
+    final saved = (await stored(t)).single;
+    expect(saved.name, 'Bambu Lab PLA Basic');
+    expect(saved.color, 'Jade White');
+    expect(saved.colorRgb, isNotNull);
+    expect(saved.costPerKg, closeTo(19.99, 0.001));
+  });
+
   testWidgets('sin materiales muestra el estado vacío con acción', (t) async {
     await openView(t);
 

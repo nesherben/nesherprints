@@ -146,6 +146,8 @@ class AppStrings {
   static const editPaidTip = 'Pulsa para cambiar lo cobrado';
   static const changeClientTip = 'Cambiar cliente';
   static const noClient = 'Sin cliente';
+  static const addColorToBrand = 'Añadir color';
+  static const copyProfile = 'COPIAR PERFIL';
   static const bambuCatalogButton = 'Catálogo Bambu Lab';
   static const bambuCatalogTitle = 'Catálogo Bambu Lab';
   static String bambuCatalogSubtitle(int types, int colors) =>
