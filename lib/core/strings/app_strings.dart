@@ -63,8 +63,9 @@ class AppStrings {
       : (n == 1 ? '1 pedido por cobrar' : '$n pedidos por cobrar');
   static const kpiGoal = 'Objetivo de beneficio';
   static String goalOf(String current, String goal) => '$current de $goal';
-  static String wasteNote(int records, double grams, String cost) =>
-      'Mermas registradas: $records · ${grams.toStringAsFixed(0)} g · $cost de material.';
+  static String wasteNote(int records, double grams, String? cost) =>
+      'Mermas registradas: $records · ${grams.toStringAsFixed(0)} g'
+      '${cost == null ? '' : ' · $cost de material'}.';
   static const billingHistoryTitle = 'Histórico de Facturación';
   static const dashboardSubtitle =
       'Cómo va tu negocio: facturación, beneficio, objetivo y cobros.';

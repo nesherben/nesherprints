@@ -311,7 +311,8 @@ class _WasteNote extends StatelessWidget {
               AppStrings.wasteNote(
                 summary.wasteRecords,
                 summary.wasteGrams,
-                formatEuro(summary.wasteCost),
+                // Sin material asociado (importadas) no hay coste que mostrar.
+                summary.wasteCost > 0 ? formatEuro(summary.wasteCost) : null,
               ),
               style: const TextStyle(color: AppColors.warning, fontSize: 13),
             ),

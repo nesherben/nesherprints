@@ -56,6 +56,8 @@ class PendingList extends StatelessWidget {
                       title: AppStrings.allCollected,
                     )
                   : ListView.separated(
+                      // Sin el hueco de la barra de estado que añade por defecto.
+                      padding: EdgeInsets.zero,
                       itemCount: pending.length,
                       separatorBuilder: (_, _) => const Divider(),
                       itemBuilder: (_, i) {
