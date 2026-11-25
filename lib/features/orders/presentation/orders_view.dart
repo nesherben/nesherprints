@@ -53,6 +53,7 @@ class _OrdersViewState extends State<OrdersView> {
   /// `null` = todos los estados.
   OrderStatus? _statusFilter;
   bool _receivableOnly = false;
+  bool _personalOnly = false;
   OrderSortColumn _sortColumn = OrderSortColumn.id;
   bool _ascending = false;
 
@@ -71,7 +72,8 @@ class _OrdersViewState extends State<OrdersView> {
   bool get _hasActiveFilters =>
       _searchController.text.isNotEmpty ||
       _statusFilter != null ||
-      _receivableOnly;
+      _receivableOnly ||
+      _personalOnly;
 
   List<OrderSummary> get _visibleOrders {
     final query = _searchController.text.trim().toLowerCase();
@@ -80,6 +82,7 @@ class _OrdersViewState extends State<OrdersView> {
         return false;
       }
       if (_receivableOnly && !_isReceivable(o)) return false;
+      if (_personalOnly && !o.order.isPersonal) return false;
       if (query.isEmpty) return true;
       final haystack = [
         o.order.name,
@@ -127,6 +130,7 @@ class _OrdersViewState extends State<OrdersView> {
       _searchController.clear();
       _statusFilter = null;
       _receivableOnly = false;
+      _personalOnly = false;
     });
   }
 
@@ -438,10 +442,11 @@ class _OrdersViewState extends State<OrdersView> {
       chip(
         label: AppStrings.filterAll,
         count: widget.orders.length,
-        selected: _statusFilter == null && !_receivableOnly,
+        selected: _statusFilter == null && !_receivableOnly && !_personalOnly,
         onTap: () => setState(() {
           _statusFilter = null;
           _receivableOnly = false;
+          _personalOnly = false;
         }),
       ),
       chip(
@@ -451,6 +456,7 @@ class _OrdersViewState extends State<OrdersView> {
         color: AppColors.warning,
         onTap: () => setState(() {
           _receivableOnly = true;
+          _personalOnly = false;
           _statusFilter = null;
         }),
       ),
@@ -466,9 +472,23 @@ class _OrdersViewState extends State<OrdersView> {
             onTap: () => setState(() {
               _statusFilter = status;
               _receivableOnly = false;
+              _personalOnly = false;
             }),
           ),
         ],
+      // Solo si hay pedidos para mí.
+      if (_personalOnly || count((o) => o.order.isPersonal) > 0)
+        chip(
+          label: AppStrings.personalOrder,
+          count: count((o) => o.order.isPersonal),
+          selected: _personalOnly,
+          color: AppColors.info,
+          onTap: () => setState(() {
+            _personalOnly = true;
+            _receivableOnly = false;
+            _statusFilter = null;
+          }),
+        ),
       if (_hasActiveFilters) ...[
         TextButton.icon(
           onPressed: _clearFilters,
