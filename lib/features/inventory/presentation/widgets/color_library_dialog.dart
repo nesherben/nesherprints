@@ -7,6 +7,7 @@ import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/widgets/app_dialog_frame.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/features/inventory/domain/color_library.dart';
+import 'package:nesherprints/features/inventory/presentation/widgets/bambu_catalog_dialog.dart';
 import 'package:nesherprints/features/inventory/presentation/widgets/color_picker_dialog.dart';
 
 /// Gestión de la biblioteca de colores: añadir, cambiar o borrar cualquier
@@ -43,6 +44,21 @@ class _ColorLibraryDialogState extends State<ColorLibraryDialog> {
     }
   }
 
+  Future<void> _importBambu() async {
+    final colors = await showDialog<List<LibraryColor>>(
+      context: context,
+      builder: (_) => BambuCatalogDialog(library: _library),
+    );
+    if (colors == null || !mounted) return;
+    await _run(() async {
+      for (final c in colors) {
+        await ServiceLocator.colors.addIfMissing(c.name, c.rgb);
+      }
+    });
+    if (!mounted) return;
+    AppFeedback.success(context, AppStrings.bambuImported(colors.length));
+  }
+
   Future<void> _edit([LibraryColor? color]) async {
     final result = await showDialog<LibraryColor>(
       context: context,
@@ -71,6 +87,11 @@ class _ColorLibraryDialogState extends State<ColorLibraryDialog> {
             onPressed: () => _run(ServiceLocator.colors.restoreBasics),
             icon: const Icon(Icons.restore, size: 18),
             label: const Text(AppStrings.restoreBasics),
+          ),
+          TextButton.icon(
+            onPressed: _importBambu,
+            icon: const Icon(Icons.inventory_2_outlined, size: 18),
+            label: const Text(AppStrings.bambuCatalogButton),
           ),
           if (widget.shelfColors.isNotEmpty)
             TextButton.icon(

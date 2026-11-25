@@ -6,6 +6,7 @@ import 'package:nesherprints/core/utils/input_formatters.dart';
 import 'package:nesherprints/core/utils/number_utils.dart';
 import 'package:nesherprints/core/widgets/app_dialog_frame.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/features/inventory/domain/bambu_catalog.dart';
 import 'package:nesherprints/features/inventory/domain/color_library.dart';
 import 'package:nesherprints/features/inventory/domain/print_material.dart';
 import 'package:nesherprints/features/inventory/presentation/widgets/color_picker_dialog.dart';
@@ -38,6 +39,7 @@ class _MaterialDialogState extends State<MaterialDialog> {
   late final TextEditingController _costController;
   late final TextEditingController _stockController;
   final _colorFocus = FocusNode();
+  final _nameFocus = FocusNode();
 
   /// RGB elegido para la bobina (filamento).
   int? _rgb;
@@ -65,6 +67,7 @@ class _MaterialDialogState extends State<MaterialDialog> {
   @override
   void dispose() {
     _nameController.dispose();
+    _nameFocus.dispose();
     _colorController.dispose();
     _costController.dispose();
     _stockController.dispose();
@@ -126,6 +129,75 @@ class _MaterialDialogState extends State<MaterialDialog> {
     setState(() => _rgb = known);
   }
 
+  /// Sugerencias de color: los del tipo Bambu Lab que indica el nombre del
+  /// material (todos si no se ha escrito nada) y los de la biblioteca.
+  List<LibraryColor> _colorOptions(String query) {
+    final q = query.trim().toLowerCase();
+    final type = BambuCatalog.typeOf(_nameController.text);
+    final fromType = [
+      if (type != null)
+        for (final c in type.colors)
+          if (q.isEmpty || c.name.toLowerCase().contains(q)) c,
+    ];
+    final seen = {for (final c in fromType) c.name.toLowerCase()};
+    return [
+      ...fromType,
+      for (final c in _library.suggest(query))
+        if (seen.add(c.name.toLowerCase())) c,
+    ];
+  }
+
+  /// Nombre del material con sugerencias de tipos Bambu Lab.
+  Widget _buildNameField() {
+    return RawAutocomplete<BambuType>(
+      textEditingController: _nameController,
+      focusNode: _nameFocus,
+      displayStringForOption: (t) => t.materialName,
+      optionsBuilder: (v) => _kind == MaterialKind.filament
+          ? BambuCatalog.suggestTypes(v.text)
+          : const [],
+      onSelected: (_) => setState(() {}),
+      fieldViewBuilder: (context, controller, focus, onSubmit) => TextFormField(
+        controller: controller,
+        focusNode: focus,
+        validator: _validateName,
+        textInputAction: TextInputAction.next,
+        onChanged: (_) => setState(() {}),
+        decoration: const InputDecoration(
+          labelText: AppStrings.materialNameLabel,
+          prefixIcon: Icon(Icons.label_outline, size: 20),
+        ),
+      ),
+      optionsViewBuilder: (context, onSelected, options) => Align(
+        alignment: Alignment.topLeft,
+        child: Material(
+          elevation: 4,
+          color: AppColors.surfaceHigh,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 240, maxWidth: 360),
+            child: ListView(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              children: [
+                for (final t in options)
+                  ListTile(
+                    dense: true,
+                    title: Text(t.materialName),
+                    subtitle: Text(
+                      AppStrings.bambuColorsCount(t.colors.length),
+                      style: AppTextStyles.mutedSmall,
+                    ),
+                    onTap: () => onSelected(t),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Nombre del color con sugerencias de la biblioteca y el selector RGB.
   Widget _buildColorRow() {
     final shown = _rgb ?? _library.guess(_colorController.text);
@@ -137,7 +209,7 @@ class _MaterialDialogState extends State<MaterialDialog> {
             textEditingController: _colorController,
             focusNode: _colorFocus,
             displayStringForOption: (c) => c.name,
-            optionsBuilder: (v) => _library.suggest(v.text),
+            optionsBuilder: (v) => _colorOptions(v.text),
             onSelected: (c) => setState(() {
               _rgb = c.rgb;
               _rgbManual = false;
@@ -260,15 +332,7 @@ class _MaterialDialogState extends State<MaterialDialog> {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            TextFormField(
-              controller: _nameController,
-              validator: _validateName,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: AppStrings.materialNameLabel,
-                prefixIcon: Icon(Icons.label_outline, size: 20),
-              ),
-            ),
+            _buildNameField(),
             const SizedBox(height: AppSpacing.lg),
             if (_kind == MaterialKind.filament)
               _buildColorRow()

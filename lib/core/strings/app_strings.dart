@@ -146,6 +146,16 @@ class AppStrings {
   static const editPaidTip = 'Pulsa para cambiar lo cobrado';
   static const changeClientTip = 'Cambiar cliente';
   static const noClient = 'Sin cliente';
+  static const bambuCatalogButton = 'Catálogo Bambu Lab';
+  static const bambuCatalogTitle = 'Catálogo Bambu Lab';
+  static String bambuCatalogSubtitle(int types, int colors) =>
+      '$types tipos y $colors colores. Elige los tipos que usas; los colores '
+      'se añaden a tu biblioteca (los que ya tienes se saltan).';
+  static String bambuImportCount(int n) => 'Importar $n colores';
+  static String bambuImported(int n) => '$n colores añadidos a la biblioteca';
+  static String bambuColorsCount(int n) => '$n colores';
+  static const selectAll = 'Marcar todos';
+  static const selectNone = 'Quitar todos';
   static const backupTitle = 'Copias de seguridad';
   static const backupHint =
       'Se hace una copia automática al abrir la app cada día (se guardan las '
