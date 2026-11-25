@@ -252,8 +252,29 @@ class _OrdersViewState extends State<OrdersView> {
         _registerWaste(order);
       case OrderMenuAction.duplicate:
         _openForm(duplicate: order.order);
+      case OrderMenuAction.personal:
+        _markPersonal(order);
       case OrderMenuAction.delete:
         _delete(order);
+    }
+  }
+
+  Future<void> _markPersonal(OrderSummary order) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: AppStrings.markPersonalTitle,
+      message: AppStrings.markPersonalMessage(order.order.name),
+      confirmText: AppStrings.markPersonalConfirm,
+      color: AppColors.info,
+      icon: Icons.person_outline,
+    );
+    if (!confirmed || !mounted) return;
+    final ok = await _attempt(() async {
+      await ServiceLocator.orders.markPersonal(order.id);
+      await widget.onRefresh();
+    });
+    if (ok && mounted) {
+      AppFeedback.success(context, AppStrings.markedPersonal);
     }
   }
 

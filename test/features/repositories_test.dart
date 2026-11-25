@@ -154,6 +154,27 @@ void main() {
       expect(summary.plateNames, 'Base, Tapa');
     });
 
+    test('marcar para mí pone precio y cobro a 0 sin tocar el stock', () async {
+      final matId = await pla();
+      final id = await orders.create(
+        newOrder(),
+        plates: [
+          OrderPlate(name: 'A', grams: 100, minutes: 60, materialId: matId),
+        ],
+      );
+      await orders.complete(id);
+      final stock = await materialStock(matId);
+
+      await orders.markPersonal(id);
+
+      final o = (await orders.getAllWithDetails()).single.order;
+      expect(o.isPersonal, isTrue);
+      expect(o.price, 0);
+      expect(o.paidAmount, 0);
+      expect(o.countsAsRevenue, isFalse);
+      expect(await materialStock(matId), stock);
+    });
+
     test('actualizar sin listas no toca placas ni piezas', () async {
       final matId = await pla();
       final exId = await keychain();

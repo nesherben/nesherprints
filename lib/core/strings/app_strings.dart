@@ -145,6 +145,13 @@ class AppStrings {
   static String orderPending(String amount) => 'Falta: $amount';
   static const painted = 'Pintado';
   static const personalOrder = 'Para mí';
+  static const markPersonalAction = 'Marcar como para mí';
+  static const markPersonalTitle = '¿Marcar como pedido para mí?';
+  static String markPersonalMessage(String name) =>
+      '«$name» dejará de contar como ingreso y su precio y cobro pasarán a 0. '
+      'El material ya descontado no cambia.';
+  static const markPersonalConfirm = 'Marcar';
+  static const markedPersonal = 'Marcado como pedido para mí';
   static const personalTitle = 'Pedido para mí';
   static const personalHint =
       'No se cobra ni cuenta como ingreso: solo gasta material y piezas.';

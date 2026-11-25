@@ -15,7 +15,7 @@ import 'package:nesherprints/features/orders/presentation/widgets/status_badge.d
 enum OrderSortColumn { id, date, name, status, price, pending }
 
 /// Acciones de la fila disponibles en el menú «más».
-enum OrderMenuAction { waste, duplicate, delete }
+enum OrderMenuAction { waste, duplicate, personal, delete }
 
 /// Callbacks que el listado lanza; no accede a datos.
 class OrderListActions {
@@ -97,7 +97,13 @@ class OrderList extends StatelessWidget {
                   return ListView.builder(
                     padding: wide
                         ? EdgeInsets.zero
-                        : const EdgeInsets.all(AppSpacing.md),
+                        // Hueco abajo para que el botón «+» no tape la última.
+                        : const EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            88,
+                          ),
                     itemCount: entries.length,
                     itemBuilder: (_, i) {
                       final entry = entries[i];
@@ -773,8 +779,8 @@ class _Actions extends StatelessWidget {
           tooltip: AppStrings.moreActions,
           icon: const Icon(Icons.more_vert, size: 20),
           onSelected: (a) => actions.onMenu(order, a),
-          itemBuilder: (_) => const [
-            PopupMenuItem(
+          itemBuilder: (_) => [
+            const PopupMenuItem(
               value: OrderMenuAction.waste,
               child: _MenuRow(
                 icon: Icons.recycling,
@@ -782,15 +788,24 @@ class _Actions extends StatelessWidget {
                 color: AppColors.warning,
               ),
             ),
-            PopupMenuItem(
+            const PopupMenuItem(
               value: OrderMenuAction.duplicate,
               child: _MenuRow(
                 icon: Icons.copy_outlined,
                 text: AppStrings.duplicateAction,
               ),
             ),
-            PopupMenuDivider(),
-            PopupMenuItem(
+            if (!order.order.isPersonal)
+              const PopupMenuItem(
+                value: OrderMenuAction.personal,
+                child: _MenuRow(
+                  icon: Icons.person_outline,
+                  text: AppStrings.markPersonalAction,
+                  color: AppColors.info,
+                ),
+              ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
               value: OrderMenuAction.delete,
               child: _MenuRow(
                 icon: Icons.delete_outline,

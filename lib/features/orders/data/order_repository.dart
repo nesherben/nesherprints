@@ -267,6 +267,23 @@ class OrderRepository {
     });
   }
 
+  /// Marca un pedido (también uno cerrado) como para uso propio: precio y
+  /// cobro pasan a 0 y deja de contar como ingreso. No toca el stock.
+  Future<void> markPersonal(int orderId) async {
+    final db = await _db.database;
+    final n = await db.update(
+      OrdersTable.name,
+      {
+        OrdersTable.isPersonal: 1,
+        OrdersTable.price: 0.0,
+        OrdersTable.paidAmount: 0.0,
+      },
+      where: '${OrdersTable.id} = ?',
+      whereArgs: [orderId],
+    );
+    if (n == 0) throw const OrderRuleException('El pedido ya no existe.');
+  }
+
   /// Borra el pedido con sus placas, mermas y piezas, y devuelve al stock las
   /// piezas extra. El material **no** se repone: ya se gastó al imprimir.
   Future<void> delete(int orderId) async {
