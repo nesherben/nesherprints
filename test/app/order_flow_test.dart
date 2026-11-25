@@ -448,4 +448,55 @@ void main() {
     }
     expect(overflows.toSet().toList()..sort(), isEmpty);
   });
+
+  // Barrido de tamaños: móviles, tabletas en ambas orientaciones y ventanas de
+  // escritorio, con las pantallas principales y el formulario de pedido.
+  const sizes = [
+    Size(320, 640),
+    Size(360, 800),
+    Size(412, 915),
+    Size(600, 960),
+    Size(719, 900),
+    Size(720, 900),
+    Size(800, 1280),
+    Size(900, 700),
+    Size(1024, 768),
+    Size(1099, 700),
+    Size(1100, 700),
+    Size(1280, 720),
+    Size(1366, 768),
+    Size(1920, 1080),
+    Size(2560, 1440),
+  ];
+  for (final size in sizes) {
+    testWidgets(
+      'sin desbordes a ${size.width.toInt()}x${size.height.toInt()}',
+      (t) async {
+        await openApp(t, size: size, seed: seedOrder);
+        final compact = size.width < 720;
+        final sections = [
+          'Inventario',
+          'Piezas',
+          'Pedidos',
+          'Clientes',
+          compact ? 'Ajustes' : 'Administración',
+          'Panel',
+        ];
+        for (final section in sections) {
+          await tapText(t, section);
+          await settle(t, rounds: 3);
+        }
+        // Formulario de pedido abierto y descartado.
+        await tapText(t, 'Pedidos');
+        await settle(t, rounds: 2);
+        await tapTooltip(t, 'Nuevo pedido');
+        await settle(t);
+        await tapText(t, 'Cancelar');
+        if (find.text('Descartar').evaluate().isNotEmpty) {
+          await tapText(t, 'Descartar');
+        }
+        expect(overflows.toSet().toList()..sort(), isEmpty);
+      },
+    );
+  }
 }

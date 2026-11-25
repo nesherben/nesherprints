@@ -171,7 +171,7 @@ class _ClientsViewState extends State<ClientsView> {
               ),
             ),
             // Alta rápida (solo en pantalla ancha).
-            if (!context.isCompact) ...[
+            if (context.showQuickBars) ...[
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
               SliverToBoxAdapter(
                 child: QuickClientBar(

@@ -88,10 +88,12 @@ class StatusBreakdown extends StatelessWidget {
                           color: statusColor(e.key),
                         ),
                         const SizedBox(width: 6),
-                        Text(
-                          '${e.key.label} ${e.value} '
-                          '(${formatPercent(e.value / total, decimals: 0)})',
-                          style: AppTextStyles.muted,
+                        Flexible(
+                          child: Text(
+                            '${e.key.label} ${e.value} '
+                            '(${formatPercent(e.value / total, decimals: 0)})',
+                            style: AppTextStyles.muted,
+                          ),
                         ),
                       ],
                     ),

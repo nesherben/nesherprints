@@ -454,7 +454,7 @@ class _OrdersViewState extends State<OrdersView> {
                       ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              if (!compact) ...[
+              if (context.showQuickBars) ...[
                 QuickOrderBar(
                   clients: _clients,
                   focusNode: _quickFocus,

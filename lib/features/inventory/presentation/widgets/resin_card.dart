@@ -269,7 +269,15 @@ class _Stat extends StatelessWidget {
                 style: AppTextStyles.mutedSmall,
               ),
             ),
-            Text(value, style: AppTextStyles.cardTitle.copyWith(color: color)),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: AppTextStyles.cardTitle.copyWith(color: color),
+                ),
+              ),
+            ),
           ],
         ),
       );

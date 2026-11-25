@@ -136,7 +136,7 @@ void main() {
   });
 
   testWidgets('en ventana estrecha se apila sin desbordes', (t) async {
-    await pumpDashboard(t, size: const Size(420, 900));
+    await pumpDashboard(t, size: const Size(360, 800));
 
     expect(find.text('Facturado'), findsWidgets);
     expect(overflows, isEmpty);

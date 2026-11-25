@@ -27,18 +27,41 @@ class MonthlyRevenueChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    AppStrings.monthlyChartTitle,
-                    style: AppTextStyles.cardTitle,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const title = Text(
+                  AppStrings.monthlyChartTitle,
+                  style: AppTextStyles.cardTitle,
+                );
+                const legends = [
+                  _Legend(
+                    color: AppColors.primary,
+                    label: AppStrings.grossLabel,
                   ),
-                ),
-                _Legend(color: AppColors.primary, label: AppStrings.grossLabel),
-                SizedBox(width: AppSpacing.md),
-                _Legend(color: AppColors.success, label: AppStrings.netLabel),
-              ],
+                  SizedBox(width: AppSpacing.md),
+                  _Legend(color: AppColors.success, label: AppStrings.netLabel),
+                ];
+                // En ancho estrecho la leyenda baja bajo el título.
+                if (constraints.maxWidth < 380) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      title,
+                      const SizedBox(height: AppSpacing.sm),
+                      Wrap(
+                        spacing: AppSpacing.md,
+                        children: [legends.first, legends.last],
+                      ),
+                    ],
+                  );
+                }
+                return const Row(
+                  children: [
+                    Expanded(child: title),
+                    ...legends,
+                  ],
+                );
+              },
             ),
             const SizedBox(height: AppSpacing.lg),
             Expanded(

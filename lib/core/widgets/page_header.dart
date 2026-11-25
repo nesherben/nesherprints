@@ -36,7 +36,18 @@ class PageHeader extends StatelessWidget {
     );
 
     if (trailing.isEmpty) return titleBlock;
-    if (context.isCompact) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Con poco ancho las acciones pasan debajo del título (móvil, o una
+        // ventana estrecha de escritorio).
+        final stacked = context.isCompact || constraints.maxWidth < 960;
+        return _layout(titleBlock, trailing, stacked);
+      },
+    );
+  }
+
+  Widget _layout(Widget titleBlock, List<Widget> trailing, bool stacked) {
+    if (stacked) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

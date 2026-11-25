@@ -488,6 +488,16 @@ class _CompactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Con sitio (tableta en vertical) las acciones van a la vista.
+    return LayoutBuilder(
+      builder: (context, c) => _card(c.maxWidth >= _inlineActionsFrom),
+    );
+  }
+
+  /// Ancho de tarjeta desde el que caben las acciones sin menú.
+  static const double _inlineActionsFrom = 560;
+
+  Widget _card(bool inlineActions) {
     final o = order.order;
     final cost = o.costOverride;
     final showProfit = o.countsAsRevenue && cost != null;
@@ -581,8 +591,12 @@ class _CompactCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  _Collection(order: o),
-                  _Actions(order: order, actions: actions),
+                  Flexible(child: _Collection(order: o)),
+                  _Actions(
+                    order: order,
+                    actions: actions,
+                    inline: inlineActions,
+                  ),
                 ],
               ),
             ],
