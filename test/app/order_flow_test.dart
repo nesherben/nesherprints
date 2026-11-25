@@ -367,11 +367,9 @@ void main() {
 
     await t.enterText(find.byType(TextField).last, 'dragon');
     await settle(t, rounds: 2);
-    expect(
-      find.text('Sin resultados'),
-      findsOneWidget,
-      reason: 'sin tildes no',
-    );
+    // Sin tildes también encuentra «Dragón».
+    expect(find.text('Sin resultados'), findsNothing);
+    expect(find.text('Dragón rojo'), findsWidgets);
     await t.enterText(find.byType(TextField).last, 'drag');
     await settle(t, rounds: 2);
     await t.testTextInput.receiveAction(TextInputAction.done);

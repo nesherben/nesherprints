@@ -6,6 +6,7 @@ import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/responsive.dart';
+import 'package:nesherprints/core/utils/text_utils.dart';
 import 'package:nesherprints/core/widgets/adaptive_sliver_list.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
@@ -142,10 +143,10 @@ class _ExtrasViewState extends State<ExtrasView> {
   );
 
   List<Extra> get _filtered {
-    final q = _query.trim().toLowerCase();
+    final q = foldText(_query.trim());
     final matches = [
       for (final e in _extras)
-        if ((q.isEmpty || e.name.toLowerCase().contains(q)) &&
+        if ((q.isEmpty || foldText(e.name).contains(q)) &&
             _matchesFilter(e, _filter))
           e,
     ];

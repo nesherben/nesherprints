@@ -6,6 +6,7 @@ import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/responsive.dart';
+import 'package:nesherprints/core/utils/text_utils.dart';
 import 'package:nesherprints/core/widgets/adaptive_sliver_list.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/confirm_dialog.dart';
@@ -141,14 +142,14 @@ class _ClientsViewState extends State<ClientsView> {
   );
 
   List<Client> get _filtered {
-    final q = _query.trim().toLowerCase();
+    final q = foldText(_query.trim());
     return [
       for (final c in _clients)
         if (_matchesFilter(c, _filter) &&
             (q.isEmpty ||
-                c.name.toLowerCase().contains(q) ||
-                c.phone.toLowerCase().contains(q) ||
-                c.email.toLowerCase().contains(q)))
+                foldText(c.name).contains(q) ||
+                foldText(c.phone).contains(q) ||
+                foldText(c.email).contains(q)))
           c,
     ];
   }

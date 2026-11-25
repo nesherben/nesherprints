@@ -5,6 +5,7 @@ import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/responsive.dart';
+import 'package:nesherprints/core/utils/text_utils.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
@@ -253,12 +254,12 @@ class _InventoryViewState extends State<InventoryView> {
       for (final m in _materials)
         if (m.kind == MaterialKind.filament) m,
     ];
-    final q = _query.trim().toLowerCase();
+    final q = foldText(_query.trim());
     final filaments = [
       for (final m in allFilaments)
         if (q.isEmpty ||
-            m.name.toLowerCase().contains(q) ||
-            m.color.toLowerCase().contains(q))
+            foldText(m.name).contains(q) ||
+            foldText(m.color).contains(q))
           m,
     ];
     final groups = MaterialGroup.group(filaments);

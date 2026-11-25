@@ -12,6 +12,7 @@ import 'package:nesherprints/core/constants/app_constants.dart';
 import 'package:nesherprints/core/errors/app_exception.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/open_folder.dart';
+import 'package:nesherprints/core/utils/text_utils.dart';
 import 'package:nesherprints/core/utils/responsive.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/confirm_dialog.dart';
@@ -218,7 +219,7 @@ class _OrdersViewState extends State<OrdersView> {
       _personalOnly;
 
   List<OrderSummary> get _visibleOrders {
-    final query = _searchController.text.trim().toLowerCase();
+    final query = foldText(_searchController.text.trim());
     final list = widget.orders.where((o) {
       if (_statusFilter != null && o.order.status != _statusFilter) {
         return false;
@@ -232,8 +233,9 @@ class _OrdersViewState extends State<OrdersView> {
         '#${o.id}',
         '${o.id}',
         o.plateNames ?? '',
-      ].join(' ').toLowerCase();
-      return haystack.contains(query);
+      ].join(' ');
+      final folded = foldText(haystack);
+      return folded.contains(query);
     }).toList();
 
     Comparable key(OrderSummary o) => switch (_sortColumn) {

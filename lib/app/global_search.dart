@@ -1,3 +1,4 @@
+import 'package:nesherprints/core/utils/text_utils.dart';
 import 'package:nesherprints/features/clients/domain/client.dart';
 import 'package:nesherprints/features/extras/domain/extra.dart';
 import 'package:nesherprints/features/inventory/domain/print_material.dart';
@@ -37,14 +38,14 @@ class GlobalSearch {
     required List<Extra> extras,
     required List<PrintMaterial> materials,
   }) {
-    final q = query.trim().toLowerCase();
+    final q = foldText(query.trim());
     if (q.isEmpty) return const [];
 
     /// 0 = empieza por el texto, 1 = lo contiene, `null` = no coincide.
     int? score(Iterable<String> fields) {
       int? best;
       for (final f in fields) {
-        final t = f.toLowerCase();
+        final t = foldText(f);
         if (t.isEmpty) continue;
         final s = t.startsWith(q) ? 0 : (t.contains(q) ? 1 : null);
         if (s != null && (best == null || s < best)) best = s;
