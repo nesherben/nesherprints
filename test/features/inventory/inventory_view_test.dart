@@ -122,7 +122,7 @@ void main() {
     expect(find.text('Negro'), findsOneWidget);
     expect(find.text('20,00 €/kg'), findsOneWidget);
     expect(find.text('Tanque de resina'), findsOneWidget);
-    expect(find.text('0.10 kg'), findsOneWidget, reason: 'nivel del tanque');
+    expect(find.text('0,10 kg'), findsOneWidget, reason: 'nivel del tanque');
     expect(find.text('Añadir resina'), findsOneWidget);
     expect(find.text('1000 g'), findsNothing, reason: 'el filamento no cuenta');
   });
@@ -140,7 +140,7 @@ void main() {
     final saved = (await stored(t)).single;
     expect(saved.stockGrams, 400);
     expect(saved.costPerKg, closeTo(50, 0.0001));
-    expect(find.text('0.40 kg'), findsOneWidget);
+    expect(find.text('0,40 kg'), findsOneWidget);
   });
 
   testWidgets('añadir varios crea todos los colores de golpe', (t) async {
@@ -223,7 +223,7 @@ void main() {
     expect(saved.color, 'Verde');
     expect(saved.costPerKg, 30.5);
     expect(saved.stockGrams, 500);
-    expect(find.text('0.50 kg'), findsOneWidget, reason: 'sale en el tanque');
+    expect(find.text('0,50 kg'), findsOneWidget, reason: 'sale en el tanque');
   });
 
   testWidgets('edición: cambia el nombre y conserva el id', (t) async {

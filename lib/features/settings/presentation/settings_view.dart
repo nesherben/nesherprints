@@ -186,7 +186,7 @@ class _SettingsViewState extends State<SettingsView> {
       child: Focus(
         autofocus: true,
         child: Padding(
-          padding: EdgeInsets.all(context.isCompact ? AppSpacing.md : 32),
+          padding: EdgeInsets.all(context.isCompact ? AppSpacing.lg : 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -293,7 +293,7 @@ class _SettingRow extends StatelessWidget {
         Text(field.label, style: AppTextStyles.cardTitle),
         const SizedBox(height: 2),
         Text(
-          '${field.hint} · ${AppStrings.settingsDefaultValue('${formatSettingValue(field.defaultValue)} ${field.suffix}')}',
+          '${field.hint} · ${AppStrings.settingsDefaultValue('${formatSettingValue(field.defaultValue).replaceAll('.', ',')} ${field.suffix}')}',
           style: AppTextStyles.mutedSmall,
         ),
       ],

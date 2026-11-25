@@ -428,7 +428,7 @@ class AppStrings {
   static String materialGroupSubtitle(int variants, String stock) =>
       '$variants variantes · $stock';
   static String kilos(double grams) =>
-      '${(grams / 1000).toStringAsFixed(2)} kg';
+      '${(grams / 1000).toStringAsFixed(2).replaceAll('.', ',')} kg';
   static String pricePerKg(String price) => '$price/kg';
   static const lowStock = 'Stock bajo';
   static const materialNameRequired = 'Indica el nombre o la marca';

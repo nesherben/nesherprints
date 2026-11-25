@@ -280,7 +280,10 @@ class _MainLayoutState extends State<MainLayout> {
                   ],
                 )
               : null,
-          floatingActionButton: compact
+          floatingActionButton:
+              compact &&
+                  (_selectedIndex == _dashboardIndex ||
+                      _selectedIndex == _ordersIndex)
               ? FloatingActionButton(
                   onPressed: _showNewOrderDialog,
                   tooltip: AppStrings.newOrder,
