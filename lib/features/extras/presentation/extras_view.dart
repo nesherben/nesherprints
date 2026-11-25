@@ -25,7 +25,10 @@ enum _ExtraFilter { all, inStock, soldOut }
 
 /// Inventario de piezas extra (llaveros, clickers…).
 class ExtrasView extends StatefulWidget {
-  const ExtrasView({super.key});
+  const ExtrasView({super.key, this.openId});
+
+  /// Abre la edición de esta pieza al entrar (desde el buscador global).
+  final int? openId;
 
   @override
   State<ExtrasView> createState() => _ExtrasViewState();
@@ -40,7 +43,15 @@ class _ExtrasViewState extends State<ExtrasView> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _load().then((_) => _openLaunched());
+  }
+
+  /// Si se llegó desde el buscador global, abre la pieza elegida.
+  void _openLaunched() {
+    final id = widget.openId;
+    if (id == null || !mounted) return;
+    final match = _extras.where((e) => e.id == id);
+    if (match.isNotEmpty) _openDialog(match.first);
   }
 
   Future<void> _load() async {

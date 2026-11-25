@@ -26,7 +26,10 @@ enum _ClientFilter { all, withOrders, owes }
 
 /// Agenda de clientes en rejilla de tarjetas.
 class ClientsView extends StatefulWidget {
-  const ClientsView({super.key});
+  const ClientsView({super.key, this.openId});
+
+  /// Abre la ficha de este cliente al entrar (desde el buscador global).
+  final int? openId;
 
   @override
   State<ClientsView> createState() => _ClientsViewState();
@@ -42,7 +45,15 @@ class _ClientsViewState extends State<ClientsView> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _load().then((_) => _openLaunched());
+  }
+
+  /// Si se llegó desde el buscador global, abre la ficha elegida.
+  void _openLaunched() {
+    final id = widget.openId;
+    if (id == null || !mounted) return;
+    final match = _clients.where((c) => c.id == id);
+    if (match.isNotEmpty) _openDialog(match.first);
   }
 
   Future<void> _load() async {

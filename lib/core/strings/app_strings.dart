@@ -146,6 +146,16 @@ class AppStrings {
   static const editPaidTip = 'Pulsa para cambiar lo cobrado';
   static const changeClientTip = 'Cambiar cliente';
   static const noClient = 'Sin cliente';
+  static const globalSearchHint = 'Buscar pedidos, clientes, piezas o colores…';
+  static const globalSearchEmpty =
+      'Escribe para buscar en toda la app. ↑ ↓ para moverte, Intro para abrir.';
+  static const globalSearchNoResults = 'Sin resultados';
+  static const searchKindOrder = 'PEDIDO';
+  static const searchKindClient = 'CLIENTE';
+  static const searchKindExtra = 'PIEZA';
+  static const searchKindMaterial = 'MATERIAL';
+  static const searchTooltip = 'Buscar en toda la app (Ctrl+K)';
+  static const shortcutSearchAll = 'Buscar en toda la app';
   static const exportMonthly = 'Exportar resumen mensual';
   static const columnsTooltip = 'Columnas de la tabla';
   static const shortcutsTitle = 'Atajos de teclado';

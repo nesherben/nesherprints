@@ -352,6 +352,34 @@ void main() {
     expect(find.text('FECHA'), findsOneWidget);
   });
 
+  testWidgets('Ctrl+K busca en toda la app y abre el pedido elegido', (
+    t,
+  ) async {
+    await openApp(t, seed: () => seedOrder(name: 'Dragón rojo'));
+    await t.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await t.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await t.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await settle(t, rounds: 3);
+    expect(
+      find.text('Buscar pedidos, clientes, piezas o colores…'),
+      findsOneWidget,
+    );
+
+    await t.enterText(find.byType(TextField).last, 'dragon');
+    await settle(t, rounds: 2);
+    expect(
+      find.text('Sin resultados'),
+      findsOneWidget,
+      reason: 'sin tildes no',
+    );
+    await t.enterText(find.byType(TextField).last, 'drag');
+    await settle(t, rounds: 2);
+    await t.testTextInput.receiveAction(TextInputAction.done);
+    await settle(t, rounds: 4);
+
+    expect(find.text('Datos del pedido'), findsOneWidget);
+  });
+
   testWidgets('F1 abre la chuleta de atajos', (t) async {
     await openApp(t);
     await t.sendKeyEvent(LogicalKeyboardKey.f1);

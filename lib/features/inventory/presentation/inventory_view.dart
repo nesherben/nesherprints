@@ -26,7 +26,10 @@ import 'package:nesherprints/features/inventory/presentation/widgets/resin_card.
 /// Inventario: el tanque de resina (con su nivel y precio medio) y la lista de
 /// colores de filamento con su precio, agrupados por nombre.
 class InventoryView extends StatefulWidget {
-  const InventoryView({super.key});
+  const InventoryView({super.key, this.openId});
+
+  /// Abre la edición de este material al entrar (desde el buscador global).
+  final int? openId;
 
   @override
   State<InventoryView> createState() => _InventoryViewState();
@@ -45,7 +48,15 @@ class _InventoryViewState extends State<InventoryView> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _load().then((_) => _openLaunched());
+  }
+
+  /// Si se llegó desde el buscador global, abre el material elegido.
+  void _openLaunched() {
+    final id = widget.openId;
+    if (id == null || !mounted) return;
+    final match = _materials.where((m) => m.id == id);
+    if (match.isNotEmpty) _openDialog(match.first);
   }
 
   Future<void> _load() async {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:nesherprints/app/global_search.dart';
+import 'package:nesherprints/app/global_search_dialog.dart';
 import 'package:nesherprints/app/service_locator.dart';
 import 'package:nesherprints/app/shortcuts_dialog.dart';
 import 'package:nesherprints/core/strings/app_strings.dart';
@@ -175,6 +177,42 @@ class _MainLayoutState extends State<MainLayout> {
     await _refreshOrders();
   }
 
+  /// Elemento (pantalla + id) que abrir al llegar desde el buscador global.
+  ({int index, int id})? _entityLaunch;
+
+  Future<void> _showSearch() async {
+    final hit = await showDialog<SearchHit>(
+      context: context,
+      builder: (_) => GlobalSearchDialog(orders: _orders),
+    );
+    if (hit == null || !mounted) return;
+    switch (hit.kind) {
+      case SearchKind.order:
+        _launchOrders(openOrderId: hit.id);
+      case SearchKind.client:
+        setState(() {
+          _entityLaunch = (index: 4, id: hit.id);
+          _ordersLaunch = null;
+          _selectedIndex = 4;
+        });
+      case SearchKind.extra:
+        setState(() {
+          _entityLaunch = (index: 2, id: hit.id);
+          _ordersLaunch = null;
+          _selectedIndex = 2;
+        });
+      case SearchKind.material:
+        setState(() {
+          _entityLaunch = (index: 1, id: hit.id);
+          _ordersLaunch = null;
+          _selectedIndex = 1;
+        });
+    }
+  }
+
+  int? _launchIdFor(int index) =>
+      _entityLaunch?.index == index ? _entityLaunch?.id : null;
+
   void _showShortcuts() {
     showDialog<void>(context: context, builder: (_) => const ShortcutsDialog());
   }
@@ -196,6 +234,7 @@ class _MainLayoutState extends State<MainLayout> {
     setState(() {
       _selectedIndex = index;
       _ordersLaunch = null;
+      _entityLaunch = null;
     });
   }
 
@@ -221,9 +260,9 @@ class _MainLayoutState extends State<MainLayout> {
           onShowReceivable: () => _launchOrders(receivableOnly: true),
         );
       case 1:
-        return const InventoryView();
+        return InventoryView(openId: _launchIdFor(1));
       case 2:
-        return const ExtrasView();
+        return ExtrasView(openId: _launchIdFor(2));
       case 3:
         return OrdersView(
           orders: _orders,
@@ -236,7 +275,7 @@ class _MainLayoutState extends State<MainLayout> {
           openOrderId: _ordersLaunch?.openOrderId,
         );
       case 4:
-        return const ClientsView();
+        return ClientsView(openId: _launchIdFor(4));
       default:
         return const SettingsView();
     }
@@ -285,6 +324,8 @@ class _MainLayoutState extends State<MainLayout> {
       const SingleActivator(LogicalKeyboardKey.keyN, control: true):
           _showNewOrderDialog,
       const SingleActivator(LogicalKeyboardKey.f1): _showShortcuts,
+      const SingleActivator(LogicalKeyboardKey.keyK, control: true):
+          _showSearch,
       for (final (i, key) in _digitKeys.indexed)
         SingleActivator(key, control: true): () => _select(i),
     };
@@ -392,11 +433,22 @@ class _MainLayoutState extends State<MainLayout> {
                   alignment: Alignment.bottomCenter,
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                    child: IconButton(
-                      tooltip: AppStrings.shortcutsTooltip,
-                      icon: const Icon(Icons.keyboard_outlined),
-                      color: AppColors.textMuted,
-                      onPressed: _showShortcuts,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: AppStrings.searchTooltip,
+                          icon: const Icon(Icons.search),
+                          color: AppColors.textMuted,
+                          onPressed: _showSearch,
+                        ),
+                        IconButton(
+                          tooltip: AppStrings.shortcutsTooltip,
+                          icon: const Icon(Icons.keyboard_outlined),
+                          color: AppColors.textMuted,
+                          onPressed: _showShortcuts,
+                        ),
+                      ],
                     ),
                   ),
                 ),

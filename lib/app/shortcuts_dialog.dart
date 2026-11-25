@@ -13,6 +13,7 @@ class ShortcutsDialog extends StatelessWidget {
     (
       AppStrings.shortcutsGlobal,
       [
+        ('Ctrl + K', AppStrings.shortcutSearchAll),
         ('Ctrl + N', AppStrings.shortcutNewOrder),
         ('Ctrl + 1 … 6', AppStrings.shortcutGoTo),
         ('F1', AppStrings.shortcutHelp),
