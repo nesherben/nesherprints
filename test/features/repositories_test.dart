@@ -69,6 +69,20 @@ void main() {
       (await extras.getAll()).firstWhere((e) => e.id == id).stock;
 
   group('Settings', () {
+    test(
+      'las preferencias de pantalla se guardan y no tocan los precios',
+      () async {
+        expect(await settings.getValues(['ui_a', 'ui_b']), isEmpty);
+        await settings.setValues({'ui_a': 3, 'ui_b': 1});
+        await settings.setValues({'ui_a': 5});
+        expect(await settings.getValues(['ui_a', 'ui_b']), {
+          'ui_a': 5,
+          'ui_b': 1,
+        });
+        expect((await settings.getPricingSettings()).profitMarginPercent, 150);
+      },
+    );
+
     test('una BD nueva trae los valores por defecto', () async {
       final s = await settings.getPricingSettings();
       expect(s.profitMarginPercent, 150);

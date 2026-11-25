@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:nesherprints/app/service_locator.dart';
+import 'package:nesherprints/app/shortcuts_dialog.dart';
 import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
@@ -174,11 +175,17 @@ class _MainLayoutState extends State<MainLayout> {
     await _refreshOrders();
   }
 
-  void _showNewOrderDialog() {
-    showDialog(
+  void _showShortcuts() {
+    showDialog<void>(context: context, builder: (_) => const ShortcutsDialog());
+  }
+
+  Future<void> _showNewOrderDialog() async {
+    final again = await showDialog<bool>(
       context: context,
       builder: (_) => OrderFormDialog(onSave: _saveOrder),
     );
+    // «Guardar y nuevo»: otro formulario vacío.
+    if (again == true && mounted) await _showNewOrderDialog();
   }
 
   /// Datos con los que abrir Pedidos desde el Panel (se consumen una vez).
@@ -277,6 +284,7 @@ class _MainLayoutState extends State<MainLayout> {
     final shortcuts = <ShortcutActivator, VoidCallback>{
       const SingleActivator(LogicalKeyboardKey.keyN, control: true):
           _showNewOrderDialog,
+      const SingleActivator(LogicalKeyboardKey.f1): _showShortcuts,
       for (final (i, key) in _digitKeys.indexed)
         SingleActivator(key, control: true): () => _select(i),
     };
@@ -376,6 +384,20 @@ class _MainLayoutState extends State<MainLayout> {
                           child: const Icon(Icons.add),
                         ),
                     ],
+                  ),
+                ),
+              ),
+              trailing: Expanded(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                    child: IconButton(
+                      tooltip: AppStrings.shortcutsTooltip,
+                      icon: const Icon(Icons.keyboard_outlined),
+                      color: AppColors.textMuted,
+                      onPressed: _showShortcuts,
+                    ),
                   ),
                 ),
               ),

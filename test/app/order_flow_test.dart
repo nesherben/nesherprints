@@ -331,6 +331,29 @@ void main() {
     expect(find.text('Datos del pedido'), findsOneWidget);
   });
 
+  testWidgets('F1 abre la chuleta de atajos', (t) async {
+    await openApp(t);
+    await t.sendKeyEvent(LogicalKeyboardKey.f1);
+    await settle(t, rounds: 3);
+    expect(find.text('Atajos de teclado'), findsOneWidget);
+    expect(find.text('Ctrl + N'), findsOneWidget);
+  });
+
+  testWidgets('«Guardar y nuevo» guarda y abre otro formulario vacío', (
+    t,
+  ) async {
+    await openApp(t);
+    await createOrderThroughForm(t);
+    await tapText(t, 'Guardar y nuevo');
+    await settle(t, rounds: 4);
+
+    expect(await allOrders(t), hasLength(1));
+    // Otro formulario, vacío y listo para escribir.
+    expect(find.text('Datos del pedido'), findsOneWidget);
+    final name = find.widgetWithText(TextFormField, 'Figura de prueba');
+    expect(name, findsNothing, reason: 'el nuevo formulario está vacío');
+  });
+
   testWidgets('con el teclado ↓ marca el pedido e Intro lo abre', (t) async {
     await openApp(t, seed: () => seedOrder(name: 'Figura'));
     await tapText(t, 'Pedidos');

@@ -345,7 +345,9 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
     for (final p in _plates) p.toPlate(),
   ]);
 
-  Future<void> _save() async {
+  /// Guarda el pedido. Con [again] el diálogo se cierra devolviendo `true`
+  /// para que quien lo abrió vuelva a abrir uno nuevo («Guardar y nuevo»).
+  Future<void> _save({bool again = false}) async {
     if (_saving || _isLocked) return;
     final errors = _validate();
     if (errors.isNotEmpty) {
@@ -370,7 +372,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
           ],
         ),
       );
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context, again);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -420,9 +422,14 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
               onPressed: _close,
               child: Text(_isLocked ? AppStrings.close : AppStrings.cancel),
             ),
+            if (!_isLocked && !_isEditing)
+              OutlinedButton(
+                onPressed: _saving ? null : () => _save(again: true),
+                child: const Text(AppStrings.saveAndNew),
+              ),
             if (!_isLocked)
               ElevatedButton.icon(
-                onPressed: _saving ? null : _save,
+                onPressed: _saving ? null : () => _save(),
                 icon: _saving
                     ? const SizedBox(
                         width: 16,

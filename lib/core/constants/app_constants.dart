@@ -54,6 +54,12 @@ class SettingKeys {
   static const String minimumPrice = 'precio_minimo';
   static const String profitGoal = 'objetivo_beneficio';
 
+  // Preferencias de pantalla (no son ajustes de precio).
+  static const String uiOrdersSort = 'ui_pedidos_orden';
+  static const String uiOrdersAscending = 'ui_pedidos_asc';
+  static const String uiOrdersStatus = 'ui_pedidos_estado';
+  static const String uiOrdersReceivable = 'ui_pedidos_por_cobrar';
+
   // Obsoletas: de versiones anteriores del modelo de precios. Se conservan
   // las filas pero no se usan.
   static const List<String> obsolete = [

@@ -146,6 +146,21 @@ class AppStrings {
   static const editPaidTip = 'Pulsa para cambiar lo cobrado';
   static const changeClientTip = 'Cambiar cliente';
   static const noClient = 'Sin cliente';
+  static const shortcutsTitle = 'Atajos de teclado';
+  static const shortcutsTooltip = 'Atajos de teclado (F1)';
+  static const shortcutsGlobal = 'En toda la app';
+  static const shortcutsOrders = 'En Pedidos';
+  static const shortcutsEditing = 'Al editar';
+  static const shortcutNewOrder = 'Nuevo pedido';
+  static const shortcutGoTo = 'Ir a Panel, Inventario, Piezas, Pedidos…';
+  static const shortcutHelp = 'Mostrar esta chuleta';
+  static const shortcutSearch = 'Buscar pedidos';
+  static const shortcutQuickBar = 'Ir a la barra de alta rápida';
+  static const shortcutMoveRow = 'Marcar el pedido anterior / siguiente';
+  static const shortcutOpenRow = 'Abrir el pedido marcado';
+  static const shortcutSave = 'Guardar el formulario';
+  static const shortcutCellSave = 'Guardar un dato editado en la fila';
+  static const shortcutCancel = 'Cerrar / cancelar la edición';
   static String deleted(String name) => '«$name» eliminado';
   static const addColorToBrand = 'Añadir color';
   static const copyProfile = 'COPIAR PERFIL';
@@ -230,6 +245,7 @@ class AppStrings {
   // ==================== PEDIDOS: FORMULARIO ====================
   static const editOrder = 'Editar pedido';
   static const saveOrder = 'Guardar pedido';
+  static const saveAndNew = 'Guardar y nuevo';
   static const locked = 'BLOQUEADO';
   static const clientOptional = 'Cliente (Opcional)';
   static const unassigned = 'Sin asignar';

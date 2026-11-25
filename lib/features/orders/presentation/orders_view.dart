@@ -8,6 +8,7 @@ import 'package:nesherprints/app/service_locator.dart';
 import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
+import 'package:nesherprints/core/constants/app_constants.dart';
 import 'package:nesherprints/core/errors/app_exception.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/open_folder.dart';
@@ -84,6 +85,14 @@ class _OrdersViewState extends State<OrdersView> {
     super.initState();
     _receivableOnly = widget.initialReceivableOnly;
     _loadClients();
+    // Si no se llega desde el Panel, se recuerda cómo se dejó la lista.
+    if (!widget.initialReceivableOnly && widget.openOrderId == null) {
+      _loadPrefs();
+    } else {
+      // Un filtro que viene del Panel no se guarda como preferencia.
+      _prefsLoaded = true;
+      _savedPrefs = _prefsKey;
+    }
     final openId = widget.openOrderId;
     if (openId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -99,6 +108,58 @@ class _OrdersViewState extends State<OrdersView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _rootFocus.requestFocus();
     });
+  }
+
+  // ==================== PREFERENCIAS ====================
+
+  bool _prefsLoaded = false;
+  String _savedPrefs = '';
+
+  String get _prefsKey =>
+      '${_sortColumn.index}|$_ascending|${_statusFilter?.index ?? -1}|'
+      '$_receivableOnly';
+
+  Future<void> _loadPrefs() async {
+    try {
+      final v = await ServiceLocator.settings.getValues([
+        SettingKeys.uiOrdersSort,
+        SettingKeys.uiOrdersAscending,
+        SettingKeys.uiOrdersStatus,
+        SettingKeys.uiOrdersReceivable,
+      ]);
+      if (!mounted) return;
+      setState(() {
+        final sort = v[SettingKeys.uiOrdersSort]?.toInt();
+        if (sort != null && sort >= 0 && sort < OrderSortColumn.values.length) {
+          _sortColumn = OrderSortColumn.values[sort];
+        }
+        _ascending = (v[SettingKeys.uiOrdersAscending] ?? 0) == 1;
+        final status = v[SettingKeys.uiOrdersStatus]?.toInt() ?? -1;
+        _statusFilter = status >= 0 && status < OrderStatus.values.length
+            ? OrderStatus.values[status]
+            : null;
+        _receivableOnly = (v[SettingKeys.uiOrdersReceivable] ?? 0) == 1;
+        _prefsLoaded = true;
+        _savedPrefs = _prefsKey;
+      });
+    } on Object {
+      // Sin preferencias guardadas se usa el orden por defecto.
+      if (mounted) _prefsLoaded = true;
+    }
+  }
+
+  /// Guarda el orden y los filtros cuando cambian (sin esperar ni avisar).
+  void _savePrefsIfChanged() {
+    if (!_prefsLoaded || _prefsKey == _savedPrefs) return;
+    _savedPrefs = _prefsKey;
+    ServiceLocator.settings
+        .setValues({
+          SettingKeys.uiOrdersSort: _sortColumn.index.toDouble(),
+          SettingKeys.uiOrdersAscending: _ascending ? 1 : 0,
+          SettingKeys.uiOrdersStatus: (_statusFilter?.index ?? -1).toDouble(),
+          SettingKeys.uiOrdersReceivable: _receivableOnly ? 1 : 0,
+        })
+        .catchError((Object _) {});
   }
 
   @override
@@ -210,8 +271,8 @@ class _OrdersViewState extends State<OrdersView> {
     }
   }
 
-  void _openForm({Order? edit, Order? duplicate}) {
-    showDialog(
+  Future<void> _openForm({Order? edit, Order? duplicate}) async {
+    final again = await showDialog<bool>(
       context: context,
       builder: (_) => OrderFormDialog(
         initialOrder: edit,
@@ -219,6 +280,8 @@ class _OrdersViewState extends State<OrdersView> {
         onSave: widget.onSave,
       ),
     );
+    // «Guardar y nuevo»: otro formulario vacío.
+    if (again == true && mounted) await _openForm();
   }
 
   Future<void> _changeStatus(OrderSummary order, OrderStatus status) async {
@@ -452,6 +515,7 @@ class _OrdersViewState extends State<OrdersView> {
   Widget build(BuildContext context) {
     final compact = context.isCompact;
     final visible = _visibleOrders;
+    _savePrefsIfChanged();
 
     return CallbackShortcuts(
       bindings: {

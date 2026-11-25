@@ -132,11 +132,15 @@ class _Footer extends StatelessWidget {
             ],
           );
         }
+        // Los botones se envuelven si no caben (nunca desbordan).
         return Row(
           children: [
-            if (leading != null) Expanded(child: leading!) else const Spacer(),
-            const SizedBox(width: AppSpacing.md),
-            buttons,
+            if (leading != null) ...[
+              Expanded(child: leading!),
+              const SizedBox(width: AppSpacing.md),
+              Flexible(flex: 2, child: buttons),
+            ] else
+              Expanded(child: buttons),
           ],
         );
       },
