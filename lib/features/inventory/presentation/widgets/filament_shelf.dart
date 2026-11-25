@@ -263,8 +263,8 @@ class _Slot extends StatelessWidget {
             ),
           ),
           Positioned(
-            top: 0,
-            right: 0,
+            top: 2,
+            right: 12,
             child: IconButton(
               tooltip: AppStrings.delete,
               icon: const Icon(Icons.close, size: 16),
