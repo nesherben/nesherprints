@@ -21,9 +21,20 @@ import 'package:nesherprints/features/orders/domain/order_costing.dart';
 /// Panel: indicadores del negocio, objetivo, histórico mensual, reparto por
 /// estado y cobros pendientes.
 class DashboardView extends StatefulWidget {
-  const DashboardView({super.key, required this.orders});
+  const DashboardView({
+    super.key,
+    required this.orders,
+    this.onOpenOrder,
+    this.onShowReceivable,
+  });
 
   final List<OrderSummary> orders;
+
+  /// Pulsar un pedido pendiente lo abre en Pedidos.
+  final ValueChanged<int>? onOpenOrder;
+
+  /// Pulsar «Pendiente de cobro» lleva a Pedidos filtrado por «Por cobrar».
+  final VoidCallback? onShowReceivable;
 
   @override
   State<DashboardView> createState() => _DashboardViewState();
@@ -117,7 +128,7 @@ class _DashboardViewState extends State<DashboardView> {
             subtitle: AppStrings.dashboardSubtitle,
           ),
           const SizedBox(height: AppSpacing.lg),
-          _KpiGrid(summary: summary),
+          _KpiGrid(summary: summary, onShowReceivable: widget.onShowReceivable),
           const SizedBox(height: AppSpacing.lg),
           _Panels(
             height: 360,
@@ -134,6 +145,9 @@ class _DashboardViewState extends State<DashboardView> {
             right: PendingList(
               pending: summary.pendingOrders,
               total: summary.pendingCollection,
+              onOpen: widget.onOpenOrder == null
+                  ? null
+                  : (p) => widget.onOpenOrder!(p.id),
             ),
           ),
           if (summary.wasteRecords > 0) ...[
@@ -159,9 +173,10 @@ class _DashboardViewState extends State<DashboardView> {
 
 /// Indicadores principales: 4 en una fila, 2×2 o apilados según el ancho.
 class _KpiGrid extends StatelessWidget {
-  const _KpiGrid({required this.summary});
+  const _KpiGrid({required this.summary, this.onShowReceivable});
 
   final FinanceSummary summary;
+  final VoidCallback? onShowReceivable;
 
   @override
   Widget build(BuildContext context) {
@@ -188,6 +203,7 @@ class _KpiGrid extends StatelessWidget {
       KpiCard(
         narrow: narrow,
         title: AppStrings.kpiPendingCollection,
+        onTap: summary.pendingCollection > 0 ? onShowReceivable : null,
         value: formatEuro(summary.pendingCollection),
         icon: Icons.hourglass_top,
         color: summary.pendingCollection > 0

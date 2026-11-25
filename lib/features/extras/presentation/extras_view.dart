@@ -8,7 +8,6 @@ import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/responsive.dart';
 import 'package:nesherprints/core/widgets/adaptive_sliver_list.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
-import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
 import 'package:nesherprints/core/widgets/scroll_to_top.dart';
@@ -95,17 +94,15 @@ class _ExtrasViewState extends State<ExtrasView> {
     );
   }
 
+  /// Borra sin preguntar y ofrece «Deshacer» (un clic menos).
   Future<void> _delete(Extra extra) async {
-    final ok = await showConfirmDialog(
-      context,
-      title: AppStrings.confirmDeletionTitle,
-      message: AppStrings.confirmDeletionMessage(extra.name),
-      confirmText: AppStrings.delete,
-      color: AppColors.danger,
-      icon: Icons.delete_outline,
-    );
-    if (!ok || !mounted) return;
     await _write(() => ServiceLocator.extras.delete(extra.id!));
+    if (!mounted) return;
+    AppFeedback.undo(
+      context,
+      AppStrings.deleted(extra.name),
+      () => _write(() => ServiceLocator.extras.restore(extra)),
+    );
   }
 
   static bool _matchesFilter(Extra e, _ExtraFilter f) => switch (f) {

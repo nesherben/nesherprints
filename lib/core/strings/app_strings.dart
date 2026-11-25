@@ -146,6 +146,7 @@ class AppStrings {
   static const editPaidTip = 'Pulsa para cambiar lo cobrado';
   static const changeClientTip = 'Cambiar cliente';
   static const noClient = 'Sin cliente';
+  static String deleted(String name) => '«$name» eliminado';
   static const addColorToBrand = 'Añadir color';
   static const copyProfile = 'COPIAR PERFIL';
   static const bambuCatalogButton = 'Catálogo Bambu Lab';

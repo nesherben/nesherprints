@@ -15,6 +15,7 @@ class KpiCard extends StatelessWidget {
     this.subtitle,
     this.progress,
     this.narrow = false,
+    this.onTap,
   });
 
   final String title;
@@ -29,9 +30,27 @@ class KpiCard extends StatelessWidget {
   /// Versión estrecha (2 por fila en móvil).
   final bool narrow;
 
+  /// Si existe, la tarjeta se puede pulsar (lleva a la lista relacionada).
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
-    return narrow ? _buildNarrow() : _buildWide();
+    final card = narrow ? _buildNarrow() : _buildWide();
+    if (onTap == null) return card;
+    return Stack(
+      children: [
+        card,
+        Positioned.fill(
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              onTap: onTap,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   /// Versión estrecha (2 por fila en móvil): icono y título arriba, cifra y

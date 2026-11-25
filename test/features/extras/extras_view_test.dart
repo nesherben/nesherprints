@@ -207,22 +207,22 @@ void main() {
     expect(saved.unitPrice, 1);
   });
 
-  testWidgets('borrar pide confirmación y cancelar no borra', (t) async {
+  testWidgets('borrar es inmediato y «Deshacer» devuelve la pieza', (t) async {
     await seed(t, [keychain]);
+    final id = (await stored(t)).single.id;
     await openView(t);
 
     await tapRowMenu(t, 'Eliminar');
     await settle(t);
-    expect(find.text('Confirmar eliminación'), findsOneWidget);
-    await tapText(t, 'Cancelar');
-    expect(await stored(t), hasLength(1));
-
-    await tapRowMenu(t, 'Eliminar');
-    await settle(t);
-    await t.tap(find.widgetWithText(ElevatedButton, 'Eliminar'));
-    await settle(t);
-    expect(await stored(t), isEmpty);
+    expect(await stored(t), isEmpty, reason: 'sin diálogo de confirmación');
     expect(find.text('Aún no hay piezas'), findsOneWidget);
+
+    await t.tap(find.text('Deshacer'));
+    await settle(t);
+    final back = await stored(t);
+    expect(back, hasLength(1));
+    expect(back.single.id, id, reason: 'vuelve con su mismo id');
+    expect(back.single.name, keychain.name);
   });
 
   for (final size in const [Size(1600, 1000), Size(420, 900)]) {

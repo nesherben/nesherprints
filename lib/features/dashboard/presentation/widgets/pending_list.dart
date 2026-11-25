@@ -9,8 +9,15 @@ import 'package:nesherprints/features/dashboard/domain/finance_summary.dart';
 
 /// Pedidos con importe pendiente de cobro, de mayor a menor deuda.
 class PendingList extends StatelessWidget {
-  const PendingList({super.key, required this.pending, required this.total});
+  const PendingList({
+    super.key,
+    required this.pending,
+    required this.total,
+    this.onOpen,
+  });
 
+  /// Pulsar un pedido lo abre.
+  final ValueChanged<PendingOrder>? onOpen;
   final List<PendingOrder> pending;
   final double total;
 
@@ -63,42 +70,46 @@ class PendingList extends StatelessWidget {
                       itemBuilder: (_, i) {
                         final order = pending[i];
                         final age = ageInDays(order.date, now);
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      order.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
+                        return InkWell(
+                          onTap: onOpen == null ? null : () => onOpen!(order),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        order.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      age == null
-                                          ? AppStrings.orderNumber(order.id)
-                                          : AppStrings.pendingAge(
-                                              order.id,
-                                              age,
-                                            ),
-                                      style: AppTextStyles.mutedSmall,
-                                    ),
-                                  ],
+                                      Text(
+                                        age == null
+                                            ? AppStrings.orderNumber(order.id)
+                                            : AppStrings.pendingAge(
+                                                order.id,
+                                                age,
+                                              ),
+                                        style: AppTextStyles.mutedSmall,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Text(
-                                formatEuro(order.amount),
-                                style: AppTextStyles.money.copyWith(
-                                  color: AppColors.warning,
+                                const SizedBox(width: AppSpacing.sm),
+                                Text(
+                                  formatEuro(order.amount),
+                                  style: AppTextStyles.money.copyWith(
+                                    color: AppColors.warning,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       },

@@ -10,6 +10,17 @@ class AppFeedback {
   static void success(BuildContext context, String message) =>
       _show(context, message, AppColors.success, Icons.check_circle_outline);
 
+  /// Aviso con un botón «Deshacer» (borrados sin pedir confirmación).
+  static void undo(BuildContext context, String message, VoidCallback onUndo) =>
+      _show(
+        context,
+        message,
+        AppColors.success,
+        Icons.check_circle_outline,
+        actionLabel: 'Deshacer',
+        onAction: onUndo,
+      );
+
   static void warning(BuildContext context, String message) =>
       _show(context, message, AppColors.warning, Icons.info_outline);
 
@@ -30,8 +41,10 @@ class AppFeedback {
     BuildContext context,
     String message,
     Color color,
-    IconData icon,
-  ) {
+    IconData icon, {
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
     messenger
@@ -45,6 +58,16 @@ class AppFeedback {
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(color: color.withValues(alpha: 0.6)),
           ),
+          duration: onAction == null
+              ? const Duration(seconds: 4)
+              : const Duration(seconds: 8),
+          action: onAction == null
+              ? null
+              : SnackBarAction(
+                  label: actionLabel!,
+                  textColor: AppColors.primary,
+                  onPressed: onAction,
+                ),
           content: Row(
             children: [
               Icon(icon, color: color, size: 20),

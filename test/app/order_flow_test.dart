@@ -311,6 +311,26 @@ void main() {
     );
   });
 
+  testWidgets('el Panel lleva a Pedidos: KPI «Pendiente» y pedido pendiente', (
+    t,
+  ) async {
+    await openApp(t, seed: () => seedOrder(name: 'Figura'));
+
+    // Pulsar la tarjeta «Pendiente de cobro» abre Pedidos ya filtrado.
+    await tapText(t, 'Pendiente de Cobro');
+    await settle(t, rounds: 3);
+    final chip = find.widgetWithText(FilterChip, 'Por cobrar · 1');
+    expect(chip, findsOneWidget);
+    expect(t.widget<FilterChip>(chip).selected, isTrue);
+
+    // Pulsar un pedido de la lista de pendientes abre su formulario.
+    await tapText(t, 'Panel');
+    await settle(t, rounds: 3);
+    await tapText(t, 'Figura');
+    await settle(t, rounds: 4);
+    expect(find.text('Datos del pedido'), findsOneWidget);
+  });
+
   testWidgets('con el teclado ↓ marca el pedido e Intro lo abre', (t) async {
     await openApp(t, seed: () => seedOrder(name: 'Figura'));
     await tapText(t, 'Pedidos');

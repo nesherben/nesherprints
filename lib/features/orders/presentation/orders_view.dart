@@ -40,7 +40,15 @@ class OrdersView extends StatefulWidget {
     required this.onComplete,
     required this.onDelete,
     required this.onRefresh,
+    this.initialReceivableOnly = false,
+    this.openOrderId,
   });
+
+  /// Abrir ya filtrado por «Por cobrar» (desde el Panel).
+  final bool initialReceivableOnly;
+
+  /// Abrir directamente el formulario de este pedido (desde el Panel).
+  final int? openOrderId;
 
   final List<OrderSummary> orders;
   final Future<void> Function(OrderFormResult result) onSave;
@@ -74,7 +82,19 @@ class _OrdersViewState extends State<OrdersView> {
   @override
   void initState() {
     super.initState();
+    _receivableOnly = widget.initialReceivableOnly;
     _loadClients();
+    final openId = widget.openOrderId;
+    if (openId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final match = widget.orders.where((o) => o.id == openId);
+        if (match.isNotEmpty) {
+          setState(() => _selectedId = openId);
+          _openForm(edit: match.first.order);
+        }
+      });
+    }
     // Al entrar, el foco es de la pantalla para que las flechas funcionen.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _rootFocus.requestFocus();

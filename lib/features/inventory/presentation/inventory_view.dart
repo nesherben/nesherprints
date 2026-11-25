@@ -130,15 +130,19 @@ class _InventoryViewState extends State<InventoryView> {
         );
         return;
       }
-      final confirmed = await showConfirmDialog(
-        context,
-        title: AppStrings.confirmDeletionTitle,
-        message: AppStrings.confirmDeletionMessage(material.name),
-        confirmText: AppStrings.delete,
-        color: AppColors.danger,
-        icon: Icons.delete_outline,
-      );
-      if (!confirmed || !mounted) return;
+      // El tanque de resina pide confirmación; un color de filamento se
+      // borra al momento y se puede deshacer.
+      if (material.kind == MaterialKind.resin) {
+        final confirmed = await showConfirmDialog(
+          context,
+          title: AppStrings.confirmDeletionTitle,
+          message: AppStrings.confirmDeletionMessage(material.name),
+          confirmText: AppStrings.delete,
+          color: AppColors.danger,
+          icon: Icons.delete_outline,
+        );
+        if (!confirmed || !mounted) return;
+      }
       await ServiceLocator.materials.delete(material.id!);
     } catch (e) {
       if (!mounted) return;
@@ -146,6 +150,22 @@ class _InventoryViewState extends State<InventoryView> {
       return;
     }
     await _load();
+    if (!mounted || material.kind == MaterialKind.resin) return;
+    AppFeedback.undo(
+      context,
+      AppStrings.deleted(
+        material.color.isEmpty ? material.name : material.color,
+      ),
+      () async {
+        try {
+          await ServiceLocator.materials.restore(material);
+        } catch (e) {
+          if (mounted) AppFeedback.failure(context, e);
+          return;
+        }
+        await _load();
+      },
+    );
   }
 
   void _openDialog([PrintMaterial? material]) {

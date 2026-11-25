@@ -1,3 +1,5 @@
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
 import 'package:nesherprints/core/database/app_database.dart';
 import 'package:nesherprints/core/database/db_schema.dart';
 import 'package:nesherprints/core/errors/app_exception.dart';
@@ -82,6 +84,16 @@ class ExtrasRepository {
       whereArgs: [extraId],
     );
     if (n == 0) throw const AppException('La pieza ya no existe.');
+  }
+
+  /// Vuelve a insertar una pieza borrada con su mismo id (deshacer).
+  Future<void> restore(Extra extra) async {
+    final db = await _db.database;
+    await db.insert(
+      ExtrasTable.name,
+      extra.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<void> delete(int id) async {

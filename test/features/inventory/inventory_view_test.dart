@@ -294,20 +294,22 @@ void main() {
     expect(find.text('PLA Mate'), findsOneWidget);
   });
 
-  testWidgets('borrar pide confirmación y cancelar no borra', (t) async {
+  testWidgets('borrar un color es inmediato y se puede deshacer', (t) async {
     await seed(t, [pla]);
+    final id = (await stored(t)).single.id;
     await openView(t);
 
     await tapSlotMenu(t, 'Eliminar');
-    expect(find.text('Confirmar eliminación'), findsOneWidget);
-    await tapText(t, 'Cancelar');
-    expect(await stored(t), hasLength(1));
-
-    await tapSlotMenu(t, 'Eliminar');
-    await t.tap(find.widgetWithText(ElevatedButton, 'Eliminar'));
     await settle(t);
-    expect(await stored(t), isEmpty);
+    expect(await stored(t), isEmpty, reason: 'sin diálogo de confirmación');
     expect(find.text('La estantería está vacía'), findsOneWidget);
+
+    await t.tap(find.text('Deshacer'));
+    await settle(t);
+    final back = await stored(t);
+    expect(back.single.id, id);
+    expect(back.single.color, pla.color);
+    expect(find.text('La estantería está vacía'), findsNothing);
   });
 
   testWidgets('un material usado en placas no se borra y se avisa', (t) async {

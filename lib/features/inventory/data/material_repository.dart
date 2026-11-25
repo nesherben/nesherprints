@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
 import 'package:nesherprints/core/database/app_database.dart';
 import 'package:nesherprints/core/database/db_schema.dart';
 import 'package:nesherprints/core/errors/app_exception.dart';
@@ -138,6 +140,16 @@ class MaterialRepository {
       [id],
     );
     return (rows.first['n'] as int?) ?? 0;
+  }
+
+  /// Vuelve a insertar un material borrado con su mismo id (deshacer).
+  Future<void> restore(PrintMaterial material) async {
+    final db = await _db.database;
+    await db.insert(
+      MaterialsTable.name,
+      material.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<void> delete(int id) async {

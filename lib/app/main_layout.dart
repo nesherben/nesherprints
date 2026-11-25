@@ -181,9 +181,26 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
+  /// Datos con los que abrir Pedidos desde el Panel (se consumen una vez).
+  ({bool receivableOnly, int? openOrderId})? _ordersLaunch;
+
   void _select(int index) {
     if (index == _selectedIndex) return;
-    setState(() => _selectedIndex = index);
+    setState(() {
+      _selectedIndex = index;
+      _ordersLaunch = null;
+    });
+  }
+
+  /// Va a Pedidos desde el Panel con un filtro o un pedido abierto.
+  void _launchOrders({bool receivableOnly = false, int? openOrderId}) {
+    setState(() {
+      _ordersLaunch = (
+        receivableOnly: receivableOnly,
+        openOrderId: openOrderId,
+      );
+      _selectedIndex = _ordersIndex;
+    });
   }
 
   // ==================== UI ====================
@@ -191,7 +208,11 @@ class _MainLayoutState extends State<MainLayout> {
   Widget _buildScreen() {
     switch (_selectedIndex) {
       case 0:
-        return DashboardView(orders: _orders);
+        return DashboardView(
+          orders: _orders,
+          onOpenOrder: (id) => _launchOrders(openOrderId: id),
+          onShowReceivable: () => _launchOrders(receivableOnly: true),
+        );
       case 1:
         return const InventoryView();
       case 2:
@@ -204,6 +225,8 @@ class _MainLayoutState extends State<MainLayout> {
           onComplete: _completeOrder,
           onDelete: _deleteOrder,
           onRefresh: _refreshOrders,
+          initialReceivableOnly: _ordersLaunch?.receivableOnly ?? false,
+          openOrderId: _ordersLaunch?.openOrderId,
         );
       case 4:
         return const ClientsView();
