@@ -148,7 +148,7 @@ class AppStrings {
   static const noClient = 'Sin cliente';
   static const quickExtraName = 'Pieza rápida: nombre…';
   static const quickExtraPrice = '€ / ud';
-  static const quickExtraStock = 'Unidades';
+  static const quickExtraStock = 'Uds';
   static const extraCreated = 'Pieza añadida';
   static const editStockTip = 'Pulsa para corregir el stock';
   static const assignClientAction = 'Asignar cliente a estos';

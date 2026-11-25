@@ -267,7 +267,7 @@ void main() {
 
     await t.enterText(hint('Pieza rápida: nombre…'), 'Imán X');
     await t.enterText(hint('€ / ud'), '0,25');
-    await t.enterText(hint('Unidades'), '40');
+    await t.enterText(hint('Uds'), '40');
     await t.tap(find.widgetWithText(ElevatedButton, 'Añadir'));
     await settle(t);
 

@@ -252,7 +252,7 @@ class _ExtrasViewState extends State<ExtrasView> {
                 AdaptiveSliverList(
                   itemCount: visible.length,
                   rowHeight: 68,
-                  columnWidth: 460,
+                  columnWidth: 500,
                   itemBuilder: (_, index) {
                     final extra = visible[index];
                     return ExtraRow(
