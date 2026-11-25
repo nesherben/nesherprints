@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
+import 'package:nesherprints/core/utils/responsive.dart';
 
 /// Opción del menú «más» de una fila.
 class RowMenuItem {
@@ -20,7 +21,8 @@ class RowMenuItem {
   final bool danger;
 }
 
-/// Acciones de una fila de lista: una acción frecuente visible ([primary]) y
+/// Acciones de una fila de lista. En pantalla ancha, todas visibles como
+/// iconos (menos clics); en móvil, una acción frecuente visible ([primary]) y
 /// el resto en un menú ⋮. Todas las listas usan lo mismo para que se manejen
 /// igual; tocar la propia fila abre la edición.
 class RowActions extends StatelessWidget {
@@ -40,6 +42,22 @@ class RowActions extends StatelessWidget {
         if (i.danger) i,
     ];
     final all = [...normal, ...danger];
+    if (!context.isCompact) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ?primary,
+          for (final item in all)
+            IconButton(
+              tooltip: item.label,
+              icon: Icon(item.icon, size: 20),
+              color: item.danger ? AppColors.danger : AppColors.textMuted,
+              visualDensity: VisualDensity.compact,
+              onPressed: item.onTap,
+            ),
+        ],
+      );
+    }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

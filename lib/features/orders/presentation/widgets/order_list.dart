@@ -302,7 +302,7 @@ class _WideRow extends StatelessWidget {
   static const double statusWidth = 140;
   static const double priceWidth = 100;
   static const double collectWidth = 112;
-  static const double actionsWidth = 88;
+  static const double actionsWidth = 224;
   static const double gap = AppSpacing.md;
 
   /// Alto mínimo de la fila: todas miden lo mismo tengan o no segunda línea.
@@ -372,7 +372,7 @@ class _WideRow extends StatelessWidget {
               gapBox,
               SizedBox(
                 width: actionsWidth,
-                child: _Actions(order: order, actions: actions),
+                child: _Actions(order: order, actions: actions, inline: true),
               ),
               const SizedBox(width: AppSpacing.md),
             ],
@@ -755,14 +755,80 @@ class _Mini extends StatelessWidget {
 }
 
 class _Actions extends StatelessWidget {
-  const _Actions({required this.order, required this.actions});
+  const _Actions({
+    required this.order,
+    required this.actions,
+    this.inline = false,
+  });
 
   final OrderSummary order;
   final OrderListActions actions;
 
+  /// En la tabla ancha todas las acciones van visibles (menos clics); en la
+  /// tarjeta de móvil, solo «Completar» y el menú ⋮.
+  final bool inline;
+
+  Widget _icon(
+    String tooltip,
+    IconData icon,
+    OrderMenuAction action, {
+    Color color = AppColors.textMuted,
+  }) => IconButton(
+    tooltip: tooltip,
+    icon: Icon(icon, size: 20),
+    color: color,
+    visualDensity: VisualDensity.compact,
+    onPressed: () => actions.onMenu(order, action),
+  );
+
   @override
   Widget build(BuildContext context) {
     final status = order.order.status;
+    if (inline) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          // Hueco fijo para que las demás acciones queden alineadas.
+          if (status.canComplete)
+            IconButton(
+              tooltip: AppStrings.completeTooltip,
+              icon: const Icon(Icons.check_circle_outline, size: 22),
+              color: AppColors.success,
+              visualDensity: VisualDensity.compact,
+              onPressed: () => actions.onComplete(order),
+            )
+          else
+            const SizedBox(width: 40),
+          _icon(
+            AppStrings.wasteAction,
+            Icons.recycling,
+            OrderMenuAction.waste,
+            color: AppColors.warning,
+          ),
+          _icon(
+            AppStrings.duplicateAction,
+            Icons.copy_outlined,
+            OrderMenuAction.duplicate,
+          ),
+          if (!order.order.isPersonal)
+            _icon(
+              AppStrings.markPersonalAction,
+              Icons.person_outline,
+              OrderMenuAction.personal,
+              color: AppColors.info,
+            )
+          else
+            const SizedBox(width: 40),
+          _icon(
+            AppStrings.deleteAction,
+            Icons.delete_outline,
+            OrderMenuAction.delete,
+            color: AppColors.danger,
+          ),
+        ],
+      );
+    }
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.end,

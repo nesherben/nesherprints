@@ -278,8 +278,7 @@ void main() {
   testWidgets('duplicar un pedido abre el formulario con una copia', (t) async {
     await openApp(t, seed: () => seedOrder(name: 'Figura'));
     await tapText(t, 'Pedidos');
-    await tapTooltip(t, 'Más acciones');
-    await tapText(t, 'Duplicar');
+    await tapTooltip(t, 'Duplicar');
     await settle(t);
 
     expect(find.text('Duplicar pedido'), findsOneWidget);
@@ -301,8 +300,7 @@ void main() {
   testWidgets('eliminar un pedido pide confirmación', (t) async {
     await openApp(t, seed: seedOrder);
     await tapText(t, 'Pedidos');
-    await tapTooltip(t, 'Más acciones');
-    await tapText(t, 'Eliminar');
+    await tapTooltip(t, 'Eliminar');
     expect(find.text('Eliminar pedido'), findsOneWidget);
     await tapText(t, 'Cancelar');
     if (find.text('Descartar').evaluate().isNotEmpty) {
@@ -310,8 +308,7 @@ void main() {
     }
     expect(await allOrders(t), hasLength(1));
 
-    await tapTooltip(t, 'Más acciones');
-    await tapText(t, 'Eliminar');
+    await tapTooltip(t, 'Eliminar');
     final confirm = find.widgetWithText(ElevatedButton, 'Eliminar');
     await t.tap(confirm);
     await settle(t);
