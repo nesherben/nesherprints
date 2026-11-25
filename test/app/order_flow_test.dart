@@ -275,6 +275,40 @@ void main() {
     expect(extras!.single.stock, 8, reason: 'el stock no cambia al re-guardar');
   });
 
+  testWidgets('alta rápida crea un borrador y el precio se edita en la fila', (
+    t,
+  ) async {
+    await openApp(t, seed: () => seedOrder(name: 'Figura'));
+    await tapText(t, 'Pedidos');
+
+    Finder hint(String text) => find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.hintText == text,
+    );
+    await t.enterText(hint('Pedido rápido: nombre del proyecto…'), 'Llavero X');
+    await t.enterText(hint('Precio'), '12,5');
+    await t.pump();
+    await t.tap(find.widgetWithText(ElevatedButton, 'Añadir'));
+    await settle(t, rounds: 4);
+
+    var orders = await allOrders(t);
+    expect(orders, hasLength(2));
+    final created = orders.firstWhere((o) => o.order.name == 'Llavero X');
+    expect(created.order.status, OrderStatus.draft);
+    expect(created.order.price, 12.5);
+
+    // Edición del precio en la propia fila.
+    await t.tap(find.text('12,50 €').first);
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextField).last, '20');
+    await t.testTextInput.receiveAction(TextInputAction.done);
+    await settle(t, rounds: 4);
+    orders = await allOrders(t);
+    expect(
+      orders.firstWhere((o) => o.order.name == 'Llavero X').order.price,
+      20,
+    );
+  });
+
   testWidgets('duplicar un pedido abre el formulario con una copia', (t) async {
     await openApp(t, seed: () => seedOrder(name: 'Figura'));
     await tapText(t, 'Pedidos');

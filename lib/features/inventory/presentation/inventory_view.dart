@@ -169,7 +169,16 @@ class _InventoryViewState extends State<InventoryView> {
   Future<void> _openColors() async {
     await showDialog<void>(
       context: context,
-      builder: (_) => ColorLibraryDialog(initial: _library),
+      builder: (_) => ColorLibraryDialog(
+        initial: _library,
+        shelfColors: [
+          for (final m in _materials)
+            if (m.kind == MaterialKind.filament &&
+                m.colorRgb != null &&
+                m.color.trim().isNotEmpty)
+              (m.color, m.colorRgb!),
+        ],
+      ),
     );
     if (!mounted) return;
     await _load();

@@ -267,6 +267,57 @@ class OrderRepository {
     });
   }
 
+  /// Cambia el precio y/o lo cobrado de un pedido en cualquier estado (edición
+  /// rápida desde la tabla; no toca el stock). Lo cobrado no puede superar el
+  /// precio ni ser negativo.
+  Future<void> setMoney(int orderId, {double? price, double? paid}) async {
+    final db = await _db.database;
+    await db.transaction((txn) async {
+      final rows = await txn.query(
+        OrdersTable.name,
+        columns: [OrdersTable.price, OrdersTable.paidAmount],
+        where: '${OrdersTable.id} = ?',
+        whereArgs: [orderId],
+      );
+      if (rows.isEmpty) {
+        throw const OrderRuleException('El pedido ya no existe.');
+      }
+      final newPrice =
+          price ?? (rows.first[OrdersTable.price] as num).toDouble();
+      final newPaid =
+          paid ?? (rows.first[OrdersTable.paidAmount] as num?)?.toDouble() ?? 0;
+      if (!newPrice.isFinite || newPrice < 0) {
+        throw const OrderRuleException('El precio no puede ser negativo.');
+      }
+      if (!newPaid.isFinite || newPaid < 0) {
+        throw const OrderRuleException('Lo pagado no puede ser negativo.');
+      }
+      if (newPaid > newPrice + 0.005) {
+        throw const OrderRuleException(
+          'Lo cobrado no puede superar el precio final.',
+        );
+      }
+      await txn.update(
+        OrdersTable.name,
+        {OrdersTable.price: newPrice, OrdersTable.paidAmount: newPaid},
+        where: '${OrdersTable.id} = ?',
+        whereArgs: [orderId],
+      );
+    });
+  }
+
+  /// Asigna (o quita con `null`) el cliente de un pedido en cualquier estado.
+  Future<void> setClient(int orderId, int? clientId) async {
+    final db = await _db.database;
+    final n = await db.update(
+      OrdersTable.name,
+      {OrdersTable.clientId: clientId},
+      where: '${OrdersTable.id} = ?',
+      whereArgs: [orderId],
+    );
+    if (n == 0) throw const OrderRuleException('El pedido ya no existe.');
+  }
+
   /// Marca un pedido como cobrado del todo (pagado = precio). Vale también
   /// para uno cerrado; no toca el stock.
   Future<void> markPaid(int orderId) async {

@@ -5,8 +5,10 @@ import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/widgets/section_header.dart';
+import 'package:nesherprints/core/widgets/inline_edit_cell.dart';
 import 'package:nesherprints/core/widgets/scroll_to_top.dart';
 import 'package:nesherprints/core/widgets/status_pill.dart';
+import 'package:nesherprints/features/clients/domain/client.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
 import 'package:nesherprints/features/orders/presentation/status_style.dart';
@@ -25,12 +27,22 @@ class OrderListActions {
     required this.onStatusChange,
     required this.onComplete,
     required this.onMenu,
+    required this.onSetPrice,
+    required this.onSetPaid,
+    required this.onSetClient,
+    this.clients = const [],
   });
 
   final ValueChanged<OrderSummary> onOpen;
   final void Function(OrderSummary order, OrderStatus status) onStatusChange;
   final ValueChanged<OrderSummary> onComplete;
   final void Function(OrderSummary order, OrderMenuAction action) onMenu;
+
+  /// Edición rápida en la tabla ancha: lanzan si falla.
+  final Future<void> Function(OrderSummary order, double price) onSetPrice;
+  final Future<void> Function(OrderSummary order, double paid) onSetPaid;
+  final Future<void> Function(OrderSummary order, int? clientId) onSetClient;
+  final List<Client> clients;
 }
 
 /// Listado de pedidos, virtualizado: en ventana ancha filas con columnas y
@@ -384,17 +396,17 @@ class _WideRow extends StatelessWidget {
                 ),
               ),
               gapBox,
-              Expanded(child: _ProjectInline(order: order)),
+              Expanded(
+                child: _ProjectInline(
+                  order: order,
+                  showClient: !layout.showClient,
+                ),
+              ),
               gapBox,
               if (layout.showClient) ...[
                 SizedBox(
                   width: clientWidth,
-                  child: Text(
-                    order.clientName ?? '—',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.mutedSmall,
-                  ),
+                  child: _ClientCell(order: order, actions: actions),
                 ),
                 gapBox,
               ],
@@ -411,14 +423,27 @@ class _WideRow extends StatelessWidget {
               gapBox,
               SizedBox(
                 width: priceWidth,
-                child: _Price(order: order),
+                child: InlineMoneyCell(
+                  value: o.price,
+                  enabled: !o.isPersonal,
+                  alignEnd: true,
+                  tooltip: AppStrings.editPriceTip,
+                  display: _Price(order: order),
+                  onSubmit: (v) => actions.onSetPrice(order, v),
+                ),
               ),
               gapBox,
               SizedBox(
                 width: collectWidth,
                 child: Padding(
                   padding: const EdgeInsets.only(left: AppSpacing.sm),
-                  child: _Collection(order: o),
+                  child: InlineMoneyCell(
+                    value: o.paidAmount,
+                    enabled: !o.isPersonal && o.price > 0,
+                    tooltip: AppStrings.editPaidTip,
+                    display: _Collection(order: o),
+                    onSubmit: (v) => actions.onSetPaid(order, v),
+                  ),
                 ),
               ),
               gapBox,
@@ -584,13 +609,16 @@ List<Widget> _projectTags(OrderSummary order, {bool withClient = true}) {
 
 /// Proyecto en dos líneas: el nombre y, debajo en gris, sus datos.
 class _ProjectInline extends StatelessWidget {
-  const _ProjectInline({required this.order});
+  const _ProjectInline({required this.order, required this.showClient});
 
   final OrderSummary order;
 
+  /// `false` si el cliente ya tiene su propia columna.
+  final bool showClient;
+
   @override
   Widget build(BuildContext context) {
-    final tags = _projectTags(order, withClient: false);
+    final tags = _projectTags(order, withClient: showClient);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Column(
@@ -823,6 +851,40 @@ class _Mini extends StatelessWidget {
         const SizedBox(width: 4),
         Text(text, style: TextStyle(fontSize: 12, color: color)),
       ],
+    );
+  }
+}
+
+/// Cliente del pedido: se cambia con un menú sin abrir el formulario.
+class _ClientCell extends StatelessWidget {
+  const _ClientCell({required this.order, required this.actions});
+
+  final OrderSummary order;
+  final OrderListActions actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = order.clientName;
+    return PopupMenuButton<int>(
+      tooltip: AppStrings.changeClientTip,
+      padding: EdgeInsets.zero,
+      onSelected: (id) => actions.onSetClient(order, id < 0 ? null : id),
+      itemBuilder: (_) => [
+        const PopupMenuItem(value: -1, child: Text(AppStrings.noClient)),
+        for (final c in actions.clients)
+          PopupMenuItem(value: c.id!, child: Text(c.name)),
+      ],
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          name ?? AppStrings.unassigned,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: name == null
+              ? AppTextStyles.mutedSmall.copyWith(fontStyle: FontStyle.italic)
+              : AppTextStyles.mutedSmall.copyWith(color: AppColors.textMain),
+        ),
+      ),
     );
   }
 }

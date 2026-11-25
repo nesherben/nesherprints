@@ -124,7 +124,7 @@ class AppStrings {
   static const ordersTitle = 'Pedidos';
   static const searchProject = 'Buscar proyecto...';
   static const filterByStatus = 'Filtrar por Estado';
-  static const clearFilters = 'Limpiar Filtros';
+  static const clearFilters = 'Limpiar filtros';
   static const noOrdersForFilters =
       'No se encontraron pedidos con estos filtros.';
   static const colIdDate = 'ID / Fecha';
@@ -137,6 +137,15 @@ class AppStrings {
   static const colPrice = 'Precio';
   static const colCollection = 'Cobro';
   static const noPrice = 'Sin precio';
+  static const quickOrderName = 'Pedido rápido: nombre del proyecto…';
+  static const quickOrderPrice = 'Precio';
+  static const quickOrderAdd = 'Añadir';
+  static const quickOrderCreated =
+      'Borrador creado. Ábrelo para añadir las placas.';
+  static const editPriceTip = 'Pulsa para cambiar el precio';
+  static const editPaidTip = 'Pulsa para cambiar lo cobrado';
+  static const changeClientTip = 'Cambiar cliente';
+  static const noClient = 'Sin cliente';
   static const collectAction = 'Marcar como cobrado';
   static const collectedDone = 'Pedido marcado como cobrado';
   static String pendingShort(String amount) => 'Falta $amount';
@@ -386,6 +395,7 @@ class AppStrings {
   static const libraryEmpty =
       'La biblioteca está vacía. Añade colores o restaura los básicos.';
   static const restoreBasics = 'Restaurar básicos';
+  static const importShelfColors = 'Traer de mi estantería';
   static const newColor = 'Nuevo color';
   static const editColor = 'Editar color';
   static const colorNameLabel = 'Nombre del color';
@@ -512,8 +522,8 @@ class AppStrings {
   static const settingsGroupProductionHint =
       'Máquina y preparación de cada placa.';
   static const profitMarginHint =
-      'Se suma al coste. Con 150 %, un coste de 10 € da un precio '
-      'recomendado de 25 €.';
+      'Porcentaje que se suma al coste. Con 100 %, un coste de 10 € da un '
+      'precio recomendado de 20 €.';
   static const minimumPriceLabel = 'Precio mínimo';
   static const minimumPriceHint =
       'El precio recomendado nunca baja de esto (piezas muy pequeñas).';

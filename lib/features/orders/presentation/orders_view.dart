@@ -7,17 +7,21 @@ import 'package:nesherprints/app/service_locator.dart';
 import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
+import 'package:nesherprints/core/errors/app_exception.dart';
+import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/responsive.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
+import 'package:nesherprints/features/clients/domain/client.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
 import 'package:nesherprints/features/orders/domain/stock_check.dart';
 import 'package:nesherprints/features/orders/presentation/status_style.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_form/order_form_dialog.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_list.dart';
+import 'package:nesherprints/features/orders/presentation/widgets/quick_order_bar.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/waste_dialog.dart';
 
 /// Registro de pedidos: búsqueda, filtros por estado, orden y acciones.
@@ -49,6 +53,8 @@ class OrdersView extends StatefulWidget {
 class _OrdersViewState extends State<OrdersView> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
+  final _quickFocus = FocusNode();
+  List<Client> _clients = const [];
 
   /// `null` = todos los estados.
   OrderStatus? _statusFilter;
@@ -58,9 +64,33 @@ class _OrdersViewState extends State<OrdersView> {
   bool _ascending = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadClients();
+  }
+
+  @override
+  void didUpdateWidget(OrdersView old) {
+    super.didUpdateWidget(old);
+    // Un cliente nuevo (creado desde el formulario) aparece al recargar.
+    if (old.orders != widget.orders) _loadClients();
+  }
+
+  Future<void> _loadClients() async {
+    try {
+      final clients = await ServiceLocator.clients.getAll();
+      if (!mounted) return;
+      setState(() => _clients = clients);
+    } on Object {
+      // Sin clientes solo se pierde la lista del desplegable.
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     _searchFocus.dispose();
+    _quickFocus.dispose();
     super.dispose();
   }
 
@@ -265,6 +295,34 @@ class _OrdersViewState extends State<OrdersView> {
     }
   }
 
+  /// Alta rápida de un borrador (sin placas) desde la barra de la tabla.
+  Future<void> _quickCreate(String name, int? clientId, double price) async {
+    final ok = await _attempt(() async {
+      await ServiceLocator.orders.create(
+        Order(
+          clientId: clientId,
+          name: name,
+          price: price,
+          date: todayIsoDate(),
+          status: OrderStatus.draft,
+        ),
+        plates: const [],
+      );
+      await widget.onRefresh();
+    });
+    if (!ok) throw const AppException('No se pudo crear el pedido.');
+    if (mounted) AppFeedback.success(context, AppStrings.quickOrderCreated);
+  }
+
+  /// Edición rápida de la tabla: si falla avisa y relanza para que la celda
+  /// no dé el cambio por hecho.
+  Future<void> _quickEdit(Future<void> Function() action) async {
+    await _attempt(() async {
+      await action();
+      await widget.onRefresh();
+    });
+  }
+
   Future<void> _markPaid(OrderSummary order) async {
     final ok = await _attempt(() async {
       await ServiceLocator.orders.markPaid(order.id);
@@ -303,6 +361,13 @@ class _OrdersViewState extends State<OrdersView> {
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyF, control: true): () =>
             _searchFocus.requestFocus(),
+        // Ctrl+Mayús+N: al alta rápida.
+        const SingleActivator(
+          LogicalKeyboardKey.keyN,
+          control: true,
+          shift: true,
+        ): () =>
+            _quickFocus.requestFocus(),
       },
       child: Focus(
         autofocus: true,
@@ -329,6 +394,14 @@ class _OrdersViewState extends State<OrdersView> {
                       ),
               ),
               const SizedBox(height: AppSpacing.lg),
+              if (!compact) ...[
+                QuickOrderBar(
+                  clients: _clients,
+                  focusNode: _quickFocus,
+                  onCreate: _quickCreate,
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
               _buildSearchRow(compact),
               const SizedBox(height: AppSpacing.md),
               _buildFilterChips(compact),
@@ -376,6 +449,13 @@ class _OrdersViewState extends State<OrdersView> {
         onStatusChange: _changeStatus,
         onComplete: _complete,
         onMenu: _onMenu,
+        clients: _clients,
+        onSetPrice: (o, v) =>
+            _quickEdit(() => ServiceLocator.orders.setMoney(o.id, price: v)),
+        onSetPaid: (o, v) =>
+            _quickEdit(() => ServiceLocator.orders.setMoney(o.id, paid: v)),
+        onSetClient: (o, id) =>
+            _quickEdit(() => ServiceLocator.orders.setClient(o.id, id)),
       ),
     );
   }

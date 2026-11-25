@@ -107,6 +107,7 @@ SIN PINTAR  = max(precio mínimo, COSTE × (1 + margen/100))
 RECOMENDADO = SIN PINTAR + importe de pintura del nivel (si se pinta)
 ```
 
+- **Edición rápida (pantalla ancha)**: barra de alta rápida sobre la tabla (nombre, cliente, precio; Intro crea un borrador sin placas; Ctrl+Mayús+N enfoca el nombre). En la tabla, pulsar el **precio** o el **cobro** los edita en el sitio (Intro guarda, Esc cancela; también en pedidos cerrados, con las reglas: sin negativos y cobrado ≤ precio) y la columna **Cliente** (desde ~1100 px) cambia el cliente con un menú. Acciones por fila visibles: Marcar como cobrado (si falta dinero), Merma, Duplicar, Para mí, Eliminar. «Atrás» en Android vuelve al Panel antes de salir.
 - **Pedido para mí** (v9, `is_personal`): interruptor en «Datos del pedido». No tiene precio ni cobro (se guardan a 0), no cuenta como ingreso ni deuda (panel, listado mensual, clientes) y se muestra como «Para mí». Sí descuenta material y piezas al completarse; el panel indica «Uso propio: N pedidos · X € de material».
 - **Pintura**: no se cobra por horas ni como múltiplo. Según el **detalle de la figura** (Simple / Normal / Detallada) se suma un importe fijo configurable (por defecto +20 €, +60 € y +100 €, calibrados con lo cobrado de más en las piezas pintadas del histórico). No depende del peso (un múltiplo del precio sin pintar sobrevaloraba las piezas grandes y lisas e infravaloraba las pequeñas y detalladas) y no es coste: el coste real no cambia. El nivel se guarda en el pedido (`paint_level`: 0 simple, 1 normal, 2 detallada).
 

@@ -252,44 +252,51 @@ class _MainLayoutState extends State<MainLayout> {
         SingleActivator(key, control: true): () => _select(i),
     };
 
-    return CallbackShortcuts(
-      bindings: shortcuts,
-      child: Focus(
-        autofocus: true,
-        child: Scaffold(
-          body: compact
-              ? SafeArea(child: _buildContent())
-              : Row(
-                  children: [
-                    _buildRail(extended: context.isWide),
-                    const VerticalDivider(),
-                    Expanded(child: _buildContent()),
-                  ],
-                ),
-          bottomNavigationBar: compact
-              ? NavigationBar(
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: _select,
-                  destinations: [
-                    for (final d in _destinations)
-                      NavigationDestination(
-                        icon: Icon(d.icon),
-                        selectedIcon: Icon(d.selectedIcon),
-                        label: d.shortLabel ?? d.label,
-                      ),
-                  ],
-                )
-              : null,
-          floatingActionButton:
-              compact &&
-                  (_selectedIndex == _dashboardIndex ||
-                      _selectedIndex == _ordersIndex)
-              ? FloatingActionButton(
-                  onPressed: _showNewOrderDialog,
-                  tooltip: AppStrings.newOrder,
-                  child: const Icon(Icons.add),
-                )
-              : null,
+    // «Atrás» desde otra pantalla vuelve al Panel; solo desde el Panel sale.
+    return PopScope(
+      canPop: _selectedIndex == _dashboardIndex,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _select(_dashboardIndex);
+      },
+      child: CallbackShortcuts(
+        bindings: shortcuts,
+        child: Focus(
+          autofocus: true,
+          child: Scaffold(
+            body: compact
+                ? SafeArea(child: _buildContent())
+                : Row(
+                    children: [
+                      _buildRail(extended: context.isWide),
+                      const VerticalDivider(),
+                      Expanded(child: _buildContent()),
+                    ],
+                  ),
+            bottomNavigationBar: compact
+                ? NavigationBar(
+                    selectedIndex: _selectedIndex,
+                    onDestinationSelected: _select,
+                    destinations: [
+                      for (final d in _destinations)
+                        NavigationDestination(
+                          icon: Icon(d.icon),
+                          selectedIcon: Icon(d.selectedIcon),
+                          label: d.shortLabel ?? d.label,
+                        ),
+                    ],
+                  )
+                : null,
+            floatingActionButton:
+                compact &&
+                    (_selectedIndex == _dashboardIndex ||
+                        _selectedIndex == _ordersIndex)
+                ? FloatingActionButton(
+                    onPressed: _showNewOrderDialog,
+                    tooltip: AppStrings.newOrder,
+                    child: const Icon(Icons.add),
+                  )
+                : null,
+          ),
         ),
       ),
     );

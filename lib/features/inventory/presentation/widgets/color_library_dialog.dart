@@ -12,9 +12,17 @@ import 'package:nesherprints/features/inventory/presentation/widgets/color_picke
 /// Gestión de la biblioteca de colores: añadir, cambiar o borrar cualquier
 /// color, también los que vienen de serie.
 class ColorLibraryDialog extends StatefulWidget {
-  const ColorLibraryDialog({super.key, required this.initial});
+  const ColorLibraryDialog({
+    super.key,
+    required this.initial,
+    this.shelfColors = const [],
+  });
 
   final ColorLibrary initial;
+
+  /// Colores (nombre, RGB) de los filamentos de la estantería, para traerlos
+  /// a la biblioteca de un toque.
+  final List<(String, int)> shelfColors;
 
   @override
   State<ColorLibraryDialog> createState() => _ColorLibraryDialogState();
@@ -56,10 +64,25 @@ class _ColorLibraryDialogState extends State<ColorLibraryDialog> {
       subtitle: AppStrings.libraryManageSubtitle,
       icon: Icons.palette_outlined,
       width: 600,
-      footerLeading: TextButton.icon(
-        onPressed: () => _run(ServiceLocator.colors.restoreBasics),
-        icon: const Icon(Icons.restore, size: 18),
-        label: const Text(AppStrings.restoreBasics),
+      footerLeading: Wrap(
+        spacing: AppSpacing.sm,
+        children: [
+          TextButton.icon(
+            onPressed: () => _run(ServiceLocator.colors.restoreBasics),
+            icon: const Icon(Icons.restore, size: 18),
+            label: const Text(AppStrings.restoreBasics),
+          ),
+          if (widget.shelfColors.isNotEmpty)
+            TextButton.icon(
+              onPressed: () => _run(() async {
+                for (final (name, rgb) in widget.shelfColors) {
+                  await ServiceLocator.colors.addIfMissing(name, rgb);
+                }
+              }),
+              icon: const Icon(Icons.download_outlined, size: 18),
+              label: const Text(AppStrings.importShelfColors),
+            ),
+        ],
       ),
       actions: [
         OutlinedButton(

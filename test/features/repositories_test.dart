@@ -13,6 +13,7 @@ import 'package:nesherprints/features/inventory/domain/print_material.dart';
 import 'package:nesherprints/features/orders/data/order_repository.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_parts.dart';
+import 'package:nesherprints/features/orders/domain/order_rules.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
 import 'package:nesherprints/features/orders/domain/paint_detail.dart';
 import 'package:nesherprints/features/settings/data/settings_repository.dart';
@@ -153,6 +154,45 @@ void main() {
       expect(summary.materialCost, closeTo(3, 1e-9));
       expect(summary.plateNames, 'Base, Tapa');
     });
+
+    test(
+      'setMoney y setClient editan un pedido cerrado con validación',
+      () async {
+        final matId = await pla();
+        final clientId = await clients.save(const Client(name: 'Ana'));
+        final id = await orders.create(
+          newOrder(),
+          plates: [
+            OrderPlate(name: 'A', grams: 100, minutes: 60, materialId: matId),
+          ],
+        );
+        await orders.complete(id);
+
+        await orders.setMoney(id, price: 50);
+        var o = (await orders.getAllWithDetails()).single.order;
+        expect(o.price, 50);
+        expect(o.paidAmount, 30, reason: 'completar dejó lo cobrado = precio');
+
+        await orders.setMoney(id, paid: 40);
+        o = (await orders.getAllWithDetails()).single.order;
+        expect(o.paidAmount, 40);
+        expect(o.pendingAmount, 10);
+
+        expect(
+          () => orders.setMoney(id, paid: 99),
+          throwsA(isA<OrderRuleException>()),
+        );
+        expect(
+          () => orders.setMoney(id, price: -1),
+          throwsA(isA<OrderRuleException>()),
+        );
+
+        await orders.setClient(id, clientId);
+        expect((await orders.getAllWithDetails()).single.clientName, 'Ana');
+        await orders.setClient(id, null);
+        expect((await orders.getAllWithDetails()).single.clientName, isNull);
+      },
+    );
 
     test('marcar como cobrado iguala lo pagado al precio', () async {
       final matId = await pla();
