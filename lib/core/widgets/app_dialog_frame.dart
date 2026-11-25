@@ -53,44 +53,50 @@ class AppDialogFrame extends StatelessWidget {
     final dialogWidth = math.min(width, size.width - 32);
     final maxHeight = size.height - 48;
 
+    // En móvil el diálogo ocupa toda la pantalla.
+    final fullscreen = size.width < 600;
+    final body = ConstrainedBox(
+      constraints: fullscreen
+          ? const BoxConstraints.expand()
+          : BoxConstraints(
+              minWidth: dialogWidth,
+              maxWidth: dialogWidth,
+              maxHeight: maxHeight,
+            ),
+      child: Column(
+        mainAxisSize: fullscreen ? MainAxisSize.max : MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _Header(
+            title: title,
+            subtitle: subtitle,
+            icon: icon,
+            iconColor: iconColor,
+            trailing: headerTrailing,
+          ),
+          const Divider(),
+          Flexible(
+            child: scrollable
+                ? SingleChildScrollView(padding: padding, child: child)
+                : Padding(padding: padding, child: child),
+          ),
+          if (actions.isNotEmpty || footerLeading != null) ...[
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl,
+                vertical: AppSpacing.lg,
+              ),
+              child: _Footer(leading: footerLeading, actions: actions),
+            ),
+          ],
+        ],
+      ),
+    );
+    if (fullscreen) return Dialog.fullscreen(child: SafeArea(child: body));
     return Dialog(
       insetPadding: const EdgeInsets.all(AppSpacing.lg),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minWidth: dialogWidth,
-          maxWidth: dialogWidth,
-          maxHeight: maxHeight,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _Header(
-              title: title,
-              subtitle: subtitle,
-              icon: icon,
-              iconColor: iconColor,
-              trailing: headerTrailing,
-            ),
-            const Divider(),
-            Flexible(
-              child: scrollable
-                  ? SingleChildScrollView(padding: padding, child: child)
-                  : Padding(padding: padding, child: child),
-            ),
-            if (actions.isNotEmpty || footerLeading != null) ...[
-              const Divider(),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xl,
-                  vertical: AppSpacing.lg,
-                ),
-                child: _Footer(leading: footerLeading, actions: actions),
-              ),
-            ],
-          ],
-        ),
-      ),
+      child: body,
     );
   }
 }

@@ -105,7 +105,7 @@ void main() {
     expect(find.textContaining('Agotado'), findsOneWidget);
     expect(find.textContaining('Stock negativo'), findsOneWidget);
     // Valor = 0,5 × 20 + 2 × 3 = 16 (los stocks ≤ 0 no cuentan).
-    expect(find.text('€16.00'), findsOneWidget);
+    expect(find.text('16,00 €'), findsOneWidget);
   });
 
   testWidgets('sin piezas muestra el estado vacío con acción', (t) async {
@@ -195,7 +195,7 @@ void main() {
     await enter(t, 'Precio total de estas unidades (€)', '30');
     expect(t.widget<ElevatedButton>(apply).onPressed, isNotNull);
     // (0,5 × 20 + 30) / 40 = 1 €/ud
-    expect(find.text('€1.000'), findsOneWidget);
+    expect(find.text('1,000 €'), findsOneWidget);
 
     await tapText(t, 'Aplicar');
     final saved = (await stored(t)).single;

@@ -166,8 +166,8 @@ void main() {
 
     // 100 g × 20 €/kg = 2 € de material; 8 h × 0,1375 €/h = 1,10 € de máquina;
     // 1 placa = 1 €. Coste 4,10 €; recomendado = 4,10 × 2,5 = 10,25 €.
-    expect(find.text('€4.10'), findsOneWidget, reason: 'coste real');
-    expect(find.text('€10.25'), findsOneWidget, reason: 'precio recomendado');
+    expect(find.text('4,10 €'), findsOneWidget, reason: 'coste real');
+    expect(find.text('10,25 €'), findsOneWidget, reason: 'precio recomendado');
     expect(find.text('1 placa · 8 h · 100 g'), findsOneWidget);
   });
 

@@ -120,7 +120,7 @@ void main() {
 
     expect(find.text('PLA Silk'), findsOneWidget);
     expect(find.text('Negro'), findsOneWidget);
-    expect(find.text('€20.00/kg'), findsOneWidget);
+    expect(find.text('20,00 €/kg'), findsOneWidget);
     expect(find.text('Tanque de resina'), findsOneWidget);
     expect(find.text('0.10 kg'), findsOneWidget, reason: 'nivel del tanque');
     expect(find.text('Añadir resina'), findsOneWidget);

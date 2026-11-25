@@ -135,8 +135,8 @@ void main() {
     expect(find.text('ana@correo.com'), findsOneWidget);
     expect(find.text('AL'), findsOneWidget, reason: 'iniciales');
     expect(find.text('2 pedidos'), findsOneWidget);
-    expect(find.text('€40.00'), findsNWidgets(2), reason: 'resumen y tarjeta');
-    expect(find.text('€30.00'), findsNWidgets(2), reason: 'resumen y tarjeta');
+    expect(find.text('40,00 €'), findsNWidgets(2), reason: 'resumen y tarjeta');
+    expect(find.text('30,00 €'), findsNWidgets(2), reason: 'resumen y tarjeta');
     expect(find.text('0 pedidos'), findsOneWidget);
     expect(find.text('Al día'), findsOneWidget);
   });

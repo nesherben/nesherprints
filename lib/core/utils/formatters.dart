@@ -1,6 +1,20 @@
-/// Importe en euros con 2 decimales: `€12.50`.
+/// Número con formato español: miles con punto y decimales con coma
+/// (`5485.5` → `5.485,50`).
+String formatNumberEs(double value, {int decimals = 2}) {
+  final fixed = value.abs().toStringAsFixed(decimals);
+  final parts = fixed.split('.');
+  final intPart = parts[0].replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (_) => '.',
+  );
+  final negative = value < 0 && double.parse(fixed) != 0;
+  return '${negative ? '-' : ''}$intPart'
+      '${parts.length > 1 ? ',${parts[1]}' : ''}';
+}
+
+/// Importe en euros con 2 decimales: `12,50 €`, `5.485,00 €`.
 String formatEuro(double value, {int decimals = 2}) =>
-    '€${value.toStringAsFixed(decimals)}';
+    '${formatNumberEs(value, decimals: decimals)} €';
 
 /// Fecha de hoy en formato `YYYY-MM-DD` (formato guardado en `orders.date`).
 String todayIsoDate([DateTime? now]) =>
@@ -21,14 +35,14 @@ String formatDuration(double minutes) {
   return '$h h $m min';
 }
 
-/// Importe compacto para ejes de gráficas: `€950`, `€1.2k`.
+/// Importe compacto para ejes de gráficas: `950 €`, `1,2k €`.
 String formatEuroCompact(double value) {
   final abs = value.abs();
   if (abs >= 1000) {
     final k = value / 1000;
-    return '€${k.toStringAsFixed(k.abs() >= 10 ? 0 : 1)}k';
+    return '${formatNumberEs(k, decimals: k.abs() >= 10 ? 0 : 1)}k €';
   }
-  return '€${value.toStringAsFixed(0)}';
+  return '${formatNumberEs(value, decimals: 0)} €';
 }
 
 const _monthNames = [
@@ -55,6 +69,6 @@ String formatMonth(String yearMonth) {
   return '${_monthNames[month - 1]} ${match.group(1)}';
 }
 
-/// Porcentaje con un decimal: `0.675` → `67.5 %`.
+/// Porcentaje con un decimal: `0.675` → `67,5 %`.
 String formatPercent(double ratio, {int decimals = 0}) =>
-    '${(ratio * 100).toStringAsFixed(decimals)} %';
+    '${formatNumberEs(ratio * 100, decimals: decimals)} %';

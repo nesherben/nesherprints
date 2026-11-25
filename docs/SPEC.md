@@ -13,7 +13,7 @@ Sirve para:
 - **Controlar el stock** de material (filamento/resina) y de piezas extra.
 - **Ver el negocio**: facturado, beneficio real, cobros pendientes y avance hacia el objetivo.
 
-UI en español, tema oscuro. Moneda: euro (`€12.50`; en los campos se acepta coma o punto).
+UI en español, tema oscuro. Moneda: euro con formato español (`5.485,00 €`, `formatEuro`; en móvil los diálogos ocupan toda la pantalla; en los campos se acepta coma o punto).
 
 ## 2. Navegación
 
