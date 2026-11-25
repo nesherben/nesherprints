@@ -115,9 +115,15 @@ class _OrdersViewState extends State<OrdersView> {
   bool _prefsLoaded = false;
   String _savedPrefs = '';
 
+  /// Columnas opcionales visibles en la tabla (todas por defecto).
+  Set<OrderColumn> _columns = {...OrderColumn.values};
+
+  /// Máscara de bits de [_columns] (bit = índice de la columna).
+  double get _columnsMask => _columns.fold(0.0, (m, c) => m + (1 << c.index));
+
   String get _prefsKey =>
       '${_sortColumn.index}|$_ascending|${_statusFilter?.index ?? -1}|'
-      '$_receivableOnly';
+      '$_receivableOnly|${_columnsMask.toInt()}';
 
   Future<void> _loadPrefs() async {
     try {
@@ -126,9 +132,11 @@ class _OrdersViewState extends State<OrdersView> {
         SettingKeys.uiOrdersAscending,
         SettingKeys.uiOrdersStatus,
         SettingKeys.uiOrdersReceivable,
+        SettingKeys.uiOrdersColumns,
       ]);
       if (!mounted) return;
       setState(() {
+        _applyColumns(v[SettingKeys.uiOrdersColumns]);
         final sort = v[SettingKeys.uiOrdersSort]?.toInt();
         if (sort != null && sort >= 0 && sort < OrderSortColumn.values.length) {
           _sortColumn = OrderSortColumn.values[sort];
@@ -148,6 +156,15 @@ class _OrdersViewState extends State<OrdersView> {
     }
   }
 
+  void _applyColumns(double? mask) {
+    if (mask == null) return;
+    final bits = mask.toInt();
+    _columns = {
+      for (final c in OrderColumn.values)
+        if (bits & (1 << c.index) != 0) c,
+    };
+  }
+
   /// Guarda el orden y los filtros cuando cambian (sin esperar ni avisar).
   void _savePrefsIfChanged() {
     if (!_prefsLoaded || _prefsKey == _savedPrefs) return;
@@ -158,6 +175,7 @@ class _OrdersViewState extends State<OrdersView> {
           SettingKeys.uiOrdersAscending: _ascending ? 1 : 0,
           SettingKeys.uiOrdersStatus: (_statusFilter?.index ?? -1).toDouble(),
           SettingKeys.uiOrdersReceivable: _receivableOnly ? 1 : 0,
+          SettingKeys.uiOrdersColumns: _columnsMask,
         })
         .catchError((Object _) {});
   }
@@ -622,6 +640,7 @@ class _OrdersViewState extends State<OrdersView> {
       ascending: _ascending,
       onSort: _sortBy,
       selectedId: _selectedId,
+      columns: _columns,
       actions: OrderListActions(
         onOpen: (o) => _openForm(edit: o.order),
         onStatusChange: _changeStatus,
@@ -681,6 +700,32 @@ class _OrdersViewState extends State<OrdersView> {
             ],
           ),
         ],
+      ],
+    );
+  }
+
+  /// Menú para elegir qué columnas se ven en la tabla.
+  Widget _buildColumnsMenu() {
+    String label(OrderColumn c) => switch (c) {
+      OrderColumn.date => AppStrings.colDate,
+      OrderColumn.client => AppStrings.colClient,
+      OrderColumn.status => AppStrings.colStatus,
+      OrderColumn.price => AppStrings.colPrice,
+      OrderColumn.collection => AppStrings.colCollection,
+    };
+    return PopupMenuButton<OrderColumn>(
+      tooltip: AppStrings.columnsTooltip,
+      icon: const Icon(Icons.view_column_outlined, size: 20),
+      onSelected: (c) => setState(
+        () => _columns.contains(c) ? _columns.remove(c) : _columns.add(c),
+      ),
+      itemBuilder: (_) => [
+        for (final c in OrderColumn.values)
+          CheckedPopupMenuItem(
+            value: c,
+            checked: _columns.contains(c),
+            child: Text(label(c)),
+          ),
       ],
     );
   }
@@ -760,6 +805,7 @@ class _OrdersViewState extends State<OrdersView> {
             _statusFilter = null;
           }),
         ),
+      if (!compact) _buildColumnsMenu(),
       if (_hasActiveFilters) ...[
         TextButton.icon(
           onPressed: _clearFilters,

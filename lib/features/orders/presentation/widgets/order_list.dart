@@ -18,6 +18,9 @@ import 'package:nesherprints/features/orders/presentation/widgets/status_badge.d
 enum OrderSortColumn { id, date, name, status, price, pending }
 
 /// Acciones de la fila disponibles en el menú «más».
+/// Columnas opcionales de la tabla (ID, proyecto y acciones siempre están).
+enum OrderColumn { date, client, status, price, collection }
+
 enum OrderMenuAction { collect, waste, duplicate, personal, delete }
 
 /// Callbacks que el listado lanza; no accede a datos.
@@ -56,7 +59,11 @@ class OrderList extends StatelessWidget {
     required this.onSort,
     required this.actions,
     this.selectedId,
+    this.columns = const {...OrderColumn.values},
   });
+
+  /// Columnas que se quieren ver (la de cliente solo si cabe).
+  final Set<OrderColumn> columns;
 
   /// Pedido marcado con el teclado (flechas arriba y abajo).
   final int? selectedId;
@@ -100,10 +107,7 @@ class OrderList extends StatelessWidget {
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= wideBreakpoint;
         // Con más sitio, más columnas y las acciones a la vista.
-        final layout = _RowLayout(
-          showClient: constraints.maxWidth >= _RowLayout.clientFrom,
-          inlineActions: constraints.maxWidth >= _RowLayout.inlineFrom,
-        );
+        final layout = _RowLayout.compute(constraints.maxWidth, columns);
         return Column(
           children: [
             if (wide)
@@ -212,16 +216,45 @@ class _MonthHeader extends StatelessWidget {
 
 /// Qué columnas y acciones caben según el ancho del listado.
 class _RowLayout {
-  const _RowLayout({required this.showClient, required this.inlineActions});
+  const _RowLayout({required this.visible, required this.inlineActions});
 
-  /// Ancho mínimo para la columna Cliente / para acciones visibles.
-  static const double clientFrom = 1120;
-  static const double inlineFrom = 975;
-
-  final bool showClient;
+  final Set<OrderColumn> visible;
   final bool inlineActions;
 
+  bool show(OrderColumn c) => visible.contains(c);
+  bool get showClient => show(OrderColumn.client);
+
   double get actionsWidth => inlineActions ? 210 : 88;
+
+  static const _widths = {
+    OrderColumn.date: 80.0,
+    OrderColumn.client: 150.0,
+    OrderColumn.status: 130.0,
+    OrderColumn.price: 92.0,
+    OrderColumn.collection: 100.0,
+  };
+
+  /// Ancho que necesita la fila con [cols] y acciones de [actions] px: franja,
+  /// ID, un mínimo para el proyecto, columnas, huecos y acciones.
+  static double _needed(Set<OrderColumn> cols, double actions) {
+    final widths = cols.fold(0.0, (sum, c) => sum + _widths[c]!);
+    return 3 + 24 + 44 + 150 + widths + 16 * (cols.length + 3) + actions + 16;
+  }
+
+  /// Elige qué columnas caben en [width]: las pedidas, y el cliente solo si
+  /// sobra sitio; las acciones a la vista si caben.
+  static _RowLayout compute(double width, Set<OrderColumn> wanted) {
+    final base = {...wanted}..remove(OrderColumn.client);
+    final inline = width >= _needed(base, 210);
+    final actions = inline ? 210.0 : 88.0;
+    final withClient =
+        wanted.contains(OrderColumn.client) &&
+        width >= _needed({...base, OrderColumn.client}, actions);
+    return _RowLayout(
+      visible: {...base, if (withClient) OrderColumn.client},
+      inlineActions: inline,
+    );
+  }
 }
 
 // ==================== Cabecera ====================
@@ -300,11 +333,13 @@ class _HeaderRow extends StatelessWidget {
             child: _label(AppStrings.colId, OrderSortColumn.id),
           ),
           gap,
-          SizedBox(
-            width: _WideRow.dateWidth,
-            child: _label(AppStrings.colDate, OrderSortColumn.date),
-          ),
-          gap,
+          if (layout.show(OrderColumn.date)) ...[
+            SizedBox(
+              width: _WideRow.dateWidth,
+              child: _label(AppStrings.colDate, OrderSortColumn.date),
+            ),
+            gap,
+          ],
           Expanded(child: _label(AppStrings.colProject, OrderSortColumn.name)),
           gap,
           if (layout.showClient) ...[
@@ -314,28 +349,37 @@ class _HeaderRow extends StatelessWidget {
             ),
             gap,
           ],
-          SizedBox(
-            width: _WideRow.statusWidth,
-            child: _label(AppStrings.colStatus, OrderSortColumn.status),
-          ),
-          gap,
-          SizedBox(
-            width: _WideRow.priceWidth,
-            child: _label(
-              AppStrings.colPrice,
-              OrderSortColumn.price,
-              align: TextAlign.end,
+          if (layout.show(OrderColumn.status)) ...[
+            SizedBox(
+              width: _WideRow.statusWidth,
+              child: _label(AppStrings.colStatus, OrderSortColumn.status),
             ),
-          ),
-          gap,
-          SizedBox(
-            width: _WideRow.collectWidth,
-            child: Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.sm),
-              child: _label(AppStrings.colCollection, OrderSortColumn.pending),
+            gap,
+          ],
+          if (layout.show(OrderColumn.price)) ...[
+            SizedBox(
+              width: _WideRow.priceWidth,
+              child: _label(
+                AppStrings.colPrice,
+                OrderSortColumn.price,
+                align: TextAlign.end,
+              ),
             ),
-          ),
-          gap,
+            gap,
+          ],
+          if (layout.show(OrderColumn.collection)) ...[
+            SizedBox(
+              width: _WideRow.collectWidth,
+              child: Padding(
+                padding: const EdgeInsets.only(left: AppSpacing.sm),
+                child: _label(
+                  AppStrings.colCollection,
+                  OrderSortColumn.pending,
+                ),
+              ),
+            ),
+            gap,
+          ],
           SizedBox(width: layout.actionsWidth),
         ],
       ),
@@ -399,19 +443,22 @@ class _WideRow extends StatelessWidget {
                     ),
                   ),
                   gapBox,
-                  SizedBox(
-                    width: dateWidth,
-                    child: Text(
-                      o.date.isEmpty ? '—' : o.date,
-                      style: AppTextStyles.mutedSmall,
-                      overflow: TextOverflow.ellipsis,
+                  if (layout.show(OrderColumn.date)) ...[
+                    SizedBox(
+                      width: dateWidth,
+                      child: Text(
+                        o.date.isEmpty ? '—' : o.date,
+                        style: AppTextStyles.mutedSmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  gapBox,
+                    gapBox,
+                  ],
                   Expanded(
                     child: _ProjectInline(
                       order: order,
                       showClient: !layout.showClient,
+                      showDate: !layout.show(OrderColumn.date),
                     ),
                   ),
                   gapBox,
@@ -422,43 +469,49 @@ class _WideRow extends StatelessWidget {
                     ),
                     gapBox,
                   ],
-                  SizedBox(
-                    width: statusWidth,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: StatusBadge(
-                        status: o.status,
-                        onChanged: (s) => actions.onStatusChange(order, s),
+                  if (layout.show(OrderColumn.status)) ...[
+                    SizedBox(
+                      width: statusWidth,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: StatusBadge(
+                          status: o.status,
+                          onChanged: (s) => actions.onStatusChange(order, s),
+                        ),
                       ),
                     ),
-                  ),
-                  gapBox,
-                  SizedBox(
-                    width: priceWidth,
-                    child: InlineMoneyCell(
-                      value: o.price,
-                      enabled: !o.isPersonal,
-                      alignEnd: true,
-                      tooltip: AppStrings.editPriceTip,
-                      display: _Price(order: order),
-                      onSubmit: (v) => actions.onSetPrice(order, v),
-                    ),
-                  ),
-                  gapBox,
-                  SizedBox(
-                    width: collectWidth,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: AppSpacing.sm),
+                    gapBox,
+                  ],
+                  if (layout.show(OrderColumn.price)) ...[
+                    SizedBox(
+                      width: priceWidth,
                       child: InlineMoneyCell(
-                        value: o.paidAmount,
-                        enabled: !o.isPersonal && o.price > 0,
-                        tooltip: AppStrings.editPaidTip,
-                        display: _Collection(order: o),
-                        onSubmit: (v) => actions.onSetPaid(order, v),
+                        value: o.price,
+                        enabled: !o.isPersonal,
+                        alignEnd: true,
+                        tooltip: AppStrings.editPriceTip,
+                        display: _Price(order: order),
+                        onSubmit: (v) => actions.onSetPrice(order, v),
                       ),
                     ),
-                  ),
-                  gapBox,
+                    gapBox,
+                  ],
+                  if (layout.show(OrderColumn.collection)) ...[
+                    SizedBox(
+                      width: collectWidth,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: AppSpacing.sm),
+                        child: InlineMoneyCell(
+                          value: o.paidAmount,
+                          enabled: !o.isPersonal && o.price > 0,
+                          tooltip: AppStrings.editPaidTip,
+                          display: _Collection(order: o),
+                          onSubmit: (v) => actions.onSetPaid(order, v),
+                        ),
+                      ),
+                    ),
+                    gapBox,
+                  ],
                   SizedBox(
                     width: layout.actionsWidth,
                     child: _Actions(
@@ -637,16 +690,27 @@ List<Widget> _projectTags(OrderSummary order, {bool withClient = true}) {
 
 /// Proyecto en dos líneas: el nombre y, debajo en gris, sus datos.
 class _ProjectInline extends StatelessWidget {
-  const _ProjectInline({required this.order, required this.showClient});
+  const _ProjectInline({
+    required this.order,
+    required this.showClient,
+    this.showDate = false,
+  });
 
   final OrderSummary order;
 
   /// `false` si el cliente ya tiene su propia columna.
   final bool showClient;
 
+  /// Sin columna de fecha, se muestra bajo el nombre.
+  final bool showDate;
+
   @override
   Widget build(BuildContext context) {
-    final tags = _projectTags(order, withClient: showClient);
+    final tags = [
+      if (showDate && order.order.date.isNotEmpty)
+        _Mini(icon: Icons.event_outlined, text: order.order.date),
+      ..._projectTags(order, withClient: showClient),
+    ];
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Column(

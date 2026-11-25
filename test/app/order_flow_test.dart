@@ -331,6 +331,27 @@ void main() {
     expect(find.text('Datos del pedido'), findsOneWidget);
   });
 
+  testWidgets('el menú de columnas oculta y muestra columnas de la tabla', (
+    t,
+  ) async {
+    await openApp(t, seed: () => seedOrder(name: 'Figura'));
+    await tapText(t, 'Pedidos');
+    await settle(t, rounds: 3);
+    expect(find.text('FECHA'), findsOneWidget);
+
+    await tapTooltip(t, 'Columnas de la tabla');
+    await t.tap(find.text('Fecha').last);
+    await settle(t, rounds: 3);
+    expect(find.text('FECHA'), findsNothing);
+    // La fecha pasa a ir bajo el nombre del proyecto.
+    expect(find.text('2026-11-20'), findsOneWidget);
+
+    await tapTooltip(t, 'Columnas de la tabla');
+    await t.tap(find.text('Fecha').last);
+    await settle(t, rounds: 3);
+    expect(find.text('FECHA'), findsOneWidget);
+  });
+
   testWidgets('F1 abre la chuleta de atajos', (t) async {
     await openApp(t);
     await t.sendKeyEvent(LogicalKeyboardKey.f1);

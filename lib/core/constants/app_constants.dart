@@ -59,6 +59,7 @@ class SettingKeys {
   static const String uiOrdersAscending = 'ui_pedidos_asc';
   static const String uiOrdersStatus = 'ui_pedidos_estado';
   static const String uiOrdersReceivable = 'ui_pedidos_por_cobrar';
+  static const String uiOrdersColumns = 'ui_pedidos_columnas';
 
   // Obsoletas: de versiones anteriores del modelo de precios. Se conservan
   // las filas pero no se usan.

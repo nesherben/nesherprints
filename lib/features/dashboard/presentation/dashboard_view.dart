@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'package:nesherprints/app/service_locator.dart';
@@ -9,7 +11,9 @@ import 'package:nesherprints/core/utils/responsive.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
+import 'package:nesherprints/core/utils/open_folder.dart';
 import 'package:nesherprints/features/dashboard/domain/finance_summary.dart';
+import 'package:nesherprints/features/dashboard/domain/monthly_csv.dart';
 import 'package:nesherprints/features/dashboard/presentation/widgets/kpi_card.dart';
 import 'package:nesherprints/features/dashboard/presentation/widgets/monthly_revenue_chart.dart';
 import 'package:nesherprints/features/dashboard/presentation/widgets/monthly_table.dart';
@@ -57,6 +61,24 @@ class _DashboardViewState extends State<DashboardView> {
   void didUpdateWidget(covariant DashboardView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.orders != oldWidget.orders) _calculate();
+  }
+
+  /// Exporta el resumen mensual a CSV y abre la carpeta (escritorio).
+  Future<void> _exportMonthly(FinanceSummary summary) async {
+    try {
+      final now = DateTime.now();
+      String two(int n) => n.toString().padLeft(2, '0');
+      final path = await ServiceLocator.backups.export(
+        'resumen-mensual-${now.year}${two(now.month)}${two(now.day)}.csv',
+        MonthlyCsv.build(summary),
+      );
+      if (!mounted) return;
+      AppFeedback.success(context, AppStrings.exportDone(path));
+      if (canOpenFolders) await openFolder(File(path).parent.path);
+    } catch (e) {
+      if (!mounted) return;
+      AppFeedback.failure(context, e);
+    }
   }
 
   Future<void> _calculate() async {
@@ -123,9 +145,16 @@ class _DashboardViewState extends State<DashboardView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PageHeader(
+          PageHeader(
             title: AppStrings.dashboardTitle,
             subtitle: AppStrings.dashboardSubtitle,
+            action: compact
+                ? null
+                : OutlinedButton.icon(
+                    onPressed: () => _exportMonthly(summary),
+                    icon: const Icon(Icons.download_outlined, size: 20),
+                    label: const Text(AppStrings.exportMonthly),
+                  ),
           ),
           const SizedBox(height: AppSpacing.lg),
           _KpiGrid(summary: summary, onShowReceivable: widget.onShowReceivable),

@@ -146,6 +146,8 @@ class AppStrings {
   static const editPaidTip = 'Pulsa para cambiar lo cobrado';
   static const changeClientTip = 'Cambiar cliente';
   static const noClient = 'Sin cliente';
+  static const exportMonthly = 'Exportar resumen mensual';
+  static const columnsTooltip = 'Columnas de la tabla';
   static const shortcutsTitle = 'Atajos de teclado';
   static const shortcutsTooltip = 'Atajos de teclado (F1)';
   static const shortcutsGlobal = 'En toda la app';
