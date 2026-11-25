@@ -17,6 +17,7 @@ import 'package:nesherprints/core/widgets/status_pill.dart';
 import 'package:nesherprints/features/orders/domain/pricing_calculator.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 import 'package:nesherprints/features/settings/presentation/settings_fields.dart';
+import 'package:nesherprints/features/settings/presentation/widgets/restore_backup_dialog.dart';
 
 /// Administración: constantes de la calculadora de precios.
 class SettingsView extends StatefulWidget {
@@ -203,6 +204,14 @@ class _SettingsViewState extends State<SettingsView> {
               onPressed: _backupNow,
               icon: const Icon(Icons.save_alt, size: 18),
               label: const Text(AppStrings.backupNow),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const RestoreBackupDialog(),
+              ),
+              icon: const Icon(Icons.restore, size: 18),
+              label: const Text(AppStrings.restoreButton),
             ),
             if (canOpenFolders)
               OutlinedButton.icon(

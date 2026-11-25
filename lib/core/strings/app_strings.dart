@@ -146,6 +146,21 @@ class AppStrings {
   static const editPaidTip = 'Pulsa para cambiar lo cobrado';
   static const changeClientTip = 'Cambiar cliente';
   static const noClient = 'Sin cliente';
+  static const restoreButton = 'Restaurar copia…';
+  static const restoreTitle = 'Restaurar copia de seguridad';
+  static const restoreSubtitle =
+      'Elige una copia: sustituirá los datos actuales (antes se guarda una '
+      'copia de lo que hay ahora).';
+  static const restoreNone = 'Todavía no hay copias de seguridad.';
+  static const restoreAction = 'Restaurar';
+  static const restoreConfirm = 'Restaurar';
+  static const restoreConfirmTitle = '¿Restaurar esta copia?';
+  static String restoreConfirmMessage(String when) =>
+      'Los datos actuales se sustituirán por los de la copia del $when. '
+      'Antes se guarda una copia de lo que hay ahora.';
+  static const restoreDone =
+      'Copia restaurada. Cierra la app y vuelve a abrirla para ver los datos '
+      'restaurados.';
   static const globalSearchHint = 'Buscar pedidos, clientes, piezas o colores…';
   static const globalSearchEmpty =
       'Escribe para buscar en toda la app. ↑ ↓ para moverte, Intro para abrir.';

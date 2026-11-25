@@ -2,9 +2,14 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:nesherprints/core/database/app_database.dart';
 import 'package:nesherprints/core/database/backup_service.dart';
+import 'package:nesherprints/core/database/db_schema.dart';
+import 'package:nesherprints/core/errors/app_exception.dart';
+import 'package:nesherprints/features/clients/data/client_repository.dart';
+import 'package:nesherprints/features/clients/domain/client.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
 import 'package:nesherprints/features/orders/domain/orders_csv.dart';
@@ -95,6 +100,54 @@ void main() {
       final path = await service.export('x.csv', 'hola');
       expect(File(path).readAsStringSync(), 'hola');
       expect(p.basename(p.dirname(path)), 'exports');
+    });
+  });
+
+  group('Restaurar copia', () {
+    late Directory tmp;
+
+    setUpAll(() {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    });
+
+    setUp(() {
+      tmp = Directory.systemTemp.createTempSync('nesher-rs-');
+    });
+
+    tearDown(() => tmp.deleteSync(recursive: true));
+
+    test('devuelve los datos de la copia y guarda lo anterior', () async {
+      final dbPath = p.join(tmp.path, kDbFileName);
+      var db = AppDatabase.file(dbPath);
+      final service = BackupService(db, baseDir: tmp.path);
+      final clients = ClientRepository(db);
+      await clients.save(const Client(name: 'Ana'));
+      final backup = await service.backupNow(now: DateTime(2026, 1, 1, 8));
+
+      await clients.save(const Client(name: 'Beto'));
+      expect((await clients.getAll()).length, 2);
+
+      await service.restore(backup, now: DateTime(2026, 1, 2, 9));
+
+      // Se reabre la base de datos: solo está lo de la copia.
+      db = AppDatabase.file(dbPath);
+      expect((await ClientRepository(db).getAll()).map((c) => c.name), ['Ana']);
+      await db.close();
+
+      final names = (await service.listBackups()).map((b) => b.name).toList();
+      expect(names, contains('antes-de-restaurar-20260102-090000.db'));
+    });
+
+    test('rechaza un archivo que no es una copia válida', () async {
+      final db = AppDatabase.file(p.join(tmp.path, kDbFileName));
+      final service = BackupService(db, baseDir: tmp.path);
+      final bad = File(p.join(tmp.path, 'raro.db'))..writeAsStringSync('hola');
+      await expectLater(
+        service.restore(bad.path),
+        throwsA(isA<AppException>()),
+      );
+      await db.close();
     });
   });
 }
