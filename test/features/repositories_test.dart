@@ -4,6 +4,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:nesherprints/core/constants/app_constants.dart';
 import 'package:nesherprints/core/database/app_database.dart';
 import 'package:nesherprints/core/database/db_schema.dart';
+import 'package:nesherprints/core/errors/app_exception.dart';
 import 'package:nesherprints/features/clients/data/client_repository.dart';
 import 'package:nesherprints/features/clients/domain/client.dart';
 import 'package:nesherprints/features/extras/data/extras_repository.dart';
@@ -394,6 +395,15 @@ void main() {
       expect(updated.id, id);
       expect(updated.stock, 20);
       expect(updated.unitPrice, 1); // (5 + 15) / 20
+    });
+
+    test('corregir el stock a mano no cambia el precio', () async {
+      final id = await keychain(stock: 10);
+      await extras.setStock(id, 7);
+      final e = (await extras.getAll()).single;
+      expect(e.stock, 7);
+      expect(e.unitPrice, 0.5);
+      expect(() => extras.setStock(id, -1), throwsA(isA<AppException>()));
     });
   });
 

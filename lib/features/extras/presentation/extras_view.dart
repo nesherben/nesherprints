@@ -18,6 +18,7 @@ import 'package:nesherprints/core/widgets/summary_strip.dart';
 import 'package:nesherprints/features/extras/domain/extra.dart';
 import 'package:nesherprints/features/extras/presentation/widgets/add_stock_dialog.dart';
 import 'package:nesherprints/features/extras/presentation/widgets/extra_row.dart';
+import 'package:nesherprints/features/extras/presentation/widgets/quick_extra_bar.dart';
 import 'package:nesherprints/features/extras/presentation/widgets/extra_dialog.dart';
 
 /// Filtro de stock del listado de piezas.
@@ -175,6 +176,21 @@ class _ExtrasViewState extends State<ExtrasView> {
                 action: addButton,
               ),
             ),
+            // Alta rápida (solo en pantalla ancha).
+            if (!context.isCompact) ...[
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+              SliverToBoxAdapter(
+                child: QuickExtraBar(
+                  onCreate: (name, price, stock) async {
+                    await _write(
+                      () => ServiceLocator.extras.save(
+                        Extra(name: name, unitPrice: price, stock: stock),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
             if (_extras.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
@@ -244,6 +260,9 @@ class _ExtrasViewState extends State<ExtrasView> {
                       onEdit: () => _openDialog(extra),
                       onAddStock: () => _addStock(extra),
                       onDelete: () => _delete(extra),
+                      onSetStock: (stock) => _write(
+                        () => ServiceLocator.extras.setStock(extra.id!, stock),
+                      ),
                     );
                   },
                 ),

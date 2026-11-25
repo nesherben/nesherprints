@@ -4,6 +4,7 @@ import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
+import 'package:nesherprints/core/widgets/inline_edit_cell.dart';
 import 'package:nesherprints/core/widgets/row_actions.dart';
 import 'package:nesherprints/features/extras/domain/extra.dart';
 
@@ -16,12 +17,16 @@ class ExtraRow extends StatelessWidget {
     required this.onEdit,
     required this.onAddStock,
     required this.onDelete,
+    this.onSetStock,
   });
 
   final Extra extra;
   final VoidCallback onEdit;
   final VoidCallback onAddStock;
   final VoidCallback onDelete;
+
+  /// Corrección rápida del stock pulsando las unidades.
+  final Future<void> Function(int stock)? onSetStock;
 
   /// Etiqueta y color según el nivel de stock (`null` si no hay aviso).
   (String, Color)? get _alert => switch (extra.stockLevel) {
@@ -76,12 +81,21 @@ class ExtraRow extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        AppStrings.units(extra.stock),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.cardTitle.copyWith(
-                          color: alert?.$2 ?? AppColors.textMain,
+                      InlineMoneyCell(
+                        value: extra.stock.toDouble(),
+                        integer: true,
+                        suffix: 'uds',
+                        alignEnd: true,
+                        enabled: onSetStock != null,
+                        tooltip: AppStrings.editStockTip,
+                        onSubmit: (v) => onSetStock!(v.round()),
+                        display: Text(
+                          AppStrings.units(extra.stock),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.cardTitle.copyWith(
+                            color: alert?.$2 ?? AppColors.textMain,
+                          ),
                         ),
                       ),
                       if (alert != null)

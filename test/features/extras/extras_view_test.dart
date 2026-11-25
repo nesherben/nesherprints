@@ -116,16 +116,20 @@ void main() {
     expect(find.text('Añadir Pieza'), findsOneWidget);
   });
 
+  final searchField = find.byWidgetPredicate(
+    (w) => w is TextField && w.decoration?.hintText == 'Buscar pieza...',
+  );
+
   testWidgets('el buscador filtra por nombre', (t) async {
     await seed(t, [keychain, clicker]);
     await openView(t);
 
-    await t.enterText(find.byType(TextField), 'click');
+    await t.enterText(searchField, 'click');
     await settle(t, rounds: 2);
     expect(find.text('Clicker'), findsOneWidget);
     expect(find.text('Llavero'), findsNothing);
 
-    await t.enterText(find.byType(TextField), 'zzz');
+    await t.enterText(searchField, 'zzz');
     await settle(t, rounds: 2);
     expect(find.text('Sin resultados'), findsOneWidget);
 
@@ -252,4 +256,36 @@ void main() {
       expect(overflows, isEmpty, reason: 'diálogo con errores de validación');
     });
   }
+
+  testWidgets('alta rápida y corrección del stock sin abrir diálogos', (
+    t,
+  ) async {
+    await openView(t);
+    Finder hint(String text) => find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.hintText == text,
+    );
+
+    await t.enterText(hint('Pieza rápida: nombre…'), 'Imán X');
+    await t.enterText(hint('€ / ud'), '0,25');
+    await t.enterText(hint('Unidades'), '40');
+    await t.tap(find.widgetWithText(ElevatedButton, 'Añadir'));
+    await settle(t);
+
+    var extras = await stored(t);
+    expect(extras, hasLength(1));
+    expect(extras.single.name, 'Imán X');
+    expect(extras.single.unitPrice, 0.25);
+    expect(extras.single.stock, 40);
+
+    // Pulsar las unidades las edita en el sitio.
+    await t.tap(find.text('40 uds'));
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextField).last, '33');
+    await t.testTextInput.receiveAction(TextInputAction.done);
+    await settle(t);
+    extras = await stored(t);
+    expect(extras.single.stock, 33);
+    expect(extras.single.unitPrice, 0.25);
+    expect(overflows, isEmpty);
+  });
 }

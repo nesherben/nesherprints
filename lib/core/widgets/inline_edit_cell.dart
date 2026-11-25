@@ -18,6 +18,8 @@ class InlineMoneyCell extends StatefulWidget {
     required this.tooltip,
     this.enabled = true,
     this.alignEnd = false,
+    this.suffix = '€',
+    this.integer = false,
   });
 
   final double value;
@@ -28,6 +30,12 @@ class InlineMoneyCell extends StatefulWidget {
   final String tooltip;
   final bool enabled;
   final bool alignEnd;
+
+  /// Unidad que se muestra al editar (`€`, `uds`…).
+  final String suffix;
+
+  /// Solo números enteros (unidades).
+  final bool integer;
 
   @override
   State<InlineMoneyCell> createState() => _InlineMoneyCellState();
@@ -47,7 +55,9 @@ class _InlineMoneyCellState extends State<InlineMoneyCell> {
   }
 
   void _start() {
-    _controller.text = formatFieldDecimal(widget.value);
+    _controller.text = widget.integer
+        ? widget.value.round().toString()
+        : formatFieldDecimal(widget.value);
     _controller.selection = TextSelection(
       baseOffset: 0,
       extentOffset: _controller.text.length,
@@ -98,14 +108,19 @@ class _InlineMoneyCellState extends State<InlineMoneyCell> {
       child: TextField(
         controller: _controller,
         focusNode: _focus,
-        keyboardType: decimalKeyboard,
-        inputFormatters: decimalInputFormatters,
+        keyboardType: widget.integer ? TextInputType.number : decimalKeyboard,
+        inputFormatters: widget.integer
+            ? [FilteringTextInputFormatter.digitsOnly]
+            : decimalInputFormatters,
         textAlign: widget.alignEnd ? TextAlign.end : TextAlign.start,
         style: AppTextStyles.money.copyWith(fontSize: 14),
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           isDense: true,
-          suffixText: '€',
-          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          suffixText: widget.suffix,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 8,
+          ),
         ),
         onSubmitted: (_) => _commit(),
         onTapOutside: (_) => _commit(),

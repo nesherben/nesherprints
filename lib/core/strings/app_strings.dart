@@ -146,6 +146,11 @@ class AppStrings {
   static const editPaidTip = 'Pulsa para cambiar lo cobrado';
   static const changeClientTip = 'Cambiar cliente';
   static const noClient = 'Sin cliente';
+  static const quickExtraName = 'Pieza rápida: nombre…';
+  static const quickExtraPrice = '€ / ud';
+  static const quickExtraStock = 'Unidades';
+  static const extraCreated = 'Pieza añadida';
+  static const editStockTip = 'Pulsa para corregir el stock';
   static const assignClientAction = 'Asignar cliente a estos';
   static const assignClientTitle = 'Asignar cliente';
   static String assignClientMessage(int n) =>

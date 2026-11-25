@@ -69,6 +69,21 @@ class ExtrasRepository {
     });
   }
 
+  /// Corrige el stock a un valor contado a mano (no cambia el precio).
+  Future<void> setStock(int extraId, int stock) async {
+    if (stock < 0) {
+      throw const AppException('El stock no puede ser negativo.');
+    }
+    final db = await _db.database;
+    final n = await db.update(
+      ExtrasTable.name,
+      {ExtrasTable.stock: stock},
+      where: '${ExtrasTable.id} = ?',
+      whereArgs: [extraId],
+    );
+    if (n == 0) throw const AppException('La pieza ya no existe.');
+  }
+
   Future<void> delete(int id) async {
     final db = await _db.database;
     await db.delete(
