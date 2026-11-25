@@ -29,7 +29,7 @@ class ClientStats {
       if (order.status != OrderStatus.canceled) {
         counts[clientId] = (counts[clientId] ?? 0) + 1;
       }
-      if (order.status.countsAsRevenue) {
+      if (order.countsAsRevenue) {
         billed[clientId] = (billed[clientId] ?? 0) + order.price;
       }
       if (order.status.countsAsReceivable && order.pendingAmount > 0) {

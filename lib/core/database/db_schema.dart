@@ -73,6 +73,10 @@ class OrdersTable {
   /// Detalle de la pintura: 0 simple, 1 normal, 2 detallada. Desde v6.
   static const paintLevel = 'paint_level';
 
+  /// 1 si el pedido es para uso propio (no se cobra ni cuenta como ingreso,
+  /// solo gasta material). Desde v9.
+  static const isPersonal = 'is_personal';
+
   /// Obsoleta: ya no se usa (la columna se conserva).
   static const legacyPaintColors = 'paint_colors';
 
@@ -132,7 +136,7 @@ class DbSchema {
   DbSchema._();
 
   /// Versión del esquema (PRAGMA user_version).
-  static const int version = 8;
+  static const int version = 9;
 
   static const String _createSettings =
       '''
@@ -189,6 +193,7 @@ class DbSchema {
       ${OrdersTable.legacyPaintColors} REAL NOT NULL DEFAULT 0,
       ${OrdersTable.costOverride} REAL,
       ${OrdersTable.paintLevel} INTEGER NOT NULL DEFAULT 1,
+      ${OrdersTable.isPersonal} INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY (${OrdersTable.clientId}) REFERENCES ${ClientsTable.name} (${ClientsTable.id})
     )''';
 
@@ -359,6 +364,15 @@ class DbSchema {
       await _removeHistoricMaterials(db);
       await seedColorLibrary(db);
     }
+
+    if (oldVersion < 9) {
+      // v9: pedidos para uso propio (no se cobran; solo cuentan el material).
+      await _addColumnIfMissing(
+        db,
+        OrdersTable.name,
+        '${OrdersTable.isPersonal} INTEGER NOT NULL DEFAULT 0',
+      );
+    }
   }
 
   /// Rellena la biblioteca de colores con los básicos si está vacía. El
@@ -481,6 +495,11 @@ class DbSchema {
       db,
       MaterialsTable.name,
       '${MaterialsTable.colorRgb} INTEGER',
+    );
+    await _addColumnIfMissing(
+      db,
+      OrdersTable.name,
+      '${OrdersTable.isPersonal} INTEGER NOT NULL DEFAULT 0',
     );
     if (!hadLibrary) await seedColorLibrary(db);
   }

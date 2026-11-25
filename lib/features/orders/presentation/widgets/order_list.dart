@@ -69,7 +69,7 @@ class OrderList extends StatelessWidget {
         entries.add(current);
       }
       current.count++;
-      if (summary.order.status.countsAsRevenue) {
+      if (summary.order.countsAsRevenue) {
         current.billed += summary.order.price;
       }
       entries.add(summary);
@@ -389,7 +389,7 @@ class _CompactCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final o = order.order;
     final cost = o.costOverride;
-    final showProfit = o.status.countsAsRevenue && cost != null;
+    final showProfit = o.countsAsRevenue && cost != null;
     final profit = showProfit ? o.price - cost : 0.0;
     return Material(
       color: AppColors.surfaceHigh,
@@ -453,8 +453,13 @@ class _CompactCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            formatEuro(o.price),
-                            style: AppTextStyles.money.copyWith(fontSize: 17),
+                            o.isPersonal
+                                ? AppStrings.personalOrder
+                                : formatEuro(o.price),
+                            style: AppTextStyles.money.copyWith(
+                              fontSize: 17,
+                              color: o.isPersonal ? AppColors.info : null,
+                            ),
                           ),
                           if (showProfit) ...[
                             const SizedBox(width: AppSpacing.sm),
@@ -561,17 +566,20 @@ class _Price extends StatelessWidget {
   Widget build(BuildContext context) {
     final o = order.order;
     final cost = o.costOverride;
-    final showProfit = o.status.countsAsRevenue && cost != null;
+    final showProfit = o.countsAsRevenue && cost != null;
     final profit = showProfit ? o.price - cost : 0.0;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
-          formatEuro(o.price),
+          o.isPersonal ? AppStrings.personalOrder : formatEuro(o.price),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: AppTextStyles.money.copyWith(fontSize: 15),
+          style: AppTextStyles.money.copyWith(
+            fontSize: 15,
+            color: o.isPersonal ? AppColors.info : null,
+          ),
         ),
         if (showProfit)
           Text(
@@ -595,6 +603,8 @@ class _Collection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Los pedidos para mí no se cobran: no hay nada que mostrar.
+    if (order.isPersonal) return const SizedBox.shrink();
     // Cobrado es lo normal: en gris. Solo lo pendiente llama la atención.
     if (order.isSettled) {
       return const Row(
@@ -671,8 +681,7 @@ class _Details extends StatelessWidget {
                 icon: Icons.layers_outlined,
                 text: AppStrings.platesCount(order.platesCount),
               ),
-            if (order.order.status.countsAsRevenue &&
-                order.order.costOverride != null)
+            if (order.order.countsAsRevenue && order.order.costOverride != null)
               _Mini(
                 icon: Icons.trending_up,
                 text: AppStrings.profitOf(() {

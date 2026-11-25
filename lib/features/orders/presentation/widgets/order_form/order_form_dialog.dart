@@ -86,6 +86,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
   // Estado del formulario
   OrderStatus _status = OrderStatus.draft;
   bool _isPainted = false;
+  bool _isPersonal = false;
   int? _clientId;
   List<PlateDraft> _plates = [];
 
@@ -164,6 +165,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
               : source.name;
           _status = duplicating ? OrderStatus.draft : source.status;
           _isPainted = source.isPainted;
+          _isPersonal = source.isPersonal;
           _clientId = source.clientId;
           _priceController.text = source.price.toStringAsFixed(2);
           _paidController.text = duplicating
@@ -326,8 +328,8 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       id: initial?.id,
       clientId: _clientId,
       name: _nameController.text.trim(),
-      price: parseDecimal(_priceController.text),
-      paidAmount: parseDecimal(_paidController.text),
+      price: _isPersonal ? 0 : parseDecimal(_priceController.text),
+      paidAmount: _isPersonal ? 0 : parseDecimal(_paidController.text),
       date: initial?.date ?? todayIsoDate(),
       status: _status,
       isPainted: _isPainted,
@@ -335,6 +337,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       attempts: _attempts,
       paintDetail: _paintDetail,
       costOverride: OrderRules.costOverrideOnSave(initial),
+      isPersonal: _isPersonal,
     );
   }
 
@@ -519,6 +522,7 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       priceController: _priceController,
       paidController: _paidController,
       isLocked: _isLocked,
+      isPersonal: _isPersonal,
       frozenCost: widget.initialOrder?.costOverride,
       onPriceChanged: _onFieldChanged,
       onPaidChanged: _onFieldChanged,
@@ -700,6 +704,21 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
               labelText: AppStrings.notesLabel,
               prefixIcon: Icon(Icons.notes_outlined, size: 20),
             ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(AppStrings.personalTitle),
+            subtitle: const Text(
+              AppStrings.personalHint,
+              style: AppTextStyles.mutedSmall,
+            ),
+            value: _isPersonal,
+            onChanged: _isLocked
+                ? null
+                : (v) => setState(() {
+                    _isPersonal = v;
+                    _dirty = true;
+                  }),
           ),
         ],
       ),

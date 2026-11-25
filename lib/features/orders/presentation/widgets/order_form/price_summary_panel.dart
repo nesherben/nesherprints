@@ -22,6 +22,7 @@ class PriceSummaryPanel extends StatelessWidget {
     required this.priceController,
     required this.paidController,
     required this.isLocked,
+    this.isPersonal = false,
     required this.onPriceChanged,
     required this.onPaidChanged,
     required this.onApplySuggested,
@@ -37,6 +38,9 @@ class PriceSummaryPanel extends StatelessWidget {
   final TextEditingController priceController;
   final TextEditingController paidController;
   final bool isLocked;
+
+  /// Pedido para mí: solo se muestra el coste (sin precio ni cobro).
+  final bool isPersonal;
   final VoidCallback onPriceChanged;
   final VoidCallback onPaidChanged;
   final VoidCallback onApplySuggested;
@@ -67,77 +71,94 @@ class PriceSummaryPanel extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         _Breakdown(estimate: estimate, attempts: attempts, cost: cost),
-        const SizedBox(height: AppSpacing.xl),
-        const SectionHeader(
-          title: AppStrings.sectionPrice,
-          icon: Icons.sell_outlined,
-        ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: priceController,
-          readOnly: isLocked,
-          keyboardType: decimalKeyboard,
-          inputFormatters: decimalInputFormatters,
-          onChanged: (_) => onPriceChanged(),
-          style: AppTextStyles.kpiValue.copyWith(fontSize: 24),
-          decoration: const InputDecoration(
-            labelText: AppStrings.finalPriceLabel,
-            prefixText: '€ ',
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        if (isLocked)
-          _ProfitLine(price: price, cost: cost)
-        else ...[
-          _HealthMessage(health: health, price: price, estimate: estimate),
-          const SizedBox(height: AppSpacing.sm),
-          _Recommended(
-            value: estimate.suggestedPrice,
-            minimumApplied: estimate.minimumApplied,
-            paintSurcharge: estimate.paintSurcharge,
-            showApply: estimate.suggestedPrice > 0,
-            onApply: onApplySuggested,
-          ),
-        ],
-        const SizedBox(height: AppSpacing.xl),
-        const SectionHeader(
-          title: AppStrings.sectionCollection,
-          icon: Icons.payments_outlined,
-        ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: paidController,
-          readOnly: isLocked,
-          keyboardType: decimalKeyboard,
-          inputFormatters: decimalInputFormatters,
-          onChanged: (_) => onPaidChanged(),
-          decoration: const InputDecoration(
-            labelText: AppStrings.paidAdvanceLabel,
-            prefixText: '€ ',
-          ),
-        ),
-        if (!isLocked) ...[
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
+        if (isPersonal) ...[
+          const SizedBox(height: AppSpacing.lg),
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ActionChip(
-                label: const Text(AppStrings.quickPaidNone),
-                onPressed: () => onSetPaid(0),
-              ),
-              ActionChip(
-                label: const Text(AppStrings.quickPaidHalf),
-                onPressed: () => onSetPaid(price / 2),
-              ),
-              ActionChip(
-                label: const Text(AppStrings.quickPaidAll),
-                onPressed: () => onSetPaid(price),
+              Icon(Icons.person_outline, size: 18, color: AppColors.info),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  AppStrings.personalSummary,
+                  style: TextStyle(color: AppColors.info, fontSize: 13),
+                ),
               ),
             ],
           ),
+        ] else ...[
+          const SizedBox(height: AppSpacing.xl),
+          const SectionHeader(
+            title: AppStrings.sectionPrice,
+            icon: Icons.sell_outlined,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: priceController,
+            readOnly: isLocked,
+            keyboardType: decimalKeyboard,
+            inputFormatters: decimalInputFormatters,
+            onChanged: (_) => onPriceChanged(),
+            style: AppTextStyles.kpiValue.copyWith(fontSize: 24),
+            decoration: const InputDecoration(
+              labelText: AppStrings.finalPriceLabel,
+              prefixText: '€ ',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          if (isLocked)
+            _ProfitLine(price: price, cost: cost)
+          else ...[
+            _HealthMessage(health: health, price: price, estimate: estimate),
+            const SizedBox(height: AppSpacing.sm),
+            _Recommended(
+              value: estimate.suggestedPrice,
+              minimumApplied: estimate.minimumApplied,
+              paintSurcharge: estimate.paintSurcharge,
+              showApply: estimate.suggestedPrice > 0,
+              onApply: onApplySuggested,
+            ),
+          ],
+          const SizedBox(height: AppSpacing.xl),
+          const SectionHeader(
+            title: AppStrings.sectionCollection,
+            icon: Icons.payments_outlined,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: paidController,
+            readOnly: isLocked,
+            keyboardType: decimalKeyboard,
+            inputFormatters: decimalInputFormatters,
+            onChanged: (_) => onPaidChanged(),
+            decoration: const InputDecoration(
+              labelText: AppStrings.paidAdvanceLabel,
+              prefixText: '€ ',
+            ),
+          ),
+          if (!isLocked) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              children: [
+                ActionChip(
+                  label: const Text(AppStrings.quickPaidNone),
+                  onPressed: () => onSetPaid(0),
+                ),
+                ActionChip(
+                  label: const Text(AppStrings.quickPaidHalf),
+                  onPressed: () => onSetPaid(price / 2),
+                ),
+                ActionChip(
+                  label: const Text(AppStrings.quickPaidAll),
+                  onPressed: () => onSetPaid(price),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          _PendingLine(price: price, paid: paid),
         ],
-        const SizedBox(height: AppSpacing.sm),
-        _PendingLine(price: price, paid: paid),
       ],
     );
   }

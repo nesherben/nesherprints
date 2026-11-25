@@ -9,6 +9,7 @@ OrderSummary _order({
   required OrderStatus status,
   double price = 100,
   double paid = 0,
+  bool personal = false,
 }) => OrderSummary(
   order: Order(
     id: 1,
@@ -18,6 +19,7 @@ OrderSummary _order({
     paidAmount: paid,
     date: '2026-01-01',
     status: status,
+    isPersonal: personal,
   ),
 );
 
@@ -60,5 +62,14 @@ void main() {
       _order(clientId: 1, status: OrderStatus.reserved, price: 30, paid: 10),
     ]);
     expect(stats[1]!.pending, 20);
+  });
+
+  test('los pedidos para mí no facturan ni generan deuda', () {
+    final stats = ClientStats.fromOrders([
+      _order(clientId: 1, status: OrderStatus.completed, price: 50, paid: 50),
+      _order(clientId: 1, status: OrderStatus.completed, personal: true),
+    ]);
+    expect(stats[1]!.billed, 50);
+    expect(stats[1]!.pending, 0);
   });
 }

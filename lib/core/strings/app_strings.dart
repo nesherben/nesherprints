@@ -144,6 +144,14 @@ class AppStrings {
   static String orderPaid(String amount) => 'Pagado: $amount';
   static String orderPending(String amount) => 'Falta: $amount';
   static const painted = 'Pintado';
+  static const personalOrder = 'Para mí';
+  static const personalTitle = 'Pedido para mí';
+  static const personalHint =
+      'No se cobra ni cuenta como ingreso: solo gasta material y piezas.';
+  static const personalSummary =
+      'Pedido para uso propio: sin precio ni cobro. Solo se descuenta el material.';
+  static String personalNote(int orders, String cost) =>
+      'Uso propio: $orders pedidos · $cost de material.';
   static String profitOf(String amount) => 'Beneficio $amount';
   static String platesCount(int count) =>
       '$count Placa${count != 1 ? 's' : ''}';

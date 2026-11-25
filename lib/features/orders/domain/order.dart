@@ -19,6 +19,7 @@ class Order {
     this.attempts = 1,
     this.paintDetail = PaintDetail.normal,
     this.costOverride,
+    this.isPersonal = false,
   });
 
   final int? id;
@@ -48,8 +49,15 @@ class Order {
   /// otra fórmula; si existe, sustituye al coste calculado.
   final double? costOverride;
 
+  /// Pedido para uso propio: no se cobra ni cuenta como ingreso; solo gasta
+  /// material.
+  final bool isPersonal;
+
+  /// Cuenta como ingreso (completado o enviado y no para uso propio).
+  bool get countsAsRevenue => !isPersonal && status.countsAsRevenue;
+
   /// Lo que falta por cobrar (puede ser negativo si se cobró de más).
-  double get pendingAmount => price - paidAmount;
+  double get pendingAmount => isPersonal ? 0 : price - paidAmount;
 
   /// Pagado del todo o completado.
   bool get isSettled => status == OrderStatus.completed || pendingAmount <= 0;
@@ -73,6 +81,7 @@ class Order {
     attempts: attempts ?? this.attempts,
     paintDetail: paintDetail,
     costOverride: costOverride,
+    isPersonal: isPersonal,
   );
 
   factory Order.fromMap(Map<String, Object?> map) => Order(
@@ -88,6 +97,7 @@ class Order {
     attempts: asDouble(map[OrdersTable.attempts], fallback: 1),
     paintDetail: PaintDetail.fromDb(map[OrdersTable.paintLevel]),
     costOverride: (map[OrdersTable.costOverride] as num?)?.toDouble(),
+    isPersonal: map[OrdersTable.isPersonal] == 1,
   );
 
   /// Columnas de `orders` (sin `id`).
@@ -103,6 +113,7 @@ class Order {
     OrdersTable.attempts: attempts,
     OrdersTable.paintLevel: paintDetail.dbValue,
     OrdersTable.costOverride: costOverride,
+    OrdersTable.isPersonal: isPersonal ? 1 : 0,
   };
 }
 

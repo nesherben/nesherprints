@@ -27,6 +27,35 @@ OrderSummary _o(
 
 void main() {
   group('FinanceSummary', () {
+    test(
+      'un pedido para mí no cuenta como ingreso ni deuda, solo su coste',
+      () {
+        final personal = OrderSummary(
+          order: const Order(
+            id: 2,
+            name: 'Mío',
+            price: 0,
+            date: '2026-03-15',
+            status: OrderStatus.completed,
+            isPersonal: true,
+          ),
+        );
+        final s = FinanceSummary.compute(
+          orders: [_o(1, OrderStatus.completed, paid: 100), personal],
+          costs: const {1: 10, 2: 7},
+          materialCostPerKg: const {},
+          waste: const [],
+          profitGoal: 5000,
+        );
+        expect(s.completedOrders, 1);
+        expect(s.grossRevenue, 100);
+        expect(s.cost, 10);
+        expect(s.pendingCollection, 0);
+        expect(s.personalOrders, 1);
+        expect(s.personalCost, 7);
+      },
+    );
+
     test('sin pedidos todo es 0', () {
       final s = FinanceSummary.compute(
         orders: const [],

@@ -55,6 +55,8 @@ class FinanceSummary {
     required this.wasteCost,
     required this.wasteGrams,
     required this.wasteRecords,
+    this.personalOrders = 0,
+    this.personalCost = 0,
   });
 
   /// Pedidos que cuentan como ingreso (completados y enviados).
@@ -87,6 +89,11 @@ class FinanceSummary {
   final double wasteGrams;
   final int wasteRecords;
 
+  /// Pedidos para uso propio ya hechos y su coste de material (no cuentan
+  /// como ingreso).
+  final int personalOrders;
+  final double personalCost;
+
   /// Beneficio: facturado − coste real.
   double get profit => grossRevenue - cost;
 
@@ -110,7 +117,8 @@ class FinanceSummary {
     final counts = {for (final s in OrderStatus.values) s: 0};
     final monthly = <String, MonthStats>{};
     final pending = <PendingOrder>[];
-    var completed = 0;
+    var completed = 0, personalOrders = 0;
+    var personalCost = 0.0;
     var gross = 0.0, cost = 0.0, receivable = 0.0;
 
     for (final summary in orders) {
@@ -129,7 +137,10 @@ class FinanceSummary {
         );
       }
 
-      if (o.status.countsAsRevenue) {
+      if (o.isPersonal && o.status.countsAsRevenue) {
+        personalOrders++;
+        personalCost += costs[summary.id] ?? 0;
+      } else if (o.countsAsRevenue) {
         final c = costs[summary.id] ?? 0;
         completed++;
         gross += o.price;
@@ -164,6 +175,8 @@ class FinanceSummary {
       wasteCost: wasteCost,
       wasteGrams: wasteGrams,
       wasteRecords: waste.length,
+      personalOrders: personalOrders,
+      personalCost: personalCost,
     );
   }
 }

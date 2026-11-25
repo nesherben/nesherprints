@@ -140,6 +140,17 @@ class _DashboardViewState extends State<DashboardView> {
             const SizedBox(height: AppSpacing.lg),
             _WasteNote(summary: summary),
           ],
+          if (summary.personalOrders > 0) ...[
+            const SizedBox(height: AppSpacing.lg),
+            _InfoNote(
+              icon: Icons.person_outline,
+              color: AppColors.info,
+              text: AppStrings.personalNote(
+                summary.personalOrders,
+                formatEuro(summary.personalCost),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -304,6 +315,40 @@ class _WasteNote extends StatelessWidget {
               ),
               style: const TextStyle(color: AppColors.warning, fontSize: 13),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Aviso informativo de una línea con icono.
+class _InfoNote extends StatelessWidget {
+  const _InfoNote({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(text, style: TextStyle(color: color, fontSize: 13)),
           ),
         ],
       ),

@@ -636,5 +636,28 @@ void main() {
       });
       await raw.close();
     });
+
+    test('v8 → v9 añade is_personal sin tocar los pedidos', () async {
+      final raw = await openOld(8, (db) async {
+        await db.execute(
+          'CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'client_id INTEGER, name TEXT NOT NULL, price REAL NOT NULL, '
+          'paid_amount REAL DEFAULT 0.0, date TEXT NOT NULL, '
+          'status TEXT NOT NULL, is_painted INTEGER NOT NULL, notes TEXT)',
+        );
+        await db.insert('orders', {
+          'name': 'Viejo',
+          'price': 12.0,
+          'date': '2026-01-01',
+          'status': 'Draft',
+          'is_painted': 0,
+        });
+      });
+      await DbSchema.onUpgrade(raw, 8, DbSchema.version);
+      final row = (await raw.query('orders')).single;
+      expect(row['is_personal'], 0);
+      expect(row['price'], 12.0);
+      await raw.close();
+    });
   });
 }

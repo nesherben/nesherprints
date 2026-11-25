@@ -107,6 +107,7 @@ SIN PINTAR  = max(precio mínimo, COSTE × (1 + margen/100))
 RECOMENDADO = SIN PINTAR + importe de pintura del nivel (si se pinta)
 ```
 
+- **Pedido para mí** (v9, `is_personal`): interruptor en «Datos del pedido». No tiene precio ni cobro (se guardan a 0), no cuenta como ingreso ni deuda (panel, listado mensual, clientes) y se muestra como «Para mí». Sí descuenta material y piezas al completarse; el panel indica «Uso propio: N pedidos · X € de material».
 - **Pintura**: no se cobra por horas ni como múltiplo. Según el **detalle de la figura** (Simple / Normal / Detallada) se suma un importe fijo configurable (por defecto +20 €, +60 € y +100 €, calibrados con lo cobrado de más en las piezas pintadas del histórico). No depende del peso (un múltiplo del precio sin pintar sobrevaloraba las piezas grandes y lisas e infravaloraba las pequeñas y detalladas) y no es coste: el coste real no cambia. El nivel se guarda en el pedido (`paint_level`: 0 simple, 1 normal, 2 detallada).
 
 - **Intentos** (por pedido, 1 = a la primera): reimpresiones por fallos; multiplican material y máquina, no el resto.
@@ -180,7 +181,7 @@ Todo se hace en una transacción. Completar un pedido ya cerrado no hace nada; c
 ## 6. Base de datos
 
 - Archivo `nesher_erp_v6.db` (el «v6» es histórico); versión del esquema (`PRAGMA user_version`) = **8**. Esquema único en `lib/core/database/db_schema.dart`: `onCreate` crea tablas y ajustes; `onUpgrade` asegura todas las tablas y aplica migraciones `if (oldVersion < N)`; `onOpen` es una red de seguridad.
-- Migraciones: v2 clientes, placas y piezas; v3 intentos, horas de pintura, colores y coste fijo en pedidos; v4 detalle de pintura (ya no se usa; la columna `paint_detail` y `paint_colors` se conservan sin usar); **v6 pintura por detalle** (columna `paint_level`; las horas y la tarifa de pintura dejan de usarse); **v7 congela el coste** de los pedidos completados/enviados en `cost_override` (sin columnas nuevas; K1); **v8 añade `materials.color_rgb` y la tabla `color_library` (con los básicos)**, y retira los materiales «Histórico (Excel)»** de la importación (placas y mermas pasan a no tener material, material_id opcional; antes congela `cost_override` de los pedidos que los usaban); **v5 modelo de precios simple**: añade los ajustes nuevos y devuelve el margen a su valor por defecto (ahora es un % sobre el coste, no un multiplicador distinto).
+- Migraciones: v2 clientes, placas y piezas; v3 intentos, horas de pintura, colores y coste fijo en pedidos; v4 detalle de pintura (ya no se usa; la columna `paint_detail` y `paint_colors` se conservan sin usar); **v6 pintura por detalle** (columna `paint_level`; las horas y la tarifa de pintura dejan de usarse); **v7 congela el coste** de los pedidos completados/enviados en `cost_override` (sin columnas nuevas; K1); **v8 añade `materials.color_rgb` y la tabla `color_library` (con los básicos)**, y retira los materiales «Histórico (Excel)»** de la importación (placas y mermas pasan a no tener material, material_id opcional; antes congela `cost_override` de los pedidos que los usaban); **v9 añade `orders.is_personal`** (pedidos para uso propio); **v5 modelo de precios simple**: añade los ajustes nuevos y devuelve el margen a su valor por defecto (ahora es un % sobre el coste, no un multiplicador distinto).
 - **Copia de seguridad**: antes de migrar a una versión nueva, `AppDatabase` copia el archivo junto al original (`<archivo>.bak-v<versión>-<fecha>`).
 - `PRAGMA foreign_keys` no está activado; el borrado de pedidos elimina explícitamente sus placas, mermas, piezas y consumos.
 
@@ -188,7 +189,7 @@ Todo se hace en una transacción. Completar un pedido ya cerrado no hace nada; c
 
 Todas pasan, sin omitidas (`bash .claude/skills/verify/verify.sh`):
 - Reglas puras: calculadora (pedidos reales del Excel), estados, validación, panel, costes, clientes, piezas.
-- Repositorios con SQLite en memoria: `stock_invariants_test.dart` (cada test protege un fallo real ya corregido), `repositories_test.dart` (incluye migraciones v1→v8), copia de seguridad con archivos reales.
+- Repositorios con SQLite en memoria: `stock_invariants_test.dart` (cada test protege un fallo real ya corregido), `repositories_test.dart` (incluye migraciones v1→v9), copia de seguridad con archivos reales.
 - Pantallas con toques simulados: `test/app/order_flow_test.dart` (crear, completar, enviar, validación, duplicar, editar conservando piezas, eliminar, y **ningún desborde** en escritorio y móvil) y una prueba por pantalla.
 
 ## 8. Problemas conocidos
