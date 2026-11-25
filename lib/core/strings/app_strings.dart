@@ -146,6 +146,11 @@ class AppStrings {
   static const editPaidTip = 'Pulsa para cambiar lo cobrado';
   static const changeClientTip = 'Cambiar cliente';
   static const noClient = 'Sin cliente';
+  static const editNameTip = 'Pulsa para cambiar el nombre';
+  static const editContactTip = 'Pulsa para editar';
+  static const quickClientName = 'Cliente rápido: nombre…';
+  static const quickClientPhone = 'Teléfono';
+  static const quickClientEmail = 'Email / Instagram';
   static const quickExtraName = 'Pieza rápida: nombre…';
   static const quickExtraPrice = '€ / ud';
   static const quickExtraStock = 'Uds';

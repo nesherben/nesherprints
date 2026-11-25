@@ -19,6 +19,7 @@ import 'package:nesherprints/features/clients/domain/client.dart';
 import 'package:nesherprints/features/clients/domain/client_stats.dart';
 import 'package:nesherprints/features/clients/presentation/widgets/client_card.dart';
 import 'package:nesherprints/features/clients/presentation/widgets/client_form_dialog.dart';
+import 'package:nesherprints/features/clients/presentation/widgets/quick_client_bar.dart';
 
 /// Filtro del listado de clientes.
 enum _ClientFilter { all, withOrders, owes }
@@ -169,6 +170,17 @@ class _ClientsViewState extends State<ClientsView> {
                 action: addButton,
               ),
             ),
+            // Alta rápida (solo en pantalla ancha).
+            if (!context.isCompact) ...[
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+              SliverToBoxAdapter(
+                child: QuickClientBar(
+                  onCreate: (client) async {
+                    await _save(client);
+                  },
+                ),
+              ),
+            ],
             if (_clients.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
@@ -236,6 +248,7 @@ class _ClientsViewState extends State<ClientsView> {
                       stats: _stats[client.id] ?? const ClientStats(),
                       onEdit: () => _openDialog(client),
                       onDelete: () => _delete(client),
+                      onSaveField: context.isCompact ? null : _save,
                     );
                   },
                 ),

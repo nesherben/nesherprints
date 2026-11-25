@@ -85,6 +85,12 @@ void main() {
     });
   }
 
+  final searchField = find.byWidgetPredicate(
+    (w) =>
+        w is TextField &&
+        (w.decoration?.hintText ?? '').startsWith('Buscar por nombre'),
+  );
+
   Future<void> openView(
     WidgetTester t, {
     Size size = const Size(1600, 1000),
@@ -153,21 +159,21 @@ void main() {
     await seed(t, [ana, beto]);
     await openView(t);
 
-    await t.enterText(find.byType(TextField), 'beto');
+    await t.enterText(searchField, 'beto');
     await settle(t, rounds: 2);
     expect(find.text('Beto'), findsOneWidget);
     expect(find.text('Ana López'), findsNothing);
 
-    await t.enterText(find.byType(TextField), 'correo.com');
+    await t.enterText(searchField, 'correo.com');
     await settle(t, rounds: 2);
     expect(find.text('Ana López'), findsOneWidget);
     expect(find.text('Beto'), findsNothing);
 
-    await t.enterText(find.byType(TextField), '611000');
+    await t.enterText(searchField, '611000');
     await settle(t, rounds: 2);
     expect(find.text('Beto'), findsOneWidget);
 
-    await t.enterText(find.byType(TextField), 'zzz');
+    await t.enterText(searchField, 'zzz');
     await settle(t, rounds: 2);
     expect(find.text('Sin resultados'), findsOneWidget);
 
@@ -262,4 +268,30 @@ void main() {
       expect(overflows, isEmpty, reason: 'diálogo');
     });
   }
+
+  testWidgets('alta rápida y edición del teléfono en la tarjeta', (t) async {
+    await openView(t);
+    Finder hint(String text) => find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.hintText == text,
+    );
+
+    await t.enterText(hint('Cliente rápido: nombre…'), 'Rosa');
+    await t.enterText(hint('Teléfono'), '600123123');
+    await t.tap(find.widgetWithText(ElevatedButton, 'Añadir'));
+    await settle(t);
+
+    var clients = (await t.runAsync(() => ServiceLocator.clients.getAll()))!;
+    expect(clients.map((c) => c.name), contains('Rosa'));
+    expect(clients.firstWhere((c) => c.name == 'Rosa').phone, '600123123');
+
+    // Pulsar el teléfono lo edita en la propia tarjeta.
+    await t.tap(find.text('600123123'));
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextField).last, '699000111');
+    await t.testTextInput.receiveAction(TextInputAction.done);
+    await settle(t);
+    clients = (await t.runAsync(() => ServiceLocator.clients.getAll()))!;
+    expect(clients.firstWhere((c) => c.name == 'Rosa').phone, '699000111');
+    expect(overflows, isEmpty);
+  });
 }

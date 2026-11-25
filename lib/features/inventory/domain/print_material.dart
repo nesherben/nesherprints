@@ -44,6 +44,17 @@ class PrintMaterial {
   /// Color de la bobina (0xRRGGBB); `null` si no se ha elegido.
   final int? colorRgb;
 
+  /// Copia con otro precio por kilo.
+  PrintMaterial withCost(double cost) => PrintMaterial(
+    id: id,
+    kind: kind,
+    name: name,
+    color: color,
+    costPerKg: cost,
+    stockGrams: stockGrams,
+    colorRgb: colorRgb,
+  );
+
   /// Solo la resina lleva el stock al día; en filamento el usuario sabe lo que
   /// le queda y la app solo guarda el color y su precio.
   bool get tracksStock => kind == MaterialKind.resin;

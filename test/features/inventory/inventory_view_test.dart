@@ -77,11 +77,13 @@ void main() {
     await settle(t);
   }
 
-  /// Abre el menú de la bobina «PLA Silk · Negro» y elige una opción.
+  /// Acción sobre la bobina «PLA Silk · Negro»: pulsarla edita; la ✕ elimina.
   Future<void> tapSlotMenu(WidgetTester t, String label) async {
-    await t.tap(find.byTooltip('PLA Silk · Negro'));
-    await t.pumpAndSettle();
-    await t.tap(find.text(label).last);
+    if (label == 'Editar') {
+      await t.tap(find.byTooltip('PLA Silk · Negro'));
+    } else {
+      await t.tap(find.byTooltip('Eliminar').first);
+    }
     await settle(t);
   }
 
@@ -111,6 +113,20 @@ void main() {
     costPerKg: 35,
     stockGrams: 100,
   );
+
+  testWidgets('el precio por kilo de un color se cambia pulsándolo', (t) async {
+    await seed(t, [pla]);
+    await openView(t);
+
+    await t.tap(find.text('20,00 €/kg'));
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextField).last, '24,5');
+    await t.testTextInput.receiveAction(TextInputAction.done);
+    await settle(t);
+
+    expect((await stored(t)).single.costPerKg, 24.5);
+    expect(find.text('24,50 €/kg'), findsOneWidget);
+  });
 
   testWidgets('muestra el tanque de resina y los colores con su precio', (
     t,

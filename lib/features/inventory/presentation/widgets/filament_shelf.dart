@@ -4,6 +4,7 @@ import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
+import 'package:nesherprints/core/widgets/inline_edit_cell.dart';
 import 'package:nesherprints/features/inventory/domain/material_group.dart';
 import 'package:nesherprints/features/inventory/domain/print_material.dart';
 import 'package:nesherprints/features/inventory/presentation/widgets/filament_color.dart';
@@ -18,6 +19,7 @@ class FilamentShelf extends StatelessWidget {
     required this.groups,
     required this.onEdit,
     required this.onDelete,
+    this.onSetPrice,
     this.spinning = const {},
     this.spinToken = 0,
   });
@@ -25,6 +27,9 @@ class FilamentShelf extends StatelessWidget {
   final List<MaterialGroup> groups;
   final ValueChanged<PrintMaterial> onEdit;
   final ValueChanged<PrintMaterial> onDelete;
+
+  /// Cambio rápido del precio por kilo pulsándolo.
+  final Future<void> Function(PrintMaterial material, double price)? onSetPrice;
 
   /// Bobinas que giran (recién añadidas o cambiadas).
   final Set<int> spinning;
@@ -42,6 +47,7 @@ class FilamentShelf extends StatelessWidget {
             spinToken: spinToken,
             onEdit: onEdit,
             onDelete: onDelete,
+            onSetPrice: onSetPrice,
           ),
         ],
       ],
@@ -56,6 +62,7 @@ class _Shelf extends StatelessWidget {
     required this.spinToken,
     required this.onEdit,
     required this.onDelete,
+    this.onSetPrice,
   });
 
   final MaterialGroup group;
@@ -63,6 +70,7 @@ class _Shelf extends StatelessWidget {
   final int spinToken;
   final ValueChanged<PrintMaterial> onEdit;
   final ValueChanged<PrintMaterial> onDelete;
+  final Future<void> Function(PrintMaterial material, double price)? onSetPrice;
 
   @override
   Widget build(BuildContext context) {
@@ -135,6 +143,9 @@ class _Shelf extends StatelessWidget {
                                       : 0,
                                   onEdit: () => onEdit(m),
                                   onDelete: () => onDelete(m),
+                                  onSetPrice: onSetPrice == null
+                                      ? null
+                                      : (price) => onSetPrice!(m, price),
                                 ),
                             ],
                           ),
@@ -173,14 +184,13 @@ class _Plank extends StatelessWidget {
   }
 }
 
-enum _SlotAction { edit, delete }
-
 class _Slot extends StatelessWidget {
   const _Slot({
     required this.material,
     required this.spinToken,
     required this.onEdit,
     required this.onDelete,
+    this.onSetPrice,
   });
 
   static const double width = 104;
@@ -189,77 +199,86 @@ class _Slot extends StatelessWidget {
   final int spinToken;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final Future<void> Function(double price)? onSetPrice;
 
   @override
   Widget build(BuildContext context) {
     final color = material.color.isEmpty ? AppStrings.noData : material.color;
-    return PopupMenuButton<_SlotAction>(
-      tooltip: '${material.name} · $color',
-      position: PopupMenuPosition.under,
-      padding: EdgeInsets.zero,
-      onSelected: (a) => switch (a) {
-        _SlotAction.edit => onEdit(),
-        _SlotAction.delete => onDelete(),
-      },
-      itemBuilder: (_) => [
-        const PopupMenuItem(
-          value: _SlotAction.edit,
-          child: Row(
-            children: [
-              Icon(Icons.edit_outlined, size: 18),
-              SizedBox(width: 10),
-              Text(AppStrings.edit),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: _SlotAction.delete,
-          child: Row(
-            children: [
-              Icon(Icons.delete_outline, size: 18, color: AppColors.danger),
-              SizedBox(width: 10),
-              Text(
-                AppStrings.delete,
-                style: TextStyle(color: AppColors.danger),
-              ),
-            ],
-          ),
-        ),
-      ],
-      child: SizedBox(
-        width: width - 0,
-        child: Padding(
-          padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SpoolIcon(
-                color: filamentColorFor(material),
-                size: 64,
-                spinToken: spinToken,
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Text(
-                  color,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textMain,
+    final priceText = Text(
+      AppStrings.pricePerKg(formatEuro(material.costPerKg)),
+      style: AppTextStyles.mutedSmall,
+    );
+    return SizedBox(
+      width: width,
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Tocar la bobina abre la edición directamente.
+                InkWell(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  onTap: onEdit,
+                  child: Tooltip(
+                    message: '${material.name} · $color',
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SpoolIcon(
+                          color: filamentColorFor(material),
+                          size: 64,
+                          spinToken: spinToken,
+                        ),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: Text(
+                            color,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textMain,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              Text(
-                AppStrings.pricePerKg(formatEuro(material.costPerKg)),
-                style: AppTextStyles.mutedSmall,
-              ),
-            ],
+                // El precio se cambia pulsándolo.
+                InlineMoneyCell(
+                  value: material.costPerKg,
+                  suffix: '€/kg',
+                  enabled: onSetPrice != null,
+                  tooltip: AppStrings.editPriceTip,
+                  display: priceText,
+                  onSubmit: (v) => onSetPrice!(v),
+                ),
+              ],
+            ),
           ),
-        ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton(
+              tooltip: AppStrings.delete,
+              icon: const Icon(Icons.close, size: 16),
+              color: AppColors.textMuted,
+              style: IconButton.styleFrom(
+                minimumSize: const Size(28, 28),
+                maximumSize: const Size(28, 28),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: onDelete,
+            ),
+          ),
+        ],
       ),
     );
   }

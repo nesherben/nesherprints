@@ -342,6 +342,16 @@ class _InventoryViewState extends State<InventoryView> {
                     spinToken: _spinCounter,
                     onEdit: _openDialog,
                     onDelete: _delete,
+                    onSetPrice: (m, price) async {
+                      try {
+                        await ServiceLocator.materials.save(m.withCost(price));
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        AppFeedback.failure(context, e);
+                        return;
+                      }
+                      await _load();
+                    },
                   ),
                 ),
             ],

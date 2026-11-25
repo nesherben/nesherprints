@@ -6,6 +6,7 @@ import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
+import 'package:nesherprints/core/widgets/inline_edit_cell.dart';
 import 'package:nesherprints/core/widgets/row_actions.dart';
 import 'package:nesherprints/features/clients/domain/client.dart';
 import 'package:nesherprints/features/clients/domain/client_stats.dart';
@@ -19,6 +20,7 @@ class ClientCard extends StatelessWidget {
     required this.client,
     required this.onEdit,
     this.onDelete,
+    this.onSaveField,
     this.stats = const ClientStats(),
   });
 
@@ -39,6 +41,18 @@ class ClientCard extends StatelessWidget {
   final ClientStats stats;
   final VoidCallback onEdit;
   final VoidCallback? onDelete;
+
+  /// Si existe, nombre, teléfono y email se editan pulsándolos (pantalla
+  /// ancha). Recibe el cliente ya modificado.
+  final Future<void> Function(Client updated)? onSaveField;
+
+  Client _with({String? name, String? phone, String? email}) => Client(
+    id: client.id,
+    name: name ?? client.name,
+    phone: phone ?? client.phone,
+    email: email ?? client.email,
+    notes: client.notes,
+  );
 
   /// Color del avatar derivado del nombre (siempre el mismo para un nombre).
   static Color avatarColorFor(String name) {
@@ -86,11 +100,18 @@ class ClientCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            client.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.cardTitle,
+                          InlineTextCell(
+                            value: client.name,
+                            allowEmpty: false,
+                            enabled: onSaveField != null,
+                            tooltip: AppStrings.editNameTip,
+                            onSubmit: (v) => onSaveField!(_with(name: v)),
+                            display: Text(
+                              client.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.cardTitle,
+                            ),
                           ),
                           Text(
                             AppStrings.clientOrders(stats.orderCount),
@@ -123,12 +144,18 @@ class ClientCard extends StatelessWidget {
                   value: client.phone,
                   emptyText: AppStrings.noPhone,
                   copyTooltip: AppStrings.copyPhone,
+                  onSave: onSaveField == null
+                      ? null
+                      : (v) => onSaveField!(_with(phone: v)),
                 ),
                 _ContactLine(
                   icon: Icons.alternate_email,
                   value: client.email,
                   emptyText: AppStrings.noEmail,
                   copyTooltip: AppStrings.copyEmail,
+                  onSave: onSaveField == null
+                      ? null
+                      : (v) => onSaveField!(_with(email: v)),
                 ),
                 const Spacer(),
                 const Divider(height: AppSpacing.md),
@@ -219,6 +246,7 @@ class _ContactLine extends StatelessWidget {
     required this.value,
     required this.emptyText,
     required this.copyTooltip,
+    this.onSave,
   });
 
   static const double height = 30;
@@ -227,6 +255,7 @@ class _ContactLine extends StatelessWidget {
   final String value;
   final String emptyText;
   final String copyTooltip;
+  final Future<void> Function(String value)? onSave;
 
   Future<void> _copy(BuildContext context) async {
     await Clipboard.setData(ClipboardData(text: value));
@@ -248,15 +277,24 @@ class _ContactLine extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text(
-              has ? value : emptyText,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: has
-                  ? AppTextStyles.muted.copyWith(color: AppColors.textMain)
-                  : AppTextStyles.mutedSmall.copyWith(
-                      fontStyle: FontStyle.italic,
-                    ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: InlineTextCell(
+                value: value,
+                enabled: onSave != null,
+                tooltip: AppStrings.editContactTip,
+                onSubmit: onSave ?? (_) async {},
+                display: Text(
+                  has ? value : emptyText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: has
+                      ? AppTextStyles.muted.copyWith(color: AppColors.textMain)
+                      : AppTextStyles.mutedSmall.copyWith(
+                          fontStyle: FontStyle.italic,
+                        ),
+                ),
+              ),
             ),
           ),
           if (has)
