@@ -146,6 +146,16 @@ class AppStrings {
   static const editPaidTip = 'Pulsa para cambiar lo cobrado';
   static const changeClientTip = 'Cambiar cliente';
   static const noClient = 'Sin cliente';
+  static const backupTitle = 'Copias de seguridad';
+  static const backupHint =
+      'Se hace una copia automática al abrir la app cada día (se guardan las '
+      'últimas 15). También puedes hacerla ahora.';
+  static const backupNow = 'Hacer copia ahora';
+  static const openFolder = 'Abrir carpeta';
+  static String backupDone(String path) => 'Copia guardada en $path';
+  static const exportCsv = 'Exportar CSV';
+  static String exportDone(String path) => 'Exportado en $path';
+  static const exportNothing = 'No hay pedidos que exportar.';
   static const editNameTip = 'Pulsa para cambiar el nombre';
   static const editContactTip = 'Pulsa para editar';
   static const quickClientName = 'Cliente rápido: nombre…';

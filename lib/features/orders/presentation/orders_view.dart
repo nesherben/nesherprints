@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/errors/app_exception.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
+import 'package:nesherprints/core/utils/open_folder.dart';
 import 'package:nesherprints/core/utils/responsive.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/confirm_dialog.dart';
@@ -17,6 +19,7 @@ import 'package:nesherprints/core/widgets/page_header.dart';
 import 'package:nesherprints/features/clients/domain/client.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
+import 'package:nesherprints/features/orders/domain/orders_csv.dart';
 import 'package:nesherprints/features/orders/domain/stock_check.dart';
 import 'package:nesherprints/features/orders/presentation/status_style.dart';
 import 'package:nesherprints/features/orders/presentation/widgets/order_form/order_form_dialog.dart';
@@ -373,6 +376,29 @@ class _OrdersViewState extends State<OrdersView> {
     }
   }
 
+  /// Exporta a CSV lo que se ve en la lista (con el buscador y filtros).
+  Future<void> _exportCsv(List<OrderSummary> orders) async {
+    if (orders.isEmpty) {
+      AppFeedback.warning(context, AppStrings.exportNothing);
+      return;
+    }
+    try {
+      final now = DateTime.now();
+      String two(int n) => n.toString().padLeft(2, '0');
+      final name = 'pedidos-${now.year}${two(now.month)}${two(now.day)}.csv';
+      final path = await ServiceLocator.backups.export(
+        name,
+        OrdersCsv.build(orders),
+      );
+      if (!mounted) return;
+      AppFeedback.success(context, AppStrings.exportDone(path));
+      if (canOpenFolders) await openFolder(File(path).parent.path);
+    } catch (e) {
+      if (!mounted) return;
+      AppFeedback.failure(context, e);
+    }
+  }
+
   Future<void> _markPaid(OrderSummary order) async {
     final ok = await _attempt(() async {
       await ServiceLocator.orders.markPaid(order.id);
@@ -445,13 +471,20 @@ class _OrdersViewState extends State<OrdersView> {
                         widget.orders.length,
                       ),
                 // En móvil ya está el botón «+» flotante.
-                action: compact
-                    ? null
-                    : ElevatedButton.icon(
-                        onPressed: () => _openForm(),
-                        icon: const Icon(Icons.add, size: 20),
-                        label: const Text(AppStrings.newOrder),
-                      ),
+                actions: compact
+                    ? const []
+                    : [
+                        OutlinedButton.icon(
+                          onPressed: () => _exportCsv(visible),
+                          icon: const Icon(Icons.download_outlined, size: 20),
+                          label: const Text(AppStrings.exportCsv),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () => _openForm(),
+                          icon: const Icon(Icons.add, size: 20),
+                          label: const Text(AppStrings.newOrder),
+                        ),
+                      ],
               ),
               const SizedBox(height: AppSpacing.lg),
               if (context.showQuickBars) ...[

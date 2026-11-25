@@ -105,6 +105,7 @@ class _MainLayoutState extends State<MainLayout> {
   void initState() {
     super.initState();
     _refreshOrders();
+    _autoBackup();
   }
 
   Future<void> _refreshOrders() async {
@@ -127,6 +128,11 @@ class _MainLayoutState extends State<MainLayout> {
 
   // ==================== ACCIONES SOBRE PEDIDOS ====================
   // Lanzan si fallan: quien las llama (formulario o listado) avisa al usuario.
+
+  /// Copia de seguridad diaria automática (en silencio).
+  void _autoBackup() {
+    ServiceLocator.backups.backupIfDue();
+  }
 
   Future<void> _saveOrder(OrderFormResult result) async {
     final repo = ServiceLocator.orders;

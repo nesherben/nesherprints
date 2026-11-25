@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 
 import 'package:nesherprints/core/database/app_database.dart';
+import 'package:nesherprints/core/database/backup_service.dart';
 import 'package:nesherprints/features/clients/data/client_repository.dart';
 import 'package:nesherprints/features/extras/data/extras_repository.dart';
 import 'package:nesherprints/features/inventory/data/color_library_repository.dart';
@@ -26,6 +29,7 @@ class ServiceLocator {
   static ClientRepository clients = ClientRepository(AppDatabase.instance);
   static ExtrasRepository extras = ExtrasRepository(AppDatabase.instance);
   static SettingsRepository settings = SettingsRepository(AppDatabase.instance);
+  static BackupService backups = BackupService(AppDatabase.instance);
 
   /// Solo para tests: apunta todos los repositorios a [db].
   @visibleForTesting
@@ -36,5 +40,10 @@ class ServiceLocator {
     clients = ClientRepository(db);
     extras = ExtrasRepository(db);
     settings = SettingsRepository(db);
+    // Las copias de los tests van a una carpeta temporal, no a la real.
+    backups = BackupService(
+      db,
+      baseDir: Directory.systemTemp.createTempSync('nesher-test-').path,
+    );
   }
 }

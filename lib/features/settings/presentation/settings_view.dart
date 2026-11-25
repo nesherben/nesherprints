@@ -7,6 +7,7 @@ import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/utils/input_formatters.dart';
+import 'package:nesherprints/core/utils/open_folder.dart';
 import 'package:nesherprints/core/utils/responsive.dart';
 import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/confirm_dialog.dart';
@@ -170,6 +171,51 @@ class _SettingsViewState extends State<SettingsView> {
 
   Widget _example() => _LiveExample(settings: _current());
 
+  Future<void> _backupNow() async {
+    try {
+      final path = await ServiceLocator.backups.backupNow();
+      if (!mounted) return;
+      AppFeedback.success(context, AppStrings.backupDone(path));
+    } catch (e) {
+      if (!mounted) return;
+      AppFeedback.failure(context, e);
+    }
+  }
+
+  Future<void> _openBackups() async {
+    final folder = await ServiceLocator.backups.backupsFolder();
+    await openFolder(folder);
+  }
+
+  Widget _backupCard() => SectionCard(
+    title: AppStrings.backupTitle,
+    icon: Icons.shield_outlined,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(AppStrings.backupHint, style: AppTextStyles.muted),
+        const SizedBox(height: AppSpacing.md),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            ElevatedButton.icon(
+              onPressed: _backupNow,
+              icon: const Icon(Icons.save_alt, size: 18),
+              label: const Text(AppStrings.backupNow),
+            ),
+            if (canOpenFolders)
+              OutlinedButton.icon(
+                onPressed: _openBackups,
+                icon: const Icon(Icons.folder_open, size: 18),
+                label: const Text(AppStrings.openFolder),
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -227,6 +273,8 @@ class _SettingsViewState extends State<SettingsView> {
                               const SizedBox(height: AppSpacing.md),
                             ],
                             _example(),
+                            const SizedBox(height: AppSpacing.md),
+                            _backupCard(),
                           ],
                         );
                       }
@@ -251,6 +299,8 @@ class _SettingsViewState extends State<SettingsView> {
                                 _example(),
                                 const SizedBox(height: AppSpacing.md),
                                 _group(SettingGroup.paint),
+                                const SizedBox(height: AppSpacing.md),
+                                _backupCard(),
                               ],
                             ),
                           ),
