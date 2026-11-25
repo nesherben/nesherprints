@@ -155,8 +155,9 @@ class _KpiGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final goalReached = summary.goalProgress >= 1;
-    final cards = [
+    List<KpiCard> buildCards({required bool narrow}) => [
       KpiCard(
+        narrow: narrow,
         title: AppStrings.kpiGrossRevenue,
         value: formatEuro(summary.grossRevenue),
         icon: Icons.account_balance_wallet_outlined,
@@ -164,6 +165,7 @@ class _KpiGrid extends StatelessWidget {
         subtitle: AppStrings.completedOrdersCount(summary.completedOrders),
       ),
       KpiCard(
+        narrow: narrow,
         title: AppStrings.kpiNetProfit,
         value: formatEuro(summary.profit),
         icon: Icons.savings_outlined,
@@ -173,6 +175,7 @@ class _KpiGrid extends StatelessWidget {
         ),
       ),
       KpiCard(
+        narrow: narrow,
         title: AppStrings.kpiPendingCollection,
         value: formatEuro(summary.pendingCollection),
         icon: Icons.hourglass_top,
@@ -182,6 +185,7 @@ class _KpiGrid extends StatelessWidget {
         subtitle: AppStrings.pendingOrdersCount(summary.pendingOrders.length),
       ),
       KpiCard(
+        narrow: narrow,
         title: AppStrings.kpiGoal,
         value: formatPercent(summary.goalProgress),
         icon: goalReached ? Icons.emoji_events_outlined : Icons.flag_outlined,
@@ -196,24 +200,23 @@ class _KpiGrid extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1000
-            ? 4
-            : constraints.maxWidth >= 560
-            ? 2
-            : 1;
-        const gap = AppSpacing.lg;
+        final narrow = constraints.maxWidth < 560;
+        final cards = buildCards(narrow: narrow);
+        final columns = constraints.maxWidth >= 1000 ? 4 : 2;
+        // Más junto en móvil.
+        final gap = narrow ? AppSpacing.md : AppSpacing.lg;
         // Filas de [columns] tarjetas con la misma altura (la del texto más
         // largo), para que no queden desiguales.
         return Column(
           children: [
             for (var start = 0; start < cards.length; start += columns) ...[
-              if (start > 0) const SizedBox(height: gap),
+              if (start > 0) SizedBox(height: gap),
               IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     for (var i = 0; i < columns; i++) ...[
-                      if (i > 0) const SizedBox(width: gap),
+                      if (i > 0) SizedBox(width: gap),
                       Expanded(
                         child: start + i < cards.length
                             ? cards[start + i]

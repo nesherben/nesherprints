@@ -19,9 +19,17 @@ import 'package:nesherprints/features/orders/presentation/widgets/order_form/ord
 import 'package:nesherprints/features/settings/presentation/settings_view.dart';
 
 class _Destination {
-  const _Destination(this.label, this.icon, this.selectedIcon);
+  const _Destination(
+    this.label,
+    this.icon,
+    this.selectedIcon, {
+    this.shortLabel,
+  });
 
   final String label;
+
+  /// Etiqueta más corta para la barra inferior (si la normal no cabe).
+  final String? shortLabel;
   final IconData icon;
   final IconData selectedIcon;
 }
@@ -64,6 +72,7 @@ class _MainLayoutState extends State<MainLayout> {
       AppStrings.navSettings,
       Icons.settings_outlined,
       Icons.settings,
+      shortLabel: AppStrings.navSettingsShort,
     ),
   ];
 
@@ -266,7 +275,7 @@ class _MainLayoutState extends State<MainLayout> {
                       NavigationDestination(
                         icon: Icon(d.icon),
                         selectedIcon: Icon(d.selectedIcon),
-                        label: d.label,
+                        label: d.shortLabel ?? d.label,
                       ),
                   ],
                 )

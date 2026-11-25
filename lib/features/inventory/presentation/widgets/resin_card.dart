@@ -24,6 +24,22 @@ class ResinCard extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
+  Widget _menu() => RowActions(
+    items: [
+      RowMenuItem(
+        icon: Icons.edit_outlined,
+        label: AppStrings.edit,
+        onTap: onEdit!,
+      ),
+      RowMenuItem(
+        icon: Icons.delete_outline,
+        label: AppStrings.delete,
+        onTap: onDelete!,
+        danger: true,
+      ),
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
     final stock = material.stockGrams < 0 ? 0.0 : material.stockGrams;
@@ -32,6 +48,7 @@ class ResinCard extends StatelessWidget {
 
     final stats = [
       _Stat(
+        dense: compact,
         icon: Icons.scale_outlined,
         label: AppStrings.resinStatAmount,
         value: AppStrings.kilos(stock),
@@ -39,18 +56,82 @@ class ResinCard extends StatelessWidget {
         color: AppColors.resinText,
       ),
       _Stat(
+        dense: compact,
         icon: Icons.sell_outlined,
         label: AppStrings.resinPriceNow,
         value: formatEuro(material.costPerKg),
         hint: AppStrings.perKg,
       ),
       _Stat(
+        dense: compact,
         icon: Icons.account_balance_wallet_outlined,
         label: AppStrings.resinStatValue,
         value: formatEuro(value),
         hint: AppStrings.resinStatValueHint,
       ),
     ];
+
+    if (compact) {
+      return Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onEdit,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        AppStrings.resinTankTitle,
+                        style: AppTextStyles.cardTitle.copyWith(fontSize: 18),
+                      ),
+                    ),
+                    if (onEdit != null && onDelete != null) _menu(),
+                  ],
+                ),
+                const Text(
+                  AppStrings.resinTankSubtitle,
+                  style: AppTextStyles.mutedSmall,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    ResinTank(
+                      stockGrams: material.stockGrams,
+                      width: 92,
+                      height: 128,
+                    ),
+                    const SizedBox(width: AppSpacing.lg),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          for (final (i, s) in stats.indexed) ...[
+                            if (i > 0) const SizedBox(height: AppSpacing.sm),
+                            s,
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onAdd,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text(AppStrings.addResin),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -150,6 +231,7 @@ class _Stat extends StatelessWidget {
     required this.value,
     required this.hint,
     this.color = AppColors.textMain,
+    this.dense = false,
   });
 
   final IconData icon;
@@ -158,8 +240,40 @@ class _Stat extends StatelessWidget {
   final String hint;
   final Color color;
 
+  /// Una sola línea (móvil): icono, etiqueta y cifra.
+  final bool dense;
+
   @override
   Widget build(BuildContext context) {
+    if (dense) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceHigh,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: AppColors.textMuted),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.mutedSmall,
+              ),
+            ),
+            Text(value, style: AppTextStyles.cardTitle.copyWith(color: color)),
+          ],
+        ),
+      );
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),

@@ -31,24 +31,42 @@ class SectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 18, color: AppColors.primary),
-                  const SizedBox(width: AppSpacing.sm),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: AppTextStyles.sectionTitle),
-                      if (subtitle != null)
-                        Text(subtitle!, style: AppTextStyles.mutedSmall),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // En estrecho la acción baja bajo el título para no apretarlo.
+                final stacked = trailing != null && constraints.maxWidth < 420;
+                final heading = Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (icon != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Icon(icon, size: 18, color: AppColors.primary),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
                     ],
-                  ),
-                ),
-                ?trailing,
-              ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: AppTextStyles.sectionTitle),
+                          if (subtitle != null)
+                            Text(subtitle!, style: AppTextStyles.mutedSmall),
+                        ],
+                      ),
+                    ),
+                    if (!stacked) ?trailing,
+                  ],
+                );
+                if (!stacked) return heading;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    heading,
+                    Align(alignment: Alignment.centerLeft, child: trailing!),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: AppSpacing.md),
             child,

@@ -361,7 +361,7 @@ void main() {
       'Piezas',
       'Pedidos',
       'Clientes',
-      'Administración',
+      'Ajustes',
       'Panel',
     ]) {
       await tapText(t, section);

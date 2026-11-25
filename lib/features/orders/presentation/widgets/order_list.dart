@@ -387,6 +387,10 @@ class _CompactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final o = order.order;
+    final cost = o.costOverride;
+    final showProfit = o.status.countsAsRevenue && cost != null;
+    final profit = showProfit ? o.price - cost : 0.0;
     return Material(
       color: AppColors.surfaceHigh,
       borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -394,28 +398,84 @@ class _CompactCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         onTap: () => actions.onOpen(order),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.xs,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.sm),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        o.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    StatusBadge(
+                      status: o.status,
+                      onChanged: (s) => actions.onStatusChange(order, s),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Expanded(child: _Project(order: order)),
-                  const SizedBox(width: AppSpacing.sm),
-                  StatusBadge(
-                    status: order.order.status,
-                    onChanged: (s) => actions.onStatusChange(order, s),
+                  Text(
+                    '#${order.id} · ${o.date.isEmpty ? '—' : o.date}',
+                    style: AppTextStyles.mutedSmall,
                   ),
+                  ..._projectTags(order),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              _IdDate(order: order, inline: true),
-              const SizedBox(height: AppSpacing.sm),
-              _Details(order: order),
-              const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
-                  Expanded(child: _Finance(order: order.order)),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            formatEuro(o.price),
+                            style: AppTextStyles.money.copyWith(fontSize: 17),
+                          ),
+                          if (showProfit) ...[
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              profit < 0
+                                  ? '-${formatEuro(-profit)}'
+                                  : '+${formatEuro(profit)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: profit >= 0
+                                    ? AppColors.success
+                                    : AppColors.danger,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  _Collection(order: o),
                   _Actions(order: order, actions: actions),
                 ],
               ),
@@ -429,84 +489,33 @@ class _CompactCard extends StatelessWidget {
 
 // ==================== Celdas ====================
 
-class _IdDate extends StatelessWidget {
-  const _IdDate({required this.order, this.inline = false});
-
-  final OrderSummary order;
-  final bool inline;
-
-  @override
-  Widget build(BuildContext context) {
-    final id = Text(
-      '#${order.id}',
-      style: AppTextStyles.money.copyWith(color: AppColors.textMuted),
-    );
-    final date = Text(
-      order.order.date.isEmpty ? '—' : order.order.date,
-      style: AppTextStyles.mutedSmall,
-      overflow: TextOverflow.ellipsis,
-    );
-    if (inline) {
-      return Row(
-        children: [
-          id,
-          const SizedBox(width: AppSpacing.sm),
-          date,
-        ],
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [id, date],
-    );
-  }
+/// Datos de segunda línea de un pedido: cliente, placas, pintura y merma.
+List<Widget> _projectTags(OrderSummary order) {
+  final imported = order.plateNames?.startsWith('Importado') ?? false;
+  final client = order.clientName;
+  return [
+    if (client != null && client.isNotEmpty)
+      _Mini(icon: Icons.person_outline, text: client),
+    if (!imported && order.platesCount > 0)
+      _Mini(
+        icon: Icons.layers_outlined,
+        text: AppStrings.platesCount(order.platesCount),
+      ),
+    if (order.order.isPainted)
+      const _Mini(
+        icon: Icons.brush_outlined,
+        text: AppStrings.painted,
+        color: AppColors.info,
+      ),
+    if (order.wastedGrams > 0)
+      StatusPill(
+        label: AppStrings.wastePercent(order.wasteRatePercent),
+        color: _Details._wasteColor(order.wasteSeverity),
+      ),
+  ];
 }
 
-class _Project extends StatelessWidget {
-  const _Project({required this.order});
-
-  final OrderSummary order;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          order.order.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-        ),
-        if (order.clientName != null)
-          Row(
-            children: [
-              const Icon(
-                Icons.person_outline,
-                size: 14,
-                color: AppColors.textMuted,
-              ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  order.clientName!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.mutedSmall,
-                ),
-              ),
-            ],
-          ),
-      ],
-    );
-  }
-}
-
-/// Nombre del proyecto con sus datos (placas, pintura, merma) en la misma
-/// línea; así la fila mide una sola línea.
-/// Proyecto en dos líneas: el nombre y, debajo en gris, el cliente, las
-/// placas, la pintura y la merma.
+/// Proyecto en dos líneas: el nombre y, debajo en gris, sus datos.
 class _ProjectInline extends StatelessWidget {
   const _ProjectInline({required this.order});
 
@@ -514,13 +523,7 @@ class _ProjectInline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imported = order.plateNames?.startsWith('Importado') ?? false;
-    final client = order.clientName;
-    final hasSub =
-        (client != null && client.isNotEmpty) ||
-        (!imported && order.platesCount > 0) ||
-        order.order.isPainted ||
-        order.wastedGrams > 0;
+    final tags = _projectTags(order);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Column(
@@ -533,32 +536,13 @@ class _ProjectInline extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
           ),
-          if (hasSub) ...[
+          if (tags.isNotEmpty) ...[
             const SizedBox(height: 3),
             Wrap(
               spacing: AppSpacing.md,
               runSpacing: 2,
               crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (client != null && client.isNotEmpty)
-                  _Mini(icon: Icons.person_outline, text: client),
-                if (!imported && order.platesCount > 0)
-                  _Mini(
-                    icon: Icons.layers_outlined,
-                    text: AppStrings.platesCount(order.platesCount),
-                  ),
-                if (order.order.isPainted)
-                  const _Mini(
-                    icon: Icons.brush_outlined,
-                    text: AppStrings.painted,
-                    color: AppColors.info,
-                  ),
-                if (order.wastedGrams > 0)
-                  StatusPill(
-                    label: AppStrings.wastePercent(order.wasteRatePercent),
-                    color: _Details._wasteColor(order.wasteSeverity),
-                  ),
-              ],
+              children: tags,
             ),
           ],
         ],
@@ -653,65 +637,6 @@ class _Collection extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _Finance extends StatelessWidget {
-  const _Finance({required this.order});
-
-  final Order order;
-
-  @override
-  Widget build(BuildContext context) {
-    final settled = order.isSettled;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (settled) ...[
-              const Icon(
-                Icons.check_circle,
-                size: 15,
-                color: AppColors.success,
-              ),
-              const SizedBox(width: 4),
-            ],
-            Flexible(
-              child: Text(
-                formatEuro(order.price),
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.money.copyWith(
-                  fontSize: 15,
-                  color: settled ? AppColors.success : AppColors.textMain,
-                ),
-              ),
-            ),
-          ],
-        ),
-        if (settled)
-          const Text(
-            AppStrings.collected,
-            style: TextStyle(fontSize: 12, color: AppColors.success),
-          )
-        else
-          Text(
-            AppStrings.paidOfPending(
-              formatEuro(order.paidAmount),
-              formatEuro(order.pendingAmount),
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.warning,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-      ],
     );
   }
 }

@@ -14,6 +14,7 @@ class KpiCard extends StatelessWidget {
     required this.color,
     this.subtitle,
     this.progress,
+    this.narrow = false,
   });
 
   final String title;
@@ -25,8 +26,83 @@ class KpiCard extends StatelessWidget {
   /// Avance de 0 a 1 (se acota al pintar); `null` si no lleva barra.
   final double? progress;
 
+  /// Versión estrecha (2 por fila en móvil).
+  final bool narrow;
+
   @override
   Widget build(BuildContext context) {
+    return narrow ? _buildNarrow() : _buildWide();
+  }
+
+  /// Versión estrecha (2 por fila en móvil): icono y título arriba, cifra y
+  /// apoyo debajo.
+  Widget _buildNarrow() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: Icon(icon, color: color, size: 18),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.mutedSmall,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: AppTextStyles.kpiValue.copyWith(fontSize: 22),
+              ),
+            ),
+            if (progress != null) ...[
+              const SizedBox(height: 4),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: LinearProgressIndicator(
+                  value: progress!.clamp(0.0, 1.0),
+                  minHeight: 5,
+                  color: color,
+                  backgroundColor: AppColors.surfaceHigh,
+                ),
+              ),
+            ],
+            if (subtitle != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  subtitle!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.mutedSmall,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWide() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(

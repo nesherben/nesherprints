@@ -13,6 +13,7 @@ class AppStrings {
   static const navOrders = 'Pedidos';
   static const navClients = 'Clientes';
   static const navSettings = 'Administración';
+  static const navSettingsShort = 'Ajustes';
   static const newOrder = 'Nuevo pedido';
 
   static const brandName = 'NesherPrints';

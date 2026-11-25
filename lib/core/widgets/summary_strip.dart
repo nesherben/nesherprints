@@ -36,14 +36,20 @@ class SummaryStrip extends StatelessWidget {
         final columns = ((available + gap) / (_minItemWidth + gap))
             .floor()
             .clamp(1, items.length);
-        final width = (available - gap * (columns - 1)) / columns;
+        double widthFor(int perRow) =>
+            (available - gap * (perRow - 1)) / perRow;
+        // La última fila, si queda incompleta, reparte todo el ancho.
+        final lastRow = items.length % columns;
+        final lastStart = items.length - lastRow;
         return Wrap(
           spacing: gap,
           runSpacing: gap,
           children: [
-            for (final item in items)
+            for (final (i, item) in items.indexed)
               SizedBox(
-                width: width,
+                width: widthFor(
+                  lastRow != 0 && i >= lastStart ? lastRow : columns,
+                ),
                 child: _SummaryTile(item: item),
               ),
           ],
