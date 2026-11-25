@@ -16,7 +16,7 @@ import 'package:nesherprints/features/orders/presentation/widgets/status_badge.d
 enum OrderSortColumn { id, date, name, status, price, pending }
 
 /// Acciones de la fila disponibles en el menú «más».
-enum OrderMenuAction { waste, duplicate, personal, delete }
+enum OrderMenuAction { collect, waste, duplicate, personal, delete }
 
 /// Callbacks que el listado lanza; no accede a datos.
 class OrderListActions {
@@ -198,13 +198,13 @@ class _RowLayout {
   const _RowLayout({required this.showClient, required this.inlineActions});
 
   /// Ancho mínimo para la columna Cliente / para acciones visibles.
-  static const double clientFrom = 1080;
-  static const double inlineFrom = 940;
+  static const double clientFrom = 1120;
+  static const double inlineFrom = 975;
 
   final bool showClient;
   final bool inlineActions;
 
-  double get actionsWidth => inlineActions ? 176 : 88;
+  double get actionsWidth => inlineActions ? 210 : 88;
 }
 
 // ==================== Cabecera ====================
@@ -862,6 +862,10 @@ class _Actions extends StatelessWidget {
     onPressed: () => actions.onMenu(order, action),
   );
 
+  /// Falta dinero por cobrar de un pedido no cancelado ni borrador.
+  bool get _canCollect =>
+      order.order.status.countsAsReceivable && order.order.pendingAmount > 0;
+
   @override
   Widget build(BuildContext context) {
     final status = order.order.status;
@@ -878,6 +882,15 @@ class _Actions extends StatelessWidget {
               color: AppColors.success,
               style: _tightButton,
               onPressed: () => actions.onComplete(order),
+            )
+          else
+            const SizedBox(width: 34),
+          if (_canCollect)
+            _icon(
+              AppStrings.collectAction,
+              Icons.payments_outlined,
+              OrderMenuAction.collect,
+              color: AppColors.success,
             )
           else
             const SizedBox(width: 34),
@@ -927,6 +940,15 @@ class _Actions extends StatelessWidget {
           icon: const Icon(Icons.more_vert, size: 20),
           onSelected: (a) => actions.onMenu(order, a),
           itemBuilder: (_) => [
+            if (_canCollect)
+              const PopupMenuItem(
+                value: OrderMenuAction.collect,
+                child: _MenuRow(
+                  icon: Icons.payments_outlined,
+                  text: AppStrings.collectAction,
+                  color: AppColors.success,
+                ),
+              ),
             const PopupMenuItem(
               value: OrderMenuAction.waste,
               child: _MenuRow(

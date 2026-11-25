@@ -154,6 +154,24 @@ void main() {
       expect(summary.plateNames, 'Base, Tapa');
     });
 
+    test('marcar como cobrado iguala lo pagado al precio', () async {
+      final matId = await pla();
+      final id = await orders.create(
+        newOrder(),
+        plates: [
+          OrderPlate(name: 'A', grams: 100, minutes: 60, materialId: matId),
+        ],
+      );
+      expect(
+        (await orders.getAllWithDetails()).single.order.pendingAmount,
+        100,
+      );
+      await orders.markPaid(id);
+      final o = (await orders.getAllWithDetails()).single.order;
+      expect(o.paidAmount, o.price);
+      expect(o.pendingAmount, 0);
+    });
+
     test('marcar para mí pone precio y cobro a 0 sin tocar el stock', () async {
       final matId = await pla();
       final id = await orders.create(

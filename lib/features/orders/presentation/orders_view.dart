@@ -258,9 +258,19 @@ class _OrdersViewState extends State<OrdersView> {
         _openForm(duplicate: order.order);
       case OrderMenuAction.personal:
         _markPersonal(order);
+      case OrderMenuAction.collect:
+        _markPaid(order);
       case OrderMenuAction.delete:
         _delete(order);
     }
+  }
+
+  Future<void> _markPaid(OrderSummary order) async {
+    final ok = await _attempt(() async {
+      await ServiceLocator.orders.markPaid(order.id);
+      await widget.onRefresh();
+    });
+    if (ok && mounted) AppFeedback.success(context, AppStrings.collectedDone);
   }
 
   Future<void> _markPersonal(OrderSummary order) async {

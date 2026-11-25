@@ -267,6 +267,18 @@ class OrderRepository {
     });
   }
 
+  /// Marca un pedido como cobrado del todo (pagado = precio). Vale también
+  /// para uno cerrado; no toca el stock.
+  Future<void> markPaid(int orderId) async {
+    final db = await _db.database;
+    final n = await db.rawUpdate(
+      'UPDATE ${OrdersTable.name} SET ${OrdersTable.paidAmount} = '
+      '${OrdersTable.price} WHERE ${OrdersTable.id} = ?',
+      [orderId],
+    );
+    if (n == 0) throw const OrderRuleException('El pedido ya no existe.');
+  }
+
   /// Marca un pedido (también uno cerrado) como para uso propio: precio y
   /// cobro pasan a 0 y deja de contar como ingreso. No toca el stock.
   Future<void> markPersonal(int orderId) async {

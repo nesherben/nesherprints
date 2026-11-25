@@ -137,6 +137,8 @@ class AppStrings {
   static const colPrice = 'Precio';
   static const colCollection = 'Cobro';
   static const noPrice = 'Sin precio';
+  static const collectAction = 'Marcar como cobrado';
+  static const collectedDone = 'Pedido marcado como cobrado';
   static String pendingShort(String amount) => 'Falta $amount';
   static const colProject = 'Proyecto';
   static const colStatus = 'Estado';
