@@ -222,17 +222,31 @@ class _InventoryViewState extends State<InventoryView> {
       icon: const Icon(Icons.add),
       label: const Text(AppStrings.addMaterial),
     );
-    final bulkButton = OutlinedButton.icon(
-      onPressed: _openBulk,
-      icon: const Icon(Icons.playlist_add),
-      label: const Text(AppStrings.addSeveral),
-    );
+    // En móvil los secundarios son solo icono para que quepan en una fila.
+    final compact = context.isCompact;
+    final Widget bulkButton = compact
+        ? IconButton.outlined(
+            onPressed: _openBulk,
+            tooltip: AppStrings.addSeveral,
+            icon: const Icon(Icons.playlist_add),
+          )
+        : OutlinedButton.icon(
+            onPressed: _openBulk,
+            icon: const Icon(Icons.playlist_add),
+            label: const Text(AppStrings.addSeveral),
+          );
 
-    final colorsButton = OutlinedButton.icon(
-      onPressed: _openColors,
-      icon: const Icon(Icons.palette_outlined),
-      label: const Text(AppStrings.colorsButton),
-    );
+    final Widget colorsButton = compact
+        ? IconButton.outlined(
+            onPressed: _openColors,
+            tooltip: AppStrings.colorsButton,
+            icon: const Icon(Icons.palette_outlined),
+          )
+        : OutlinedButton.icon(
+            onPressed: _openColors,
+            icon: const Icon(Icons.palette_outlined),
+            label: const Text(AppStrings.colorsButton),
+          );
 
     return Padding(
       padding: EdgeInsets.all(padding),
@@ -245,7 +259,9 @@ class _InventoryViewState extends State<InventoryView> {
               action: Wrap(
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.sm,
-                children: [colorsButton, bulkButton, addButton],
+                children: compact
+                    ? [addButton, bulkButton, colorsButton]
+                    : [colorsButton, bulkButton, addButton],
               ),
             ),
           ),
