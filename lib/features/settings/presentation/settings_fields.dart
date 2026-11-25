@@ -5,8 +5,10 @@ import 'package:nesherprints/core/strings/app_strings.dart';
 import 'package:nesherprints/features/settings/domain/pricing_settings.dart';
 
 /// Hasta 6 decimales sin ceros sobrantes: `50` → `50`, `0.0375` → `0.0375`.
-String formatSettingValue(double v) =>
-    v.toStringAsFixed(6).replaceFirst(RegExp(r'\.?0+$'), '');
+String formatSettingValue(double v) => v
+    .toStringAsFixed(6)
+    .replaceFirst(RegExp(r'\.?0+$'), '')
+    .replaceAll('.', ',');
 
 /// Tarjetas en las que se agrupan los ajustes, en el orden de la pantalla
 /// de una sola columna.

@@ -136,6 +136,7 @@ class AppStrings {
   static const colClient = 'Cliente';
   static const colPrice = 'Precio';
   static const colCollection = 'Cobro';
+  static const noPrice = 'Sin precio';
   static String pendingShort(String amount) => 'Falta $amount';
   static const colProject = 'Proyecto';
   static const colStatus = 'Estado';
@@ -145,6 +146,7 @@ class AppStrings {
   static String orderPaid(String amount) => 'Pagado: $amount';
   static String orderPending(String amount) => 'Falta: $amount';
   static const painted = 'Pintado';
+  static const scrollToTop = 'Subir al principio';
   static const personalOrder = 'Para mí';
   static const markPersonalAction = 'Marcar como para mí';
   static const markPersonalTitle = '¿Marcar como pedido para mí?';

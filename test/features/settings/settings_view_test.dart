@@ -82,7 +82,7 @@ void main() {
   ) async {
     await open(t);
     expect(textOf(t, profitField()), '150');
-    expect(textOf(t, field(SettingKeys.kwhPrice)), '0.15');
+    expect(textOf(t, field(SettingKeys.kwhPrice)), '0,15');
     expect(textOf(t, field(SettingKeys.profitGoal)), '5000');
     expect(find.text('Todo guardado'), findsOneWidget);
     expect(saveButton(t).onPressed, isNull);

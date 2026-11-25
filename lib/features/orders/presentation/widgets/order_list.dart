@@ -5,6 +5,7 @@ import 'package:nesherprints/core/theme/app_colors.dart';
 import 'package:nesherprints/core/theme/app_theme.dart';
 import 'package:nesherprints/core/utils/formatters.dart';
 import 'package:nesherprints/core/widgets/section_header.dart';
+import 'package:nesherprints/core/widgets/scroll_to_top.dart';
 import 'package:nesherprints/core/widgets/status_pill.dart';
 import 'package:nesherprints/features/orders/domain/order.dart';
 import 'package:nesherprints/features/orders/domain/order_status.dart';
@@ -82,19 +83,26 @@ class OrderList extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= wideBreakpoint;
+        // Con más sitio, más columnas y las acciones a la vista.
+        final layout = _RowLayout(
+          showClient: constraints.maxWidth >= _RowLayout.clientFrom,
+          inlineActions: constraints.maxWidth >= _RowLayout.inlineFrom,
+        );
         return Column(
           children: [
             if (wide)
               _HeaderRow(
+                layout: layout,
                 sortColumn: sortColumn,
                 ascending: ascending,
                 onSort: onSort,
               ),
             Expanded(
-              child: Builder(
-                builder: (context) {
+              child: ScrollToTop(
+                builder: (context, controller) {
                   final entries = _entries();
                   return ListView.builder(
+                    controller: controller,
                     padding: wide
                         ? EdgeInsets.zero
                         // Hueco abajo para que el botón «+» no tape la última.
@@ -118,7 +126,11 @@ class OrderList extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (i > 0 && !first) const Divider(),
-                            _WideRow(order: order, actions: actions),
+                            _WideRow(
+                              order: order,
+                              actions: actions,
+                              layout: layout,
+                            ),
                           ],
                         );
                       }
@@ -181,15 +193,31 @@ class _MonthHeader extends StatelessWidget {
   }
 }
 
+/// Qué columnas y acciones caben según el ancho del listado.
+class _RowLayout {
+  const _RowLayout({required this.showClient, required this.inlineActions});
+
+  /// Ancho mínimo para la columna Cliente / para acciones visibles.
+  static const double clientFrom = 1200;
+  static const double inlineFrom = 1040;
+
+  final bool showClient;
+  final bool inlineActions;
+
+  double get actionsWidth => inlineActions ? 224 : 88;
+}
+
 // ==================== Cabecera ====================
 
 class _HeaderRow extends StatelessWidget {
   const _HeaderRow({
+    required this.layout,
     required this.sortColumn,
     required this.ascending,
     required this.onSort,
   });
 
+  final _RowLayout layout;
   final OrderSortColumn sortColumn;
   final bool ascending;
   final ValueChanged<OrderSortColumn> onSort;
@@ -262,6 +290,13 @@ class _HeaderRow extends StatelessWidget {
           gap,
           Expanded(child: _label(AppStrings.colProject, OrderSortColumn.name)),
           gap,
+          if (layout.showClient) ...[
+            SizedBox(
+              width: _WideRow.clientWidth,
+              child: _label(AppStrings.colClient, null),
+            ),
+            gap,
+          ],
           SizedBox(
             width: _WideRow.statusWidth,
             child: _label(AppStrings.colStatus, OrderSortColumn.status),
@@ -284,7 +319,7 @@ class _HeaderRow extends StatelessWidget {
             ),
           ),
           gap,
-          const SizedBox(width: _WideRow.actionsWidth),
+          SizedBox(width: layout.actionsWidth),
         ],
       ),
     );
@@ -294,15 +329,19 @@ class _HeaderRow extends StatelessWidget {
 // ==================== Fila ancha ====================
 
 class _WideRow extends StatelessWidget {
-  const _WideRow({required this.order, required this.actions});
+  const _WideRow({
+    required this.order,
+    required this.actions,
+    required this.layout,
+  });
 
   static const double accentWidth = 3;
   static const double idWidth = 48;
   static const double dateWidth = 88;
+  static const double clientWidth = 150;
   static const double statusWidth = 140;
   static const double priceWidth = 100;
   static const double collectWidth = 112;
-  static const double actionsWidth = 224;
   static const double gap = AppSpacing.md;
 
   /// Alto mínimo de la fila: todas miden lo mismo tengan o no segunda línea.
@@ -310,6 +349,7 @@ class _WideRow extends StatelessWidget {
 
   final OrderSummary order;
   final OrderListActions actions;
+  final _RowLayout layout;
 
   @override
   Widget build(BuildContext context) {
@@ -346,6 +386,18 @@ class _WideRow extends StatelessWidget {
               gapBox,
               Expanded(child: _ProjectInline(order: order)),
               gapBox,
+              if (layout.showClient) ...[
+                SizedBox(
+                  width: clientWidth,
+                  child: Text(
+                    order.clientName ?? '—',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.mutedSmall,
+                  ),
+                ),
+                gapBox,
+              ],
               SizedBox(
                 width: statusWidth,
                 child: Align(
@@ -371,8 +423,12 @@ class _WideRow extends StatelessWidget {
               ),
               gapBox,
               SizedBox(
-                width: actionsWidth,
-                child: _Actions(order: order, actions: actions, inline: true),
+                width: layout.actionsWidth,
+                child: _Actions(
+                  order: order,
+                  actions: actions,
+                  inline: layout.inlineActions,
+                ),
               ),
               const SizedBox(width: AppSpacing.md),
             ],
@@ -501,11 +557,11 @@ class _CompactCard extends StatelessWidget {
 // ==================== Celdas ====================
 
 /// Datos de segunda línea de un pedido: cliente, placas, pintura y merma.
-List<Widget> _projectTags(OrderSummary order) {
+List<Widget> _projectTags(OrderSummary order, {bool withClient = true}) {
   final imported = order.plateNames?.startsWith('Importado') ?? false;
   final client = order.clientName;
   return [
-    if (client != null && client.isNotEmpty)
+    if (withClient && client != null && client.isNotEmpty)
       _Mini(icon: Icons.person_outline, text: client),
     if (!imported && order.platesCount > 0)
       _Mini(
@@ -534,7 +590,7 @@ class _ProjectInline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tags = _projectTags(order);
+    final tags = _projectTags(order, withClient: false);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Column(
@@ -611,6 +667,23 @@ class _Collection extends StatelessWidget {
   Widget build(BuildContext context) {
     // Los pedidos para mí no se cobran: no hay nada que mostrar.
     if (order.isPersonal) return const SizedBox.shrink();
+    if (order.price <= 0) {
+      return const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.help_outline, size: 14, color: AppColors.warning),
+          SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              AppStrings.noPrice,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: AppColors.warning),
+            ),
+          ),
+        ],
+      );
+    }
     // Cobrado es lo normal: en gris. Solo lo pendiente llama la atención.
     if (order.isSettled) {
       return const Row(

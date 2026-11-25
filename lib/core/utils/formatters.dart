@@ -1,3 +1,8 @@
+/// Número para un campo de texto, con coma decimal y sin separador de miles
+/// (`7.5` → `7,50`). Los campos aceptan coma o punto al teclear.
+String formatFieldDecimal(double value, {int decimals = 2}) =>
+    value.toStringAsFixed(decimals).replaceAll('.', ',');
+
 /// Número con formato español: miles con punto y decimales con coma
 /// (`5485.5` → `5.485,50`).
 String formatNumberEs(double value, {int decimals = 2}) {

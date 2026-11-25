@@ -293,7 +293,7 @@ class _SettingRow extends StatelessWidget {
         Text(field.label, style: AppTextStyles.cardTitle),
         const SizedBox(height: 2),
         Text(
-          '${field.hint} · ${AppStrings.settingsDefaultValue('${formatSettingValue(field.defaultValue).replaceAll('.', ',')} ${field.suffix}')}',
+          '${field.hint} · ${AppStrings.settingsDefaultValue('${formatSettingValue(field.defaultValue)} ${field.suffix}')}',
           style: AppTextStyles.mutedSmall,
         ),
       ],

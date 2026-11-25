@@ -11,6 +11,7 @@ import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
+import 'package:nesherprints/core/widgets/scroll_to_top.dart';
 import 'package:nesherprints/core/widgets/list_toolbar.dart';
 import 'package:nesherprints/core/widgets/search_field.dart';
 import 'package:nesherprints/core/widgets/summary_strip.dart';
@@ -157,87 +158,90 @@ class _ClientsViewState extends State<ClientsView> {
 
     return Padding(
       padding: EdgeInsets.all(padding),
-      child: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: PageHeader(
-              title: AppStrings.clientsTitle,
-              subtitle: AppStrings.clientsSubtitle,
-              action: addButton,
-            ),
-          ),
-          if (_clients.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: EmptyState(
-                icon: Icons.people_outline,
-                title: AppStrings.clientsEmpty,
-                message: AppStrings.clientsEmptyMessage,
+      child: ScrollToTop(
+        builder: (context, controller) => CustomScrollView(
+          controller: controller,
+          slivers: [
+            SliverToBoxAdapter(
+              child: PageHeader(
+                title: AppStrings.clientsTitle,
+                subtitle: AppStrings.clientsSubtitle,
                 action: addButton,
               ),
-            )
-          else ...[
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
-            SliverToBoxAdapter(
-              child: SummaryStrip(
-                items: [
-                  SummaryItem(
-                    label: AppStrings.clientsSummaryCount,
-                    value: '${_clients.length}',
-                    icon: Icons.people_outline,
-                  ),
-                  SummaryItem(
-                    label: AppStrings.clientsSummaryBilled,
-                    value: formatEuro(billed),
-                    icon: Icons.receipt_long_outlined,
-                    color: AppColors.info,
-                  ),
-                  SummaryItem(
-                    label: AppStrings.clientsSummaryOwed,
-                    value: formatEuro(owed),
-                    icon: Icons.schedule,
-                    color: owed > 0 ? AppColors.warning : AppColors.success,
-                  ),
-                ],
-              ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-            SliverToBoxAdapter(
-              child: ListToolbar(
-                search: SearchField(
-                  hint: AppStrings.clientsSearchHint,
-                  onChanged: (v) => setState(() => _query = v),
-                ),
-                filters: _buildFilters(),
-              ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-            if (visible.isEmpty)
-              const SliverFillRemaining(
+            if (_clients.isEmpty)
+              SliverFillRemaining(
                 hasScrollBody: false,
                 child: EmptyState(
-                  icon: Icons.search_off,
-                  title: AppStrings.listNoResultsTitle,
-                  message: AppStrings.listNoResultsMessage,
+                  icon: Icons.people_outline,
+                  title: AppStrings.clientsEmpty,
+                  message: AppStrings.clientsEmptyMessage,
+                  action: addButton,
                 ),
               )
-            else
-              AdaptiveSliverList(
-                itemCount: visible.length,
-                rowHeight: ClientCard.height,
-                columnWidth: 440,
-                itemBuilder: (_, index) {
-                  final client = visible[index];
-                  return ClientCard(
-                    client: client,
-                    stats: _stats[client.id] ?? const ClientStats(),
-                    onEdit: () => _openDialog(client),
-                    onDelete: () => _delete(client),
-                  );
-                },
+            else ...[
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+              SliverToBoxAdapter(
+                child: SummaryStrip(
+                  items: [
+                    SummaryItem(
+                      label: AppStrings.clientsSummaryCount,
+                      value: '${_clients.length}',
+                      icon: Icons.people_outline,
+                    ),
+                    SummaryItem(
+                      label: AppStrings.clientsSummaryBilled,
+                      value: formatEuro(billed),
+                      icon: Icons.receipt_long_outlined,
+                      color: AppColors.info,
+                    ),
+                    SummaryItem(
+                      label: AppStrings.clientsSummaryOwed,
+                      value: formatEuro(owed),
+                      icon: Icons.schedule,
+                      color: owed > 0 ? AppColors.warning : AppColors.success,
+                    ),
+                  ],
+                ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+              SliverToBoxAdapter(
+                child: ListToolbar(
+                  search: SearchField(
+                    hint: AppStrings.clientsSearchHint,
+                    onChanged: (v) => setState(() => _query = v),
+                  ),
+                  filters: _buildFilters(),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+              if (visible.isEmpty)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: EmptyState(
+                    icon: Icons.search_off,
+                    title: AppStrings.listNoResultsTitle,
+                    message: AppStrings.listNoResultsMessage,
+                  ),
+                )
+              else
+                AdaptiveSliverList(
+                  itemCount: visible.length,
+                  rowHeight: ClientCard.height,
+                  columnWidth: 440,
+                  itemBuilder: (_, index) {
+                    final client = visible[index];
+                    return ClientCard(
+                      client: client,
+                      stats: _stats[client.id] ?? const ClientStats(),
+                      onEdit: () => _openDialog(client),
+                      onDelete: () => _delete(client),
+                    );
+                  },
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

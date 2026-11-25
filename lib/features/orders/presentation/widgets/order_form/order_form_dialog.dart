@@ -167,10 +167,10 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
           _isPainted = source.isPainted;
           _isPersonal = source.isPersonal;
           _clientId = source.clientId;
-          _priceController.text = source.price.toStringAsFixed(2);
+          _priceController.text = formatFieldDecimal(source.price);
           _paidController.text = duplicating
               ? '0'
-              : source.paidAmount.toStringAsFixed(2);
+              : formatFieldDecimal(source.paidAmount);
           _paintDetail = source.paintDetail;
           if (!duplicating) _notesController.text = source.notes;
           _attemptsController.text = formatInputNumber(source.attempts);
@@ -527,11 +527,11 @@ class _OrderFormDialogState extends State<OrderFormDialog> {
       onPriceChanged: _onFieldChanged,
       onPaidChanged: _onFieldChanged,
       onApplySuggested: () {
-        _priceController.text = _estimate.suggestedPrice.toStringAsFixed(2);
+        _priceController.text = formatFieldDecimal(_estimate.suggestedPrice);
         _onFieldChanged();
       },
       onSetPaid: (value) {
-        _paidController.text = value.toStringAsFixed(2);
+        _paidController.text = formatFieldDecimal(value);
         _onFieldChanged();
       },
     );

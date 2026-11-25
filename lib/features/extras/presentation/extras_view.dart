@@ -11,6 +11,7 @@ import 'package:nesherprints/core/widgets/app_feedback.dart';
 import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
+import 'package:nesherprints/core/widgets/scroll_to_top.dart';
 import 'package:nesherprints/core/widgets/list_toolbar.dart';
 import 'package:nesherprints/core/widgets/search_field.dart';
 import 'package:nesherprints/core/widgets/summary_strip.dart';
@@ -163,87 +164,92 @@ class _ExtrasViewState extends State<ExtrasView> {
 
     return Padding(
       padding: EdgeInsets.all(padding),
-      child: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: PageHeader(
-              title: AppStrings.extrasTitle,
-              subtitle: AppStrings.extrasSubtitle,
-              action: addButton,
-            ),
-          ),
-          if (_extras.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: EmptyState(
-                icon: Icons.category_outlined,
-                title: AppStrings.extrasEmptyTitle,
-                message: AppStrings.extrasEmptyMessage,
+      child: ScrollToTop(
+        builder: (context, controller) => CustomScrollView(
+          controller: controller,
+          slivers: [
+            SliverToBoxAdapter(
+              child: PageHeader(
+                title: AppStrings.extrasTitle,
+                subtitle: AppStrings.extrasSubtitle,
                 action: addButton,
               ),
-            )
-          else ...[
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
-            SliverToBoxAdapter(
-              child: SummaryStrip(
-                items: [
-                  SummaryItem(
-                    label: AppStrings.extrasSummaryCount,
-                    value: '${_extras.length}',
-                    icon: Icons.category_outlined,
-                  ),
-                  SummaryItem(
-                    label: AppStrings.extrasSummaryValue,
-                    value: formatEuro(ExtraPricing.stockValue(_extras)),
-                    icon: Icons.euro,
-                    color: AppColors.info,
-                  ),
-                  SummaryItem(
-                    label: AppStrings.extrasSummarySoldOut,
-                    value: '$soldOut',
-                    icon: Icons.remove_shopping_cart_outlined,
-                    color: soldOut > 0 ? AppColors.warning : AppColors.success,
-                  ),
-                ],
-              ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-            SliverToBoxAdapter(
-              child: ListToolbar(
-                search: SearchField(
-                  hint: AppStrings.extrasSearchHint,
-                  onChanged: (v) => setState(() => _query = v),
-                ),
-                filters: _buildFilters(),
-              ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-            if (visible.isEmpty)
-              const SliverFillRemaining(
+            if (_extras.isEmpty)
+              SliverFillRemaining(
                 hasScrollBody: false,
                 child: EmptyState(
-                  icon: Icons.search_off,
-                  title: AppStrings.listNoResultsTitle,
-                  message: AppStrings.listNoResultsMessage,
+                  icon: Icons.category_outlined,
+                  title: AppStrings.extrasEmptyTitle,
+                  message: AppStrings.extrasEmptyMessage,
+                  action: addButton,
                 ),
               )
-            else
-              AdaptiveSliverList(
-                itemCount: visible.length,
-                rowHeight: 68,
-                columnWidth: 380,
-                itemBuilder: (_, index) {
-                  final extra = visible[index];
-                  return ExtraRow(
-                    extra: extra,
-                    onEdit: () => _openDialog(extra),
-                    onAddStock: () => _addStock(extra),
-                    onDelete: () => _delete(extra),
-                  );
-                },
+            else ...[
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+              SliverToBoxAdapter(
+                child: SummaryStrip(
+                  items: [
+                    SummaryItem(
+                      label: AppStrings.extrasSummaryCount,
+                      value: '${_extras.length}',
+                      icon: Icons.category_outlined,
+                    ),
+                    SummaryItem(
+                      label: AppStrings.extrasSummaryValue,
+                      value: formatEuro(ExtraPricing.stockValue(_extras)),
+                      icon: Icons.euro,
+                      color: AppColors.info,
+                    ),
+                    SummaryItem(
+                      label: AppStrings.extrasSummarySoldOut,
+                      value: '$soldOut',
+                      icon: Icons.remove_shopping_cart_outlined,
+                      color: soldOut > 0
+                          ? AppColors.warning
+                          : AppColors.success,
+                    ),
+                  ],
+                ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+              SliverToBoxAdapter(
+                child: ListToolbar(
+                  search: SearchField(
+                    hint: AppStrings.extrasSearchHint,
+                    onChanged: (v) => setState(() => _query = v),
+                  ),
+                  filters: _buildFilters(),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+              if (visible.isEmpty)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: EmptyState(
+                    icon: Icons.search_off,
+                    title: AppStrings.listNoResultsTitle,
+                    message: AppStrings.listNoResultsMessage,
+                  ),
+                )
+              else
+                AdaptiveSliverList(
+                  itemCount: visible.length,
+                  rowHeight: 68,
+                  columnWidth: 460,
+                  itemBuilder: (_, index) {
+                    final extra = visible[index];
+                    return ExtraRow(
+                      extra: extra,
+                      onEdit: () => _openDialog(extra),
+                      onAddStock: () => _addStock(extra),
+                      onDelete: () => _delete(extra),
+                    );
+                  },
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

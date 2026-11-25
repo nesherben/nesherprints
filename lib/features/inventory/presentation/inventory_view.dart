@@ -10,6 +10,7 @@ import 'package:nesherprints/core/widgets/confirm_dialog.dart';
 import 'package:nesherprints/core/widgets/empty_state.dart';
 import 'package:nesherprints/core/widgets/list_toolbar.dart';
 import 'package:nesherprints/core/widgets/page_header.dart';
+import 'package:nesherprints/core/widgets/scroll_to_top.dart';
 import 'package:nesherprints/core/widgets/search_field.dart';
 import 'package:nesherprints/core/widgets/section_header.dart';
 import 'package:nesherprints/features/inventory/domain/color_library.dart';
@@ -250,90 +251,93 @@ class _InventoryViewState extends State<InventoryView> {
 
     return Padding(
       padding: EdgeInsets.all(padding),
-      child: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: PageHeader(
-              title: AppStrings.inventoryTitle,
-              subtitle: AppStrings.inventorySubtitle,
-              action: Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: compact
-                    ? [addButton, bulkButton, colorsButton]
-                    : [colorsButton, bulkButton, addButton],
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
-          const SliverToBoxAdapter(
-            child: SectionHeader(
-              title: AppStrings.resinSection,
-              icon: Icons.water_drop_outlined,
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
-          SliverToBoxAdapter(
-            child: ResinCard(
-              material: tank,
-              onAdd: () => _openAddResin(tank),
-              onEdit: tank.id == null ? null : () => _openDialog(tank),
-              onDelete: tank.id == null ? null : () => _delete(tank),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
-          SliverToBoxAdapter(
-            child: SectionHeader(
-              title: AppStrings.filamentSection,
-              icon: Icons.donut_large,
-              meta: allFilaments.isEmpty
-                  ? null
-                  : AppStrings.filamentColorsMeta(allFilaments.length),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
-          if (allFilaments.isEmpty)
+      child: ScrollToTop(
+        builder: (context, controller) => CustomScrollView(
+          controller: controller,
+          slivers: [
             SliverToBoxAdapter(
-              child: EmptyShelf(
-                actions: Wrap(
+              child: PageHeader(
+                title: AppStrings.inventoryTitle,
+                subtitle: AppStrings.inventorySubtitle,
+                action: Wrap(
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
-                  alignment: WrapAlignment.center,
-                  children: [bulkButton, addButton],
+                  children: compact
+                      ? [addButton, bulkButton, colorsButton]
+                      : [colorsButton, bulkButton, addButton],
                 ),
-              ),
-            )
-          else ...[
-            SliverToBoxAdapter(
-              child: ListToolbar(
-                search: SearchField(
-                  hint: AppStrings.inventorySearchHint,
-                  onChanged: (v) => setState(() => _query = v),
-                ),
-                filters: const SizedBox.shrink(),
               ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-            if (filaments.isEmpty)
-              const SliverToBoxAdapter(
-                child: EmptyState(
-                  icon: Icons.search_off,
-                  title: AppStrings.listNoResultsTitle,
-                  message: AppStrings.listNoResultsMessage,
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+            const SliverToBoxAdapter(
+              child: SectionHeader(
+                title: AppStrings.resinSection,
+                icon: Icons.water_drop_outlined,
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+            SliverToBoxAdapter(
+              child: ResinCard(
+                material: tank,
+                onAdd: () => _openAddResin(tank),
+                onEdit: tank.id == null ? null : () => _openDialog(tank),
+                onDelete: tank.id == null ? null : () => _delete(tank),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+            SliverToBoxAdapter(
+              child: SectionHeader(
+                title: AppStrings.filamentSection,
+                icon: Icons.donut_large,
+                meta: allFilaments.isEmpty
+                    ? null
+                    : AppStrings.filamentColorsMeta(allFilaments.length),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+            if (allFilaments.isEmpty)
+              SliverToBoxAdapter(
+                child: EmptyShelf(
+                  actions: Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    alignment: WrapAlignment.center,
+                    children: [bulkButton, addButton],
+                  ),
                 ),
               )
-            else
+            else ...[
               SliverToBoxAdapter(
-                child: FilamentShelf(
-                  groups: groups,
-                  spinning: _spinning,
-                  spinToken: _spinCounter,
-                  onEdit: _openDialog,
-                  onDelete: _delete,
+                child: ListToolbar(
+                  search: SearchField(
+                    hint: AppStrings.inventorySearchHint,
+                    onChanged: (v) => setState(() => _query = v),
+                  ),
+                  filters: const SizedBox.shrink(),
                 ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+              if (filaments.isEmpty)
+                const SliverToBoxAdapter(
+                  child: EmptyState(
+                    icon: Icons.search_off,
+                    title: AppStrings.listNoResultsTitle,
+                    message: AppStrings.listNoResultsMessage,
+                  ),
+                )
+              else
+                SliverToBoxAdapter(
+                  child: FilamentShelf(
+                    groups: groups,
+                    spinning: _spinning,
+                    spinToken: _spinCounter,
+                    onEdit: _openDialog,
+                    onDelete: _delete,
+                  ),
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
